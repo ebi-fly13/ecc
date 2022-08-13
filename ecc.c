@@ -90,7 +90,7 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if (*p == '+' || *p == '-') {
+        if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
             cur = new_token(TK_RESERVED, cur, p++);
             continue;
         }
@@ -220,25 +220,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    token = tokenize(argv[1]);
+    user_input = argv[1];
+    token = tokenize(user_input);
+    struct Node *node = expr();
 
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
     printf("main:\n");
 
-    printf("  mov rax, %d\n", expect_number());
+    gen(node);
 
-    while (!at_eof()) {
-        if (consume('+')) {
-            printf("  add rax, %d\n", expect_number());
-        } else if (consume('-')) {
-            printf("  sub rax, %d\n", expect_number());
-        } else {
-            error_at(token->str, "予期しない文字です\n");
-            return 1;
-        }
-    }
-
+    printf("  pop rax\n");
     printf("  ret\n");
     return 0;
 }
