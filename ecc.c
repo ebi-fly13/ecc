@@ -6,9 +6,9 @@
 #include <string.h>
 
 typedef enum {
-    TK_RESERVED, // 記号
-    TK_NUM, // 整数トークン
-    TK_EOF, // 入力の終わりを表すトークン
+    TK_RESERVED,  // 記号
+    TK_NUM,       // 整数トークン
+    TK_EOF,       // 入力の終わりを表すトークン
 } TokenKind;
 
 struct Token {
@@ -50,23 +50,19 @@ void error_at(char *loc, char *fmt, ...) {
 // 次のTokenが期待している記号の時には、Tokenを1つ進めて
 // 真を返す。それ以外の場合には偽を返す。
 bool consume(char op) {
-    if(token->kind != TK_RESERVED || token->str[0] != op)
-        return false;
+    if (token->kind != TK_RESERVED || token->str[0] != op) return false;
     token = token->next;
     return true;
 }
 
 int expect_number() {
-    if(token->kind != TK_NUM)
-        error_at(token->str, "数ではありません");
+    if (token->kind != TK_NUM) error_at(token->str, "数ではありません");
     int val = token->val;
     token = token->next;
     return val;
 }
 
-bool at_eof() {
-    return token->kind == TK_EOF;
-}
+bool at_eof() { return token->kind == TK_EOF; }
 
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str) {
     struct Token *tok = calloc(1, sizeof(struct Token));
@@ -80,24 +76,24 @@ struct Token *tokenize(char *p) {
     struct Token head;
     head.next = NULL;
     struct Token *cur = &head;
-    while(*p) {
-        if(isspace(*p)) {
+    while (*p) {
+        if (isspace(*p)) {
             p++;
             continue;
         }
 
-        if(*p == '+' || *p == '-') {
+        if (*p == '+' || *p == '-') {
             cur = new_token(TK_RESERVED, cur, p++);
             continue;
         }
 
-        if(isdigit(*p)) {
+        if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p);
             cur->val = strtol(p, &p, 10);
             continue;
         }
 
-        error_at(token->str , "トークナイズできません");
+        error_at(token->str, "トークナイズできません");
     }
 
     new_token(TK_EOF, cur, p);
@@ -105,7 +101,7 @@ struct Token *tokenize(char *p) {
 }
 
 int main(int argc, char **argv) {
-    if(argc != 2) {
+    if (argc != 2) {
         fprintf(stderr, "引数の個数が正しくありません\n");
         return 1;
     }
@@ -118,14 +114,12 @@ int main(int argc, char **argv) {
 
     printf("  mov rax, %d\n", expect_number());
 
-    while(!at_eof()) {
-        if(consume('+')) {
+    while (!at_eof()) {
+        if (consume('+')) {
             printf("  add rax, %d\n", expect_number());
-        }
-        else if(consume('-')) {
+        } else if (consume('-')) {
             printf("  sub rax, %d\n", expect_number());
-        }
-        else {
+        } else {
             error_at(token->str, "予期しない文字です\n");
             return 1;
         }
