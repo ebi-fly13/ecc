@@ -61,8 +61,9 @@ bool consume(char *op) {
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 void expect(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-        error_at(token->str, "'%c'ではありません", op);
+    if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+        memcmp(token->str, op, token->len))
+        error_at(token->str, "expected \"%s\"", op);
     token = token->next;
 }
 
@@ -84,14 +85,7 @@ struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     return tok;
 }
 
-struct Token *new_token_num(struct Token *cur, char *str, int val) {
-    struct Token *tok = calloc(1, sizeof(struct Token));
-    tok->kind = TK_NUM;
-    tok->str = str;
-    tok->val = val;
-    cur->next = tok;
-    return tok;
-}
+bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 struct Token *tokenize(char *p) {
     struct Token head;
@@ -103,19 +97,24 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if(memcmp(p, "<=", 2) == 0 || memcmp(p, ">=",2) == 0 || memcmp(p, "==",2) == 0 || memcmp(p, "!=", 2) == 0) {
+        if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
+            startswith(p, ">=")) {
             cur = new_token(TK_RESERVED, cur, p, 2);
             p += 2;
+            continue;
         }
 
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')') {
+            *p == ')' || *p == '<' || *p == '>') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
 
         if (isdigit(*p)) {
-            cur = new_token_num(cur, p, strtol(p, &p, 10));
+            cur = new_token(TK_NUM, cur, p, 0);
+            char *q = p;
+            cur->val = strtol(p, &p, 10);
+            cur->len = p - q;
             continue;
         }
 
@@ -131,6 +130,10 @@ typedef enum {
     ND_SUB,  // -
     ND_MUL,  // *
     ND_DIV,  // /
+    ND_EQ,   // ==
+    ND_NE,   // !=
+    ND_LT,   // <
+    ND_LE,   // <=
     ND_NUM,  // 整数
 } NodeKind;
 
@@ -157,18 +160,56 @@ struct Node *new_node_num(int val) {
 }
 
 /*
-expr    = mul ("+" mul | "-" mul)*
-mul     = primary ("*" primary | "/" primary)*
-unary   = ("+" | "-")? primary;
-primary = num | "(" expr ")"
+expr       = equality
+equality   = relational ("==" relational | "!=" relational)*
+relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+add        = mul ("+" mul | "-" mul)*
+mul        = unary ("*" unary | "/" unary)*
+unary      = ("+" | "-")? primary
+primary    = num | "(" expr ")"
 */
 
 struct Node *expr();
+struct Node *equality();
+struct Node *relational();
+struct Node *add();
 struct Node *mul();
 struct Node *unary();
 struct Node *primary();
 
 struct Node *expr() {
+    return equality();
+}
+
+struct Node *equality() {
+    struct Node *node = relational();
+    for (;;) {
+        if (consume("==")) 
+            node = new_node(ND_EQ, node, relational());
+        else if (consume("!=")) 
+            node = new_node(ND_NE, node, relational());
+        else
+            return node;
+    }
+}
+
+struct Node *relational() {
+    struct Node *node = add();
+    for (;;) {
+        if (consume("<"))
+            node = new_node(ND_LT, node, add());
+        else if (consume("<="))
+            node = new_node(ND_LE, node, add());
+        else if (consume(">"))
+            node = new_node(ND_LT, add(), node);
+        else if (consume(">="))
+            node = new_node(ND_LE, add(), node);
+        else
+            return node;
+    }
+}
+
+struct Node *add() {
     struct Node *node = mul();
 
     for (;;) {
@@ -238,6 +279,26 @@ void gen(struct Node *node) {
         case ND_DIV:
             printf("  cqo\n");
             printf("  idiv rdi\n");
+            break;
+        case ND_EQ:
+            printf("  cmp rax, rdi\n");
+            printf("  sete al\n");
+            printf("  movzb rax, al\n");
+            break;
+        case ND_NE:
+            printf("  cmp rax, rdi\n");
+            printf("  setne al\n");
+            printf("  movzb rax, al\n");
+            break;
+        case ND_LT:
+            printf("  cmp rax, rdi\n");
+            printf("  setl al\n");
+            printf("  movzb rax, al\n");
+            break;
+        case ND_LE:
+            printf("  cmp rax, rdi\n");
+            printf("  setle al\n");
+            printf("  movzb rax, al\n");
             break;
     }
 
