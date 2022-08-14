@@ -39,6 +39,8 @@ bool consume(char *op) {
     return true;
 }
 
+bool consume_ident() { return token->kind == TK_IDENT; }
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 void expect(char *op) {
@@ -53,6 +55,14 @@ int expect_number() {
     int val = token->val;
     token = token->next;
     return val;
+}
+
+char expect_ident() {
+    if (token->kind != TK_IDENT)
+        error_at(token->str, "ローカル変数ではありません");
+    char ident = token->str[0];
+    token = token->next;
+    return ident;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
@@ -86,8 +96,13 @@ struct Token *tokenize(char *p) {
         }
 
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == '<' || *p == '>') {
+            *p == ')' || *p == '<' || *p == '>' || *p == ';' || *p == '=') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if ('a' <= *p && *p <= 'z') {
+            cur = new_token(TK_IDENT, cur, p++, 1);
             continue;
         }
 

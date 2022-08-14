@@ -1,8 +1,49 @@
 #include "ecc.h"
 
+void prologue() {
+    // 変数26個分の領域を確保する
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, 208\n");
+}
+
+void epilogue() {
+    // 最後の式の結果がRAXに残っているのでそれが返り値になる
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+}
+
+void gen_lval(struct Node *node) {
+    if (node->kind != ND_LVAR) error("代入の左辺値が変数でありません");
+
+    printf("  mov rax, rbp\n");
+    printf("  sub rax, %d\n", node->offset);
+    printf("  push rax\n");
+}
+
 void gen(struct Node *node) {
     if (node->kind == ND_NUM) {
         printf("  push %d\n", node->val);
+        return;
+    }
+
+    if (node->kind == ND_LVAR) {
+        gen_lval(node);
+        printf("  pop rax\n");
+        printf("  mov rax, [rax]\n");
+        printf("  push rax\n");
+        return;
+    }
+
+    if (node->kind == ND_ASSIGN) {
+        gen_lval(node->lhs);
+        gen(node->rhs);
+
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+        printf("  mov [rax], rdi\n");
+        printf("  push rdi\n");
         return;
     }
 
