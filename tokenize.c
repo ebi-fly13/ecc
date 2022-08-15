@@ -57,15 +57,16 @@ int expect_number() {
     return val;
 }
 
-char expect_ident() {
+void expect_ident() {
     if (token->kind != TK_IDENT)
         error_at(token->str, "ローカル変数ではありません");
-    char ident = token->str[0];
     token = token->next;
-    return ident;
+    return;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
+
+bool is_alnum(char c) { return isdigit(c) || isalpha(c) || c == '_'; }
 
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
@@ -101,16 +102,21 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if ('a' <= *p && *p <= 'z') {
-            cur = new_token(TK_IDENT, cur, p++, 1);
-            continue;
-        }
-
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;
             cur->val = strtol(p, &p, 10);
             cur->len = p - q;
+            continue;
+        }
+
+        if (is_alnum(*p)) {
+            int len = 0;
+            while (is_alnum(*(p + len))) {
+                len++;
+            }
+            cur = new_token(TK_IDENT, cur, p, len);
+            p += len;
             continue;
         }
 

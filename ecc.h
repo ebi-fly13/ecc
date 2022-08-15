@@ -21,6 +21,15 @@ struct Token {
     int len;             // トークンの長さ
 };
 
+struct LVar {
+    struct LVar *next;  // 次の変数かNULL
+    char *name;         // 変数名
+    int len;            // 変数名の長さ
+    int offset;         // RBPからのオフセット
+};
+
+extern struct LVar *locals;
+
 extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
@@ -28,7 +37,7 @@ bool consume(char *);
 bool consume_ident();
 void expect(char *);
 int expect_number();
-char expect_ident();
+void expect_ident();
 bool at_eof();
 struct Token *tokenize(char *);
 

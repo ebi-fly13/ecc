@@ -1,5 +1,7 @@
 #include "ecc.h"
 
+struct LVar *locals = NULL;
+
 struct Node *new_node(NodeKind kind, struct Node *lhs, struct Node *rhs) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
@@ -13,6 +15,39 @@ struct Node *new_node_num(int val) {
     node->kind = ND_NUM;
     node->val = val;
     return node;
+}
+
+struct Node *new_node_lvar(int offset) {
+    struct Node *node = calloc(1, sizeof(struct Node));
+    node->kind = ND_LVAR;
+    node->offset = offset;
+    return node;
+}
+
+struct LVar *find_lvar(struct Token *tok) {
+    for(struct LVar *var = locals; var; var = var->next) {
+        if(var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
+            return var;
+        }
+    }
+    return NULL;
+}
+
+void add_local_var(struct Token *tok) {
+    struct LVar *lvar = find_lvar(tok);
+    if(lvar) {
+        return;    
+    }
+    else {
+        lvar = calloc(1, sizeof(struct LVar));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        if(locals == NULL) lvar->offset = 8;
+        else lvar->offset = locals->offset + 8;
+        locals = lvar;
+        return;
+    }
 }
 
 /*
@@ -135,8 +170,9 @@ struct Node *primary() {
         expect(")");
         return node;
     } else if (consume_ident()) {
-        struct Node *node = new_node(ND_LVAR, NULL, NULL);
-        node->offset = ((expect_ident() - 'a' + 1) * 8);
+        add_local_var(token);
+        struct Node *node = new_node_lvar(find_lvar(token)->offset);
+        expect_ident();
         return node;
     } else {
         return new_node_num(expect_number());
