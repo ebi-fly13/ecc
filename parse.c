@@ -99,6 +99,12 @@ struct Node *stmt() {
             expect_keyword(TK_ELSE);
             node = new_node(ND_ELSE, node, stmt());
         }
+    } else if (at_keyword(TK_WHILE)) {
+        expect_keyword(TK_WHILE);
+        expect_op("(");
+        node = new_node(ND_WHILE, expr(), NULL);
+        expect_op(")");
+        node->rhs = stmt();
     } else {
         node = expr();
         expect_op(";");

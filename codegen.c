@@ -4,7 +4,7 @@ int label = 100;
 
 void prologue() {
     int offset = 0;
-    if(locals) offset = locals->offset;
+    if (locals) offset = locals->offset;
     // 変数の領域を確保する
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
@@ -47,7 +47,7 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_ELSE) {
         int number = label++;
-        if(node->lhs->kind != ND_IF) {
+        if (node->lhs->kind != ND_IF) {
             error("if節のないelseです");
         }
         gen(node->lhs->lhs);
@@ -58,6 +58,19 @@ void gen(struct Node *node) {
         printf("  jmp  .Lend%d\n", number);
         printf(".Lelse%d:\n", number);
         gen(node->rhs);
+        printf(".Lend%d:\n", number);
+        return;
+    }
+
+    if (node->kind == ND_WHILE) {
+        int number = label++;
+        printf(".Lbegin%d:\n", number);
+        gen(node->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", number);
+        gen(node->rhs);
+        printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
         return;
     }

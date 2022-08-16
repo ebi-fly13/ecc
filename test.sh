@@ -43,5 +43,6 @@ assert 4 "if(1) return 4; return 5;"
 assert 5 "if(0) return 4; return 5;"
 assert 3 "a = 1; if(a) return 3; else return 4;"
 assert 5 "a = 0; if(a) return 4; else return 5;"
+assert 10 "a = 0; while(a < 10) a = a + 1; return a;"
 
 echo OK
