@@ -106,7 +106,18 @@ void gen(struct Node *node) {
 
     if(node->kind == ND_FUNCALL) {
         printf("  mov rax, 0\n");
+
+        // 16-byte align rsp
+        printf("  push rsp\n");
+        printf("  push [rsp]\n");
+        printf("  and rsp, -0x10\n");
+
         printf("  call %s\n", node->funcname);
+
+        // get original rsp
+        printf("  add rsp, 8\n");
+        printf("  mov rsp, [rsp]\n");
+
         printf("  push rax\n");
         return;
     }
