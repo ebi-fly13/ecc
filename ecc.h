@@ -68,12 +68,17 @@ typedef enum {
     ND_WHILE,   // while
     ND_FOR,     // for
     ND_DUMMY,   // ダミー
+    ND_BLOCK,   // block
 } NodeKind;
 
 struct Node {
     NodeKind kind;     // ノードの型
     struct Node *lhs;  // 左辺
     struct Node *rhs;  // 右辺
+
+    struct Node *next; // next node
+    struct Node *body; // block
+
     int val;           // kindがND_NUMの場合のみ使用
     int offset;        // kindがND_LVARの場合のみ使う
 };

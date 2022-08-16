@@ -55,7 +55,7 @@ void add_local_var(struct Token *tok) {
 /*
 program    = stmt*
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else"
-stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";"
+stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";" | "{" stmt* "}"
 ")" stmt expr       = assign assign     = equality ("=" assign)? equality   =
 relational ("==" relational | "!=" relational)* relational = add ("<" add | "<="
 add | ">" add | ">=" add)* add        = mul ("+" mul | "-" mul)* mul        =
@@ -127,6 +127,14 @@ struct Node *stmt() {
         struct Node *lhs = new_node(ND_DUMMY, ret[0], ret[1]);
         struct Node *rhs = new_node(ND_DUMMY, ret[2], stmt());
         node = new_node(ND_FOR, lhs, rhs);
+    } else if(consume("{")) {
+        struct Node head = {};
+        struct Node *cur = &head;
+        while(!consume("}")) {
+            cur = cur->next = stmt();
+        }
+        node = new_node(ND_BLOCK, NULL, NULL);
+        node->body = head.next;
     } else {
         node = expr();
         expect_op(";");

@@ -95,6 +95,15 @@ void gen(struct Node *node) {
         return;
     }
 
+    if(node->kind == ND_BLOCK) {
+        for(struct Node *block = node->body; block; block = block->next) {
+            gen(block);
+            printf("  pop rax\n");
+        }
+        printf("  push rax\n");
+        return;
+    }
+
     if (node->kind == ND_NUM) {
         printf("  push %d\n", node->val);
         return;
