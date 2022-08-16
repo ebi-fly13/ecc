@@ -105,6 +105,28 @@ struct Node *stmt() {
         node = new_node(ND_WHILE, expr(), NULL);
         expect_op(")");
         node->rhs = stmt();
+    } else if(at_keyword(TK_FOR)) {
+        expect_keyword(TK_FOR);
+        expect_op("(");
+        struct Node *ret[3];
+        for(int i = 0; i < 3; i++) {
+            ret[i] = NULL;
+            if(i < 2) {
+                if(!consume(";")) {
+                    ret[i] = expr();
+                    expect_op(";");
+                }
+            }
+            else {
+                if(!consume(")")) {
+                    ret[i] = expr();
+                    expect_op(")");
+                }
+            }
+        }
+        struct Node *lhs = new_node(ND_DUMMY, ret[0], ret[1]);
+        struct Node *rhs = new_node(ND_DUMMY, ret[2], stmt());
+        node = new_node(ND_FOR, lhs, rhs);
     } else {
         node = expr();
         expect_op(";");
@@ -197,7 +219,9 @@ struct Node *primary() {
         struct Node *node = new_node_lvar(find_lvar(token)->offset);
         expect_ident();
         return node;
-    } else {
+    } else if(at_number()) {
         return new_node_num(expect_number());
+    } else {
+        error("parseエラー");
     }
 }

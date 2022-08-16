@@ -72,6 +72,8 @@ bool at_keyword(TokenKind kind) { return token->kind == kind; }
 
 bool at_ident() { return token->kind == TK_IDENT; }
 
+bool at_number() { return token->kind == TK_NUM; }
+
 bool at_eof() { return token->kind == TK_EOF; }
 
 bool is_alnum(char c) { return isdigit(c) || isalpha(c) || c == '_'; }

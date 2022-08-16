@@ -45,6 +45,7 @@ void expect_keyword();
 void expect_ident();
 bool at_keyword();
 bool at_ident();
+bool at_number();
 bool at_eof();
 struct Token *tokenize(char *);
 
@@ -66,6 +67,7 @@ typedef enum {
     ND_ELSE,    // else
     ND_WHILE,   // while
     ND_FOR,     // for
+    ND_DUMMY,   // ダミー
 } NodeKind;
 
 struct Node {

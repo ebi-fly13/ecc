@@ -27,6 +27,8 @@ void gen_lval(struct Node *node) {
 }
 
 void gen(struct Node *node) {
+    if (node == NULL) return;
+
     if (node->kind == ND_RETURN) {
         gen(node->lhs);
         printf("  pop rax\n");
@@ -70,6 +72,24 @@ void gen(struct Node *node) {
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
         gen(node->rhs);
+        printf("  jmp  .Lbegin%d\n", number);
+        printf(".Lend%d:\n", number);
+        return;
+    }
+
+    if (node->kind == ND_FOR) {
+        int number = label++;
+        if (node->lhs->kind != ND_DUMMY || node->rhs->kind != ND_DUMMY) {
+            error("for文のフォーマットに違反しています");
+        }
+        gen(node->lhs->lhs);
+        printf(".Lbegin%d:\n", number);
+        gen(node->lhs->rhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", number);
+        gen(node->rhs->rhs);
+        gen(node->rhs->lhs);
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
         return;
