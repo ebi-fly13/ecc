@@ -104,6 +104,13 @@ void gen(struct Node *node) {
         return;
     }
 
+    if(node->kind == ND_FUNCALL) {
+        printf("  mov rax, 0\n");
+        printf("  call %s\n", node->funcname);
+        printf("  push rax\n");
+        return;
+    }
+
     if (node->kind == ND_NUM) {
         printf("  push %d\n", node->val);
         return;

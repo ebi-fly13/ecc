@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -43,6 +45,7 @@ void expect_op(char *);
 int expect_number();
 void expect_keyword();
 void expect_ident();
+bool equal_op(struct Token *, char *);
 bool at_keyword();
 bool at_ident();
 bool at_number();
@@ -51,24 +54,25 @@ struct Token *tokenize(char *);
 
 // parse.c
 typedef enum {
-    ND_ADD,     // +
-    ND_SUB,     // -
-    ND_MUL,     // *
-    ND_DIV,     // /
-    ND_ASSIGN,  // =
-    ND_EQ,      // ==
-    ND_NE,      // !=
-    ND_LT,      // <
-    ND_LE,      // <=
-    ND_NUM,     // 整数
-    ND_LVAR,    // ローカル変数
-    ND_RETURN,  // return
-    ND_IF,      // if
-    ND_ELSE,    // else
-    ND_WHILE,   // while
-    ND_FOR,     // for
-    ND_DUMMY,   // ダミー
-    ND_BLOCK,   // block
+    ND_ADD,      // +
+    ND_SUB,      // -
+    ND_MUL,      // *
+    ND_DIV,      // /
+    ND_ASSIGN,   // =
+    ND_EQ,       // ==
+    ND_NE,       // !=
+    ND_LT,       // <
+    ND_LE,       // <=
+    ND_NUM,      // 整数
+    ND_LVAR,     // ローカル変数
+    ND_RETURN,   // return
+    ND_IF,       // if
+    ND_ELSE,     // else
+    ND_WHILE,    // while
+    ND_FOR,      // for
+    ND_DUMMY,    // ダミー
+    ND_BLOCK,    // block
+    ND_FUNCALL,  // function call
 } NodeKind;
 
 struct Node {
@@ -78,6 +82,8 @@ struct Node {
 
     struct Node *next;  // next node
     struct Node *body;  // block
+
+    char *funcname;  // 関数名
 
     int val;     // kindがND_NUMの場合のみ使用
     int offset;  // kindがND_LVARの場合のみ使う

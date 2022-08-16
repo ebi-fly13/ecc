@@ -54,14 +54,16 @@ void add_local_var(struct Token *tok) {
 
 /*
 program    = stmt*
-stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else"
-stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";" |
+stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
+)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
 "{" stmt* "}"
-")" stmt expr       = assign assign     = equality ("=" assign)? equality   =
-relational ("==" relational | "!=" relational)* relational = add ("<" add | "<="
-add | ">" add | ">=" add)* add        = mul ("+" mul | "-" mul)* mul        =
-unary ("*" unary | "/" unary)* unary      = ("+" | "-")? primary primary    =
-num | ident | "(" expr ")"
+expr       = assign
+assign     = equality ("=" assign)?
+equality   = relational ("==" relational | "!=" relational)*
+relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+add        = mul ("+" mul | "-" mul)*
+mul        = unary ("*" unary | "/" unary)* unary      = ("+" | "-")? primary
+primary    = num | ident ( "(" ")" )? | "(" expr ")"
 */
 
 void program();
@@ -225,6 +227,17 @@ struct Node *primary() {
         expect_op(")");
         return node;
     } else if (at_ident()) {
+
+        // function call
+        if(equal_op(token->next, "(")) {
+            struct Node *node = new_node(ND_FUNCALL, NULL, NULL);
+            node->funcname = strndup(token->str, token->len);
+            expect_ident();
+            expect_op("(");
+            expect_op(")");
+            return node;
+        }
+
         add_local_var(token);
         struct Node *node = new_node_lvar(find_lvar(token)->offset);
         expect_ident();

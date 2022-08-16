@@ -68,6 +68,13 @@ void expect_ident() {
     return;
 }
 
+bool equal_op(struct Token *tok, char *op) {
+    if (tok->kind != TK_RESERVED || strlen(op) != tok->len ||
+        memcmp(tok->str, op, tok->len))
+        return false;
+    return true;
+}
+
 bool at_keyword(TokenKind kind) { return token->kind == kind; }
 
 bool at_ident() { return token->kind == TK_IDENT; }
