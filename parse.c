@@ -55,7 +55,8 @@ void add_local_var(struct Token *tok) {
 /*
 program    = stmt*
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else"
-stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";" | "{" stmt* "}"
+stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";" |
+"{" stmt* "}"
 ")" stmt expr       = assign assign     = equality ("=" assign)? equality   =
 relational ("==" relational | "!=" relational)* relational = add ("<" add | "<="
 add | ">" add | ">=" add)* add        = mul ("+" mul | "-" mul)* mul        =
@@ -105,20 +106,19 @@ struct Node *stmt() {
         node = new_node(ND_WHILE, expr(), NULL);
         expect_op(")");
         node->rhs = stmt();
-    } else if(at_keyword(TK_FOR)) {
+    } else if (at_keyword(TK_FOR)) {
         expect_keyword(TK_FOR);
         expect_op("(");
         struct Node *ret[3];
-        for(int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) {
             ret[i] = NULL;
-            if(i < 2) {
-                if(!consume(";")) {
+            if (i < 2) {
+                if (!consume(";")) {
                     ret[i] = expr();
                     expect_op(";");
                 }
-            }
-            else {
-                if(!consume(")")) {
+            } else {
+                if (!consume(")")) {
                     ret[i] = expr();
                     expect_op(")");
                 }
@@ -127,10 +127,10 @@ struct Node *stmt() {
         struct Node *lhs = new_node(ND_DUMMY, ret[0], ret[1]);
         struct Node *rhs = new_node(ND_DUMMY, ret[2], stmt());
         node = new_node(ND_FOR, lhs, rhs);
-    } else if(consume("{")) {
+    } else if (consume("{")) {
         struct Node head = {};
         struct Node *cur = &head;
-        while(!consume("}")) {
+        while (!consume("}")) {
             cur = cur->next = stmt();
         }
         node = new_node(ND_BLOCK, NULL, NULL);
@@ -227,7 +227,7 @@ struct Node *primary() {
         struct Node *node = new_node_lvar(find_lvar(token)->offset);
         expect_ident();
         return node;
-    } else if(at_number()) {
+    } else if (at_number()) {
         return new_node_num(expect_number());
     } else {
         error("parseエラー");

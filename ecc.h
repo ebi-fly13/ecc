@@ -76,11 +76,11 @@ struct Node {
     struct Node *lhs;  // 左辺
     struct Node *rhs;  // 右辺
 
-    struct Node *next; // next node
-    struct Node *body; // block
+    struct Node *next;  // next node
+    struct Node *body;  // block
 
-    int val;           // kindがND_NUMの場合のみ使用
-    int offset;        // kindがND_LVARの場合のみ使う
+    int val;     // kindがND_NUMの場合のみ使用
+    int offset;  // kindがND_LVARの場合のみ使う
 };
 
 extern struct Node *code[100];

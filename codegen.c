@@ -95,8 +95,8 @@ void gen(struct Node *node) {
         return;
     }
 
-    if(node->kind == ND_BLOCK) {
-        for(struct Node *block = node->body; block; block = block->next) {
+    if (node->kind == ND_BLOCK) {
+        for (struct Node *block = node->body; block; block = block->next) {
             gen(block);
             printf("  pop rax\n");
         }
