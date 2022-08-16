@@ -136,8 +136,10 @@ struct Node *stmt() {
         node = new_node(ND_BLOCK, NULL, NULL);
         node->body = head.next;
     } else {
-        node = expr();
-        expect_op(";");
+        if (!consume(";"))
+            node = expr();
+        else
+            node = new_node(ND_BLOCK, NULL, NULL);
     }
     return node;
 }
