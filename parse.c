@@ -25,8 +25,9 @@ struct Node *new_node_lvar(int offset) {
 }
 
 struct LVar *find_lvar(struct Token *tok) {
-    for(struct LVar *var = locals; var; var = var->next) {
-        if(var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
+    for (struct LVar *var = locals; var; var = var->next) {
+        if (var->len == tok->len &&
+            memcmp(tok->str, var->name, var->len) == 0) {
             return var;
         }
     }
@@ -35,16 +36,17 @@ struct LVar *find_lvar(struct Token *tok) {
 
 void add_local_var(struct Token *tok) {
     struct LVar *lvar = find_lvar(tok);
-    if(lvar) {
-        return;    
-    }
-    else {
+    if (lvar) {
+        return;
+    } else {
         lvar = calloc(1, sizeof(struct LVar));
         lvar->next = locals;
         lvar->name = tok->str;
         lvar->len = tok->len;
-        if(locals == NULL) lvar->offset = 8;
-        else lvar->offset = locals->offset + 8;
+        if (locals == NULL)
+            lvar->offset = 8;
+        else
+            lvar->offset = locals->offset + 8;
         locals = lvar;
         return;
     }
@@ -52,7 +54,7 @@ void add_local_var(struct Token *tok) {
 
 /*
 program    = stmt*
-stmt       = expr ";"
+stmt       = expr ";" | "return" expr ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -84,8 +86,14 @@ void program() {
 }
 
 struct Node *stmt() {
-    struct Node *node = expr();
-    expect(";");
+    struct Node *node = NULL;
+    if (at_keyword(TK_RETURN)) {
+        expect_keyword(TK_RETURN);
+        node = new_node(ND_RETURN, expr(), NULL);
+    } else {
+        node = expr();
+    }
+    expect_op(";");
     return node;
 }
 
@@ -167,9 +175,9 @@ struct Node *unary() {
 struct Node *primary() {
     if (consume("(")) {
         struct Node *node = expr();
-        expect(")");
+        expect_op(")");
         return node;
-    } else if (consume_ident()) {
+    } else if (at_ident()) {
         add_local_var(token);
         struct Node *node = new_node_lvar(find_lvar(token)->offset);
         expect_ident();

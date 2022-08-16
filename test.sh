@@ -37,5 +37,7 @@ assert 0 "5 != 5;"
 assert 4 "a = 4; a;"
 assert 5 "a = 2; z = 3; a+z;"
 assert 10 "aaa = 1; b_a = 4; a = (aaa + b_a)*2; a;"
+assert 14 "a = 3; b = 5*6 - 8; return a+b/2;"
+assert 5 "return 5; return 8;"
 
 echo OK

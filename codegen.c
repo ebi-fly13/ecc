@@ -23,6 +23,13 @@ void gen_lval(struct Node *node) {
 }
 
 void gen(struct Node *node) {
+    if (node->kind == ND_RETURN) {
+        gen(node->lhs);
+        printf("  pop rax\n");
+        epilogue();
+        return;
+    }
+
     if (node->kind == ND_NUM) {
         printf("  push %d\n", node->val);
         return;

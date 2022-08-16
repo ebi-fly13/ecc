@@ -39,11 +39,9 @@ bool consume(char *op) {
     return true;
 }
 
-bool consume_ident() { return token->kind == TK_IDENT; }
-
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
-void expect(char *op) {
+void expect_op(char *op) {
     if (token->kind != TK_RESERVED || strlen(op) != token->len ||
         memcmp(token->str, op, token->len))
         error_at(token->str, "expected \"%s\"", op);
@@ -57,12 +55,22 @@ int expect_number() {
     return val;
 }
 
+void expect_keyword(TokenKind kind) {
+    if (token->kind != kind) error_at(token->str, "キーワードではありません");
+    token = token->next;
+    return;
+}
+
 void expect_ident() {
     if (token->kind != TK_IDENT)
         error_at(token->str, "ローカル変数ではありません");
     token = token->next;
     return;
 }
+
+bool at_keyword(TokenKind kind) { return token->kind == kind; }
+
+bool at_ident() { return token->kind == TK_IDENT; }
 
 bool at_eof() { return token->kind == TK_EOF; }
 
@@ -99,6 +107,12 @@ struct Token *tokenize(char *p) {
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
             *p == ')' || *p == '<' || *p == '>' || *p == ';' || *p == '=') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if (startswith(p, "return") && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
             continue;
         }
 

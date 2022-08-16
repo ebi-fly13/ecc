@@ -10,6 +10,7 @@ typedef enum {
     TK_RESERVED,  // 記号
     TK_IDENT,     // 識別子
     TK_NUM,       // 整数トークン
+    TK_RETURN,    // return
     TK_EOF,       // 入力の終わりを表すトークン
 } TokenKind;
 
@@ -34,10 +35,12 @@ extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
 bool consume(char *);
-bool consume_ident();
-void expect(char *);
+void expect_op(char *);
 int expect_number();
+void expect_keyword();
 void expect_ident();
+bool at_keyword();
+bool at_ident();
 bool at_eof();
 struct Token *tokenize(char *);
 
@@ -54,6 +57,7 @@ typedef enum {
     ND_LE,      // <=
     ND_NUM,     // 整数
     ND_LVAR,    // ローカル変数
+    ND_RETURN,  // return
 } NodeKind;
 
 struct Node {
