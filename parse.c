@@ -54,15 +54,13 @@ void add_local_var(struct Token *tok) {
 
 /*
 program    = stmt*
-stmt       = expr ";" | "return" expr ";"
-expr       = assign
-assign     = equality ("=" assign)?
-equality   = relational ("==" relational | "!=" relational)*
-relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-add        = mul ("+" mul | "-" mul)*
-mul        = unary ("*" unary | "/" unary)*
-unary      = ("+" | "-")? primary
-primary    = num | ident | "(" expr ")"
+stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else"
+stmt )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ";"
+")" stmt expr       = assign assign     = equality ("=" assign)? equality   =
+relational ("==" relational | "!=" relational)* relational = add ("<" add | "<="
+add | ">" add | ">=" add)* add        = mul ("+" mul | "-" mul)* mul        =
+unary ("*" unary | "/" unary)* unary      = ("+" | "-")? primary primary    =
+num | ident | "(" expr ")"
 */
 
 void program();
@@ -90,10 +88,21 @@ struct Node *stmt() {
     if (at_keyword(TK_RETURN)) {
         expect_keyword(TK_RETURN);
         node = new_node(ND_RETURN, expr(), NULL);
+        expect_op(";");
+    } else if (at_keyword(TK_IF)) {
+        expect_keyword(TK_IF);
+        expect_op("(");
+        node = new_node(ND_IF, expr(), NULL);
+        expect_op(")");
+        node->rhs = stmt();
+        if (at_keyword(TK_ELSE)) {
+            expect_keyword(TK_ELSE);
+            node = new_node(ND_ELSE, node, stmt());
+        }
     } else {
         node = expr();
+        expect_op(";");
     }
-    expect_op(";");
     return node;
 }
 

@@ -39,5 +39,9 @@ assert 5 "a = 2; z = 3; a+z;"
 assert 10 "aaa = 1; b_a = 4; a = (aaa + b_a)*2; a;"
 assert 14 "a = 3; b = 5*6 - 8; return a+b/2;"
 assert 5 "return 5; return 8;"
+assert 4 "if(1) return 4; return 5;"
+assert 5 "if(0) return 4; return 5;"
+assert 3 "a = 1; if(a) return 3; else return 4;"
+assert 5 "a = 0; if(a) return 4; else return 5;"
 
 echo OK

@@ -1,10 +1,14 @@
 #include "ecc.h"
 
+int label = 100;
+
 void prologue() {
-    // 変数26個分の領域を確保する
+    int offset = 0;
+    if(locals) offset = locals->offset;
+    // 変数の領域を確保する
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
-    printf("  sub rsp, 208\n");
+    printf("  sub rsp, %d\n", offset);
 }
 
 void epilogue() {
@@ -27,6 +31,34 @@ void gen(struct Node *node) {
         gen(node->lhs);
         printf("  pop rax\n");
         epilogue();
+        return;
+    }
+
+    if (node->kind == ND_IF) {
+        int number = label++;
+        gen(node->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", number);
+        gen(node->rhs);
+        printf(".Lend%d:\n", number);
+        return;
+    }
+
+    if (node->kind == ND_ELSE) {
+        int number = label++;
+        if(node->lhs->kind != ND_IF) {
+            error("if節のないelseです");
+        }
+        gen(node->lhs->lhs);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lelse%d\n", number);
+        gen(node->lhs->rhs);
+        printf("  jmp  .Lend%d\n", number);
+        printf(".Lelse%d:\n", number);
+        gen(node->rhs);
+        printf(".Lend%d:\n", number);
         return;
     }
 
