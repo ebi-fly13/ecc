@@ -84,6 +84,7 @@ struct Node {
     struct Node *body;  // block
 
     char *funcname;  // 関数名
+    struct Node *args; // 関数の引数
 
     int val;     // kindがND_NUMの場合のみ使用
     int offset;  // kindがND_LVARの場合のみ使う

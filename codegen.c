@@ -2,6 +2,8 @@
 
 int label = 100;
 
+static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 void prologue() {
     int offset = 0;
     if (locals) offset = locals->offset;
@@ -105,6 +107,17 @@ void gen(struct Node *node) {
     }
 
     if(node->kind == ND_FUNCALL) {
+
+        int nargs = 0;
+        for(struct Node *arg = node->args; arg; arg = arg->next) {
+            gen(arg);
+            nargs++;
+        }
+
+        for(int i = nargs-1; i >= 0; i--) {
+            printf("  pop %s\n", argreg[i]);
+        }
+
         printf("  mov rax, 0\n");
 
         // 16-byte align rsp

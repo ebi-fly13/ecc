@@ -3,6 +3,7 @@
 cat <<EOF | gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }
 int ret5() { return 5; }
+int add6(int a, int b, int c, int d, int e, int f) { return a + b + c + d + e + f; }
 EOF
 
 assert() {
@@ -57,5 +58,8 @@ assert 10 "a = 0; b = 0; for(;a < 100;) { a = a + 10; b = b + 1; } return b;"
 assert 1 "a = 1; ;;; return a;"
 assert 3 "return ret3();"
 assert 5 "{ return ret5(); }"
+assert 21 "return add6(1,2,3,4,5,6);"
+assert 66 "{ return add6(1,2,add6(3,4,5,6,7,8),9,10,11); }"
+assert 136 "{ return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }"
 
 echo OK

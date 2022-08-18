@@ -63,7 +63,7 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)* unary      = ("+" | "-")? primary
-primary    = num | ident ( "(" ")" )? | "(" expr ")"
+primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
 */
 
 void program();
@@ -234,7 +234,13 @@ struct Node *primary() {
             node->funcname = strndup(token->str, token->len);
             expect_ident();
             expect_op("(");
-            expect_op(")");
+            struct Node head = {};
+            struct Node *cur = &head;
+            while(!consume(")")) {
+                if(cur != &head) expect_op(",");
+                cur = cur->next = expr(); 
+            }
+            node->args = head.next;
             return node;
         }
 
