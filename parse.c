@@ -53,7 +53,8 @@ void add_local_var(struct Token *tok) {
 }
 
 /*
-program    = stmt*
+program    = function*
+function   = ident "(" (expr ("," expr)*)? ")" "{" stmt* "}"
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
 )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
 "{" stmt* "}"
@@ -66,7 +67,8 @@ mul        = unary ("*" unary | "/" unary)* unary      = ("+" | "-")? primary
 primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
 */
 
-void program();
+struct Function *program();
+struct Function *function();
 struct Node *stmt();
 struct Node *expr();
 struct Node *assign();
@@ -77,13 +79,48 @@ struct Node *mul();
 struct Node *unary();
 struct Node *primary();
 
-struct Node *code[100];
-void program() {
-    int i = 0;
+struct Function *program() {
+    struct Function head = {};
+    struct Function *cur = &head;
     while (!at_eof()) {
-        code[i++] = stmt();
+        cur = cur->next = function();
     }
-    code[i] = NULL;
+    return head.next;
+}
+
+struct Function *function() {
+    struct Function *func = calloc(1, sizeof(struct Function));
+    func->name = strndup(token->str, token->len);
+    expect_ident();
+    expect_op("(");
+    locals = NULL;
+    {
+        struct Node head = {};
+        struct Node *cur = &head;
+        while (!consume(")")) {
+            if (locals != NULL) expect_op(",");
+            add_local_var(token);
+            cur = cur->next = new_node_lvar(find_lvar(token)->offset);
+            expect_ident();
+        }
+        func->args = head.next;
+    }
+    expect_op("{");
+    {  // 関数内の記述
+        struct Node head = {};
+        struct Node *cur = &head;
+        while (!consume("}")) {
+            cur = cur->next = stmt();
+        }
+        func->body = new_node(ND_BLOCK, NULL, NULL);
+        func->body->body = head.next;
+    }
+    func->local_variables = locals;
+    if (locals)
+        func->stack_size = locals->offset;
+    else
+        func->stack_size = 0;
+    return func;
 }
 
 struct Node *stmt() {
@@ -227,18 +264,17 @@ struct Node *primary() {
         expect_op(")");
         return node;
     } else if (at_ident()) {
-
         // function call
-        if(equal_op(token->next, "(")) {
+        if (equal_op(token->next, "(")) {
             struct Node *node = new_node(ND_FUNCALL, NULL, NULL);
             node->funcname = strndup(token->str, token->len);
             expect_ident();
             expect_op("(");
             struct Node head = {};
             struct Node *cur = &head;
-            while(!consume(")")) {
-                if(cur != &head) expect_op(",");
-                cur = cur->next = expr(); 
+            while (!consume(")")) {
+                if (cur != &head) expect_op(",");
+                cur = cur->next = expr();
             }
             node->args = head.next;
             return node;

@@ -4,13 +4,11 @@ int label = 100;
 
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
-void prologue() {
-    int offset = 0;
-    if (locals) offset = locals->offset;
+void prologue(int stack_size) {
     // 変数の領域を確保する
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %d\n", offset);
+    printf("  sub rsp, %d\n", stack_size);
 }
 
 void epilogue() {
@@ -106,15 +104,14 @@ void gen(struct Node *node) {
         return;
     }
 
-    if(node->kind == ND_FUNCALL) {
-
+    if (node->kind == ND_FUNCALL) {
         int nargs = 0;
-        for(struct Node *arg = node->args; arg; arg = arg->next) {
+        for (struct Node *arg = node->args; arg; arg = arg->next) {
             gen(arg);
             nargs++;
         }
 
-        for(int i = nargs-1; i >= 0; i--) {
+        for (int i = nargs - 1; i >= 0; i--) {
             printf("  pop %s\n", argreg[i]);
         }
 
@@ -202,4 +199,28 @@ void gen(struct Node *node) {
     }
 
     printf("  push rax\n");
+}
+
+void codegen(struct Function *prog) {
+    printf(".intel_syntax noprefix\n");
+
+    for (struct Function *func = prog; func; func = func->next) {
+        printf("  .globl %s\n", func->name);
+        printf("%s:\n", func->name);
+
+        prologue(func->stack_size);
+
+        int i = 0;
+        for (struct Node *arg = func->args; arg; arg = arg->next) {
+            gen_lval(arg);
+            printf("  pop rax\n");
+            printf("  mov [rax], %s\n", argreg[i++]);
+        }
+
+        gen(func->body);
+        printf("  pop rax\n");
+
+        epilogue();
+    }
+    return;
 }

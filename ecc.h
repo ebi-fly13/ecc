@@ -83,17 +83,24 @@ struct Node {
     struct Node *next;  // next node
     struct Node *body;  // block
 
-    char *funcname;  // 関数名
-    struct Node *args; // 関数の引数
+    char *funcname;     // 関数名
+    struct Node *args;  // 関数の引数
 
     int val;     // kindがND_NUMの場合のみ使用
     int offset;  // kindがND_LVARの場合のみ使う
 };
 
-extern struct Node *code[100];
-void program();
+struct Function {
+    struct Function *next;
+
+    char *name;
+    struct Node *body;
+    struct LVar *local_variables;
+    struct Node *args;
+    int stack_size;
+};
+
+struct Function *program();
 
 // codegen.c
-void prologue();
-void epilogue();
-void gen(struct Node *);
+void codegen(struct Function *);
