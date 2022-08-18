@@ -37,7 +37,7 @@ struct LVar *find_lvar(struct Token *tok) {
 void add_local_var(struct Token *tok) {
     struct LVar *lvar = find_lvar(tok);
     if (lvar) {
-        return;
+        error("%sはすでに定義されています", strndup(tok->str, tok->len));
     } else {
         lvar = calloc(1, sizeof(struct LVar));
         lvar->next = locals;
@@ -54,10 +54,10 @@ void add_local_var(struct Token *tok) {
 
 /*
 program    = function*
-function   = ident "(" (expr ("," expr)*)? ")" "{" stmt* "}"
+function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}"
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
 )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
-"{" stmt* "}"
+"{" stmt* "}" | type ident
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -79,6 +79,7 @@ struct Node *add();
 struct Node *mul();
 struct Node *unary();
 struct Node *primary();
+void type();
 
 struct Function *program() {
     struct Function head = {};
@@ -90,6 +91,7 @@ struct Function *program() {
 }
 
 struct Function *function() {
+    type();
     struct Function *func = calloc(1, sizeof(struct Function));
     func->name = strndup(token->str, token->len);
     expect_ident();
@@ -100,6 +102,7 @@ struct Function *function() {
         struct Node *cur = &head;
         while (!consume(")")) {
             if (locals != NULL) expect_op(",");
+            type();
             add_local_var(token);
             cur = cur->next = new_node_lvar(find_lvar(token)->offset);
             expect_ident();
@@ -111,7 +114,9 @@ struct Function *function() {
         struct Node head = {};
         struct Node *cur = &head;
         while (!consume("}")) {
-            cur = cur->next = stmt();
+            cur->next = stmt();
+            if (cur->next == NULL) continue;
+            cur = cur->next;
         }
         func->body = new_node(ND_BLOCK, NULL, NULL);
         func->body->body = head.next;
@@ -175,6 +180,10 @@ struct Node *stmt() {
         }
         node = new_node(ND_BLOCK, NULL, NULL);
         node->body = head.next;
+    } else if (at_keyword(TK_MOLD)) {
+        type();
+        add_local_var(token);
+        expect_ident();
     } else {
         if (!consume(";"))
             node = expr();
@@ -287,8 +296,12 @@ struct Node *primary() {
             return node;
         }
 
-        add_local_var(token);
-        struct Node *node = new_node_lvar(find_lvar(token)->offset);
+        struct LVar *lvar = find_lvar(token);
+        if (lvar == NULL) {
+            error("%sは定義されていません", lvar->name);
+        }
+
+        struct Node *node = new_node_lvar(lvar->offset);
         expect_ident();
         return node;
     } else if (at_number()) {
@@ -296,4 +309,9 @@ struct Node *primary() {
     } else {
         error("parseエラー");
     }
+}
+
+void type() {
+    expect_keyword(TK_MOLD);
+    return;
 }

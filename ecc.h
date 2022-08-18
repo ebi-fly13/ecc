@@ -18,6 +18,7 @@ typedef enum {
     TK_WHILE,     // while
     TK_FOR,       // for
     TK_EOF,       // 入力の終わりを表すトークン
+    TK_MOLD,      // 型識別子
 } TokenKind;
 
 struct Token {
@@ -41,6 +42,7 @@ extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
 bool consume(char *);
+bool consume_type(char *);
 void expect_op(char *);
 int expect_number();
 void expect_keyword();

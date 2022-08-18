@@ -150,6 +150,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "int") && !is_alnum(p[3])) {
+            cur = new_token(TK_MOLD, cur, p, 3);
+            p += 3;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;
