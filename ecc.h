@@ -63,6 +63,8 @@ typedef enum {
     ND_NE,       // !=
     ND_LT,       // <
     ND_LE,       // <=
+    ND_ADDR,     // &
+    ND_DEREF,    // *
     ND_NUM,      // 整数
     ND_LVAR,     // ローカル変数
     ND_RETURN,   // return

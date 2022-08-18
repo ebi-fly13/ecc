@@ -5,7 +5,7 @@ assert() {
   input="$2"
 
   ./ecc "$input" > tmp.s
-  cc -static -o tmp tmp.s
+  cc -o tmp tmp.s
   ./tmp
   actual="$?"
 
@@ -55,5 +55,6 @@ assert 5 "ret5(){return 5;} main() {{ return ret5(); }}"
 assert 21 " add6( a, b, c, d, e, f) { return a + b + c + d + e + f; }  main() {return add6(1,2,3,4,5,6);}"
 assert 66 " add6( a, b, c, d, e, f) { return a + b + c + d + e + f; }  main(){{ return add6(1,2,add6(3,4,5,6,7,8),9,10,11); }}"
 assert 136 " add6( a, b, c, d, e, f) { return a + b + c + d + e + f; } main(){ return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }"
+assert 3 "main() { x = 3; y = &x; return *y; }"
 
 echo OK
