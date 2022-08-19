@@ -103,6 +103,7 @@ struct Function {
     struct Node *body;
     struct LVar *local_variables;
     struct Node *args;
+    struct Type *ty;
     int stack_size;
 };
 
