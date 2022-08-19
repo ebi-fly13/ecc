@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// type.c
+struct Type {
+    enum { INT, PTR } ty;
+    struct Type *ptr_to;
+};
+
 // tokenize.c
 typedef enum {
     TK_RESERVED,  // 記号
@@ -111,9 +117,3 @@ struct Function *program();
 
 // codegen.c
 void codegen(struct Function *);
-
-// type.c
-struct Type {
-    enum { INT, PTR } ty;
-    struct Type *ptr_to;
-};

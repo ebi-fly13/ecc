@@ -95,8 +95,8 @@ struct Function *program() {
 
 struct Function *function() {
     struct Function *func = calloc(1, sizeof(struct Function));
-    func->name = strndup(token->str, token->len);
     func->ty = type();
+    func->name = strndup(token->str, token->len);
     expect_ident();
     expect_op("(");
     locals = NULL;

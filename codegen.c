@@ -18,7 +18,13 @@ void epilogue() {
     printf("  ret\n");
 }
 
+void gen(struct Node *);
+
 void gen_lval(struct Node *node) {
+    if (node->kind == ND_DEREF) {
+        gen(node->lhs);
+        return;
+    }
     if (node->kind != ND_LVAR) error("代入の左辺値が変数でありません");
 
     printf("  mov rax, rbp\n");
