@@ -34,6 +34,7 @@ struct LVar {
     char *name;         // 変数名
     int len;            // 変数名の長さ
     int offset;         // RBPからのオフセット
+    struct Type *ty;    // 変数の型
 };
 
 extern struct LVar *locals;
@@ -90,8 +91,9 @@ struct Node {
     char *funcname;     // 関数名
     struct Node *args;  // 関数の引数
 
-    int val;     // kindがND_NUMの場合のみ使用
-    int offset;  // kindがND_LVARの場合のみ使う
+    int val;          // kindがND_NUMの場合のみ使用
+    int offset;       // kindがND_LVARの場合のみ使う
+    struct Type *ty;  // 変数の型
 };
 
 struct Function {
@@ -108,3 +110,9 @@ struct Function *program();
 
 // codegen.c
 void codegen(struct Function *);
+
+// type.c
+struct Type {
+    enum { INT, PTR } ty;
+    struct Type *ptr_to;
+};
