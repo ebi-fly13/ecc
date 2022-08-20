@@ -19,6 +19,7 @@ typedef enum {
     TK_FOR,       // for
     TK_EOF,       // 入力の終わりを表すトークン
     TK_MOLD,      // 型識別子
+    TK_SIZEOF,    // sizeof
 } TokenKind;
 
 struct Token {

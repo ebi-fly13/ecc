@@ -127,7 +127,7 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = "+"? primary | "-"? primary | "*"? unary | "&"? unary;
+unary      = "sizeof" unary | "+"? primary | "-"? primary | "*"? unary | "&"? unary;
 primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
 type       = int "*"*
 */
@@ -329,6 +329,16 @@ struct Node *unary() {
     }
     if (consume("&")) {
         return new_node_unary(ND_ADDR, unary());
+    }
+
+    if (at_keyword(TK_SIZEOF)) {
+        expect_keyword(TK_SIZEOF);
+        struct Node *node = unary();
+        add_type(node);
+        int size;
+        if(is_integer(node->ty)) size = 8;
+        if(is_pointer(node->ty)) size = 8;
+        return new_node_num(size);
     }
     return primary();
 }

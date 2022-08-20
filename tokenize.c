@@ -156,6 +156,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "sizeof") && !is_alnum(p[6])) {
+            cur = new_token(TK_SIZEOF, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;
