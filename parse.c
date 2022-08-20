@@ -8,7 +8,8 @@ struct Node *new_node(NodeKind kind) {
     return node;
 }
 
-struct Node *new_binary(NodeKind kind, struct Node *lhs, struct Node *rhs) {
+struct Node *new_node_binary(NodeKind kind, struct Node *lhs,
+                             struct Node *rhs) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
     node->lhs = lhs;
@@ -16,7 +17,7 @@ struct Node *new_binary(NodeKind kind, struct Node *lhs, struct Node *rhs) {
     return node;
 }
 
-struct Node *new_unary(NodeKind kind, struct Node *cur) {
+struct Node *new_node_unary(NodeKind kind, struct Node *cur) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
     node->lhs = cur;
@@ -36,6 +37,53 @@ struct Node *new_node_lvar(struct LVar *lvar) {
     node->offset = lvar->offset;
     node->ty = lvar->ty;
     return node;
+}
+
+struct Node *new_node_add(struct Node *lhs, struct Node *rhs) {
+    add_type(lhs);
+    add_type(rhs);
+
+    if (is_integer(lhs->ty) && is_integer(rhs->ty)) {
+        return new_node_binary(ND_ADD, lhs, rhs);
+    }
+
+    if (is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
+        error("ポインタ同士の足し算です");
+    }
+
+    if (is_pointer(rhs->ty)) {
+        struct Node *buff = lhs;
+        lhs = rhs;
+        rhs = buff;
+    }
+
+    rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+
+    return new_node_binary(ND_ADD, lhs, rhs);
+}
+
+struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
+    add_type(lhs);
+    add_type(rhs);
+
+    if (is_integer(lhs->ty) && is_integer(rhs->ty)) {
+        return new_node_binary(ND_SUB, lhs, rhs);
+    }
+
+    if(is_integer(lhs->ty) && is_pointer(rhs->ty)) {
+        error("整数 - ポインタの演算です");
+    }
+
+    if(is_pointer(lhs->ty) && is_integer(rhs->ty)) {
+        rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+        return new_node_binary(ND_SUB, lhs, rhs);
+    }
+
+    if(is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
+        struct Node *node = new_node_binary(ND_SUB, lhs, rhs);
+        node->ty = ty_int;
+        return new_node_binary(ND_DIV, node, new_node_num(8));
+    }
 }
 
 struct LVar *find_lvar(struct Token *tok) {
@@ -148,7 +196,7 @@ struct Node *stmt() {
     struct Node *node = NULL;
     if (at_keyword(TK_RETURN)) {
         expect_keyword(TK_RETURN);
-        node = new_unary(ND_RETURN, expr());
+        node = new_node_unary(ND_RETURN, expr());
         expect_op(";");
     } else if (at_keyword(TK_IF)) {
         expect_keyword(TK_IF);
@@ -211,7 +259,7 @@ struct Node *expr() {
 struct Node *assign() {
     struct Node *node = equality();
     if (consume("=")) {
-        node = new_binary(ND_ASSIGN, node, assign());
+        node = new_node_binary(ND_ASSIGN, node, assign());
     }
     return node;
 }
@@ -220,9 +268,9 @@ struct Node *equality() {
     struct Node *node = relational();
     for (;;) {
         if (consume("=="))
-            node = new_binary(ND_EQ, node, relational());
+            node = new_node_binary(ND_EQ, node, relational());
         else if (consume("!="))
-            node = new_binary(ND_NE, node, relational());
+            node = new_node_binary(ND_NE, node, relational());
         else
             return node;
     }
@@ -232,13 +280,13 @@ struct Node *relational() {
     struct Node *node = add();
     for (;;) {
         if (consume("<"))
-            node = new_binary(ND_LT, node, add());
+            node = new_node_binary(ND_LT, node, add());
         else if (consume("<="))
-            node = new_binary(ND_LE, node, add());
+            node = new_node_binary(ND_LE, node, add());
         else if (consume(">"))
-            node = new_binary(ND_LT, add(), node);
+            node = new_node_binary(ND_LT, add(), node);
         else if (consume(">="))
-            node = new_binary(ND_LE, add(), node);
+            node = new_node_binary(ND_LE, add(), node);
         else
             return node;
     }
@@ -249,9 +297,9 @@ struct Node *add() {
 
     for (;;) {
         if (consume("+"))
-            node = new_binary(ND_ADD, node, mul());
+            node = new_node_add(node, mul());
         else if (consume("-"))
-            node = new_binary(ND_SUB, node, mul());
+            node = new_node_sub(node, mul());
         else
             return node;
     }
@@ -261,9 +309,9 @@ struct Node *mul() {
     struct Node *node = unary();
     for (;;) {
         if (consume("*"))
-            node = new_binary(ND_MUL, node, unary());
+            node = new_node_binary(ND_MUL, node, unary());
         else if (consume("/"))
-            node = new_binary(ND_DIV, node, unary());
+            node = new_node_binary(ND_DIV, node, unary());
         else
             return node;
     }
@@ -274,13 +322,13 @@ struct Node *unary() {
         return primary();
     }
     if (consume("-")) {
-        return new_binary(ND_SUB, new_node_num(0), primary());
+        return new_node_binary(ND_SUB, new_node_num(0), primary());
     }
     if (consume("*")) {
-        return new_unary(ND_DEREF, unary());
+        return new_node_unary(ND_DEREF, unary());
     }
     if (consume("&")) {
-        return new_unary(ND_ADDR, unary());
+        return new_node_unary(ND_ADDR, unary());
     }
     return primary();
 }
@@ -327,10 +375,7 @@ struct Type *type() {
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = INT;
     while (consume("*")) {
-        struct Type *cur = calloc(1, sizeof(struct Type));
-        cur->ty = PTR;
-        cur->ptr_to = ty;
-        ty = cur;
+        ty = pointer_to(ty);
     }
     return ty;
 }

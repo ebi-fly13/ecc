@@ -57,5 +57,7 @@ assert 66 " int add6( int a, int b, int c, int  d, int e, int f) { return a + b 
 assert 136 " int add6( int a, int b, int c, int d,int e, int f) { return a + b + c + d + e + f; } int main(){ return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }"
 assert 3 "int main() { int x; x = 3; int y; y = &x; return *y; }"
 assert 3 "int main() { int x; int *y; y = &x; *y = 3; return x;}"
+assert 1 "int main() { int x; int y; return &x - &y; }"
+assert 2 "int main() { int x; x = 2; int y; return *(&y + 1); }"
 
 echo OK
