@@ -2,11 +2,24 @@
 
 struct LVar *locals = NULL;
 
-struct Node *new_node(NodeKind kind, struct Node *lhs, struct Node *rhs) {
+struct Node *new_node(NodeKind kind) {
+    struct Node *node = calloc(1, sizeof(struct Node));
+    node->kind = kind;
+    return node;
+}
+
+struct Node *new_binary(NodeKind kind, struct Node *lhs, struct Node *rhs) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
     node->lhs = lhs;
     node->rhs = rhs;
+    return node;
+}
+
+struct Node *new_unary(NodeKind kind, struct Node *cur) {
+    struct Node *node = calloc(1, sizeof(struct Node));
+    node->kind = kind;
+    node->lhs = cur;
     return node;
 }
 
@@ -120,7 +133,7 @@ struct Function *function() {
             if (cur->next == NULL) continue;
             cur = cur->next;
         }
-        func->body = new_node(ND_BLOCK, NULL, NULL);
+        func->body = new_node(ND_BLOCK);
         func->body->body = head.next;
     }
     func->local_variables = locals;
@@ -135,61 +148,58 @@ struct Node *stmt() {
     struct Node *node = NULL;
     if (at_keyword(TK_RETURN)) {
         expect_keyword(TK_RETURN);
-        node = new_node(ND_RETURN, expr(), NULL);
+        node = new_unary(ND_RETURN, expr());
         expect_op(";");
     } else if (at_keyword(TK_IF)) {
         expect_keyword(TK_IF);
         expect_op("(");
-        node = new_node(ND_IF, expr(), NULL);
+        node = new_node(ND_IF);
+        node->cond = expr();
         expect_op(")");
-        node->rhs = stmt();
+        node->then = stmt();
         if (at_keyword(TK_ELSE)) {
             expect_keyword(TK_ELSE);
-            node = new_node(ND_ELSE, node, stmt());
+            node->els = stmt();
         }
     } else if (at_keyword(TK_WHILE)) {
+        node = new_node(ND_WHILE);
         expect_keyword(TK_WHILE);
         expect_op("(");
-        node = new_node(ND_WHILE, expr(), NULL);
+        node->cond = expr();
         expect_op(")");
-        node->rhs = stmt();
+        node->then = stmt();
     } else if (at_keyword(TK_FOR)) {
+        node = new_node(ND_FOR);
         expect_keyword(TK_FOR);
         expect_op("(");
-        struct Node *ret[3];
-        for (int i = 0; i < 3; i++) {
-            ret[i] = NULL;
-            if (i < 2) {
-                if (!consume(";")) {
-                    ret[i] = expr();
-                    expect_op(";");
-                }
-            } else {
-                if (!consume(")")) {
-                    ret[i] = expr();
-                    expect_op(")");
-                }
-            }
+        if (!consume(";")) {
+            node->init = expr();
+            expect_op(";");
         }
-        struct Node *lhs = new_node(ND_DUMMY, ret[0], ret[1]);
-        struct Node *rhs = new_node(ND_DUMMY, ret[2], stmt());
-        node = new_node(ND_FOR, lhs, rhs);
+        if (!consume(";")) {
+            node->cond = expr();
+            expect_op(";");
+        }
+        if (!consume(")")) {
+            node->inc = expr();
+            expect_op(")");
+        }
+        node->then = stmt();
     } else if (consume("{")) {
         struct Node head = {};
         struct Node *cur = &head;
         while (!consume("}")) {
-            cur = cur->next = stmt();
+            cur->next = stmt();
+            if (cur->next == NULL) continue;
+            cur = cur->next;
         }
-        node = new_node(ND_BLOCK, NULL, NULL);
+        node = new_node(ND_BLOCK);
         node->body = head.next;
     } else if (at_keyword(TK_MOLD)) {
         add_local_var(token, type());
         expect_ident();
     } else {
-        if (!consume(";"))
-            node = expr();
-        else
-            node = new_node(ND_BLOCK, NULL, NULL);
+        if (!consume(";")) node = expr();
     }
     return node;
 }
@@ -201,7 +211,7 @@ struct Node *expr() {
 struct Node *assign() {
     struct Node *node = equality();
     if (consume("=")) {
-        node = new_node(ND_ASSIGN, node, assign());
+        node = new_binary(ND_ASSIGN, node, assign());
     }
     return node;
 }
@@ -210,9 +220,9 @@ struct Node *equality() {
     struct Node *node = relational();
     for (;;) {
         if (consume("=="))
-            node = new_node(ND_EQ, node, relational());
+            node = new_binary(ND_EQ, node, relational());
         else if (consume("!="))
-            node = new_node(ND_NE, node, relational());
+            node = new_binary(ND_NE, node, relational());
         else
             return node;
     }
@@ -222,13 +232,13 @@ struct Node *relational() {
     struct Node *node = add();
     for (;;) {
         if (consume("<"))
-            node = new_node(ND_LT, node, add());
+            node = new_binary(ND_LT, node, add());
         else if (consume("<="))
-            node = new_node(ND_LE, node, add());
+            node = new_binary(ND_LE, node, add());
         else if (consume(">"))
-            node = new_node(ND_LT, add(), node);
+            node = new_binary(ND_LT, add(), node);
         else if (consume(">="))
-            node = new_node(ND_LE, add(), node);
+            node = new_binary(ND_LE, add(), node);
         else
             return node;
     }
@@ -239,9 +249,9 @@ struct Node *add() {
 
     for (;;) {
         if (consume("+"))
-            node = new_node(ND_ADD, node, mul());
+            node = new_binary(ND_ADD, node, mul());
         else if (consume("-"))
-            node = new_node(ND_SUB, node, mul());
+            node = new_binary(ND_SUB, node, mul());
         else
             return node;
     }
@@ -251,9 +261,9 @@ struct Node *mul() {
     struct Node *node = unary();
     for (;;) {
         if (consume("*"))
-            node = new_node(ND_MUL, node, unary());
+            node = new_binary(ND_MUL, node, unary());
         else if (consume("/"))
-            node = new_node(ND_DIV, node, unary());
+            node = new_binary(ND_DIV, node, unary());
         else
             return node;
     }
@@ -264,13 +274,13 @@ struct Node *unary() {
         return primary();
     }
     if (consume("-")) {
-        return new_node(ND_SUB, new_node_num(0), primary());
+        return new_binary(ND_SUB, new_node_num(0), primary());
     }
     if (consume("*")) {
-        return new_node(ND_DEREF, unary(), NULL);
+        return new_unary(ND_DEREF, unary());
     }
     if (consume("&")) {
-        return new_node(ND_ADDR, unary(), NULL);
+        return new_unary(ND_ADDR, unary());
     }
     return primary();
 }
@@ -283,7 +293,7 @@ struct Node *primary() {
     } else if (at_ident()) {
         // function call
         if (equal_op(token->next, "(")) {
-            struct Node *node = new_node(ND_FUNCALL, NULL, NULL);
+            struct Node *node = new_node(ND_FUNCALL);
             node->funcname = strndup(token->str, token->len);
             expect_ident();
             expect_op("(");

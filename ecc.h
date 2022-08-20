@@ -78,7 +78,6 @@ typedef enum {
     ND_LVAR,     // ローカル変数
     ND_RETURN,   // return
     ND_IF,       // if
-    ND_ELSE,     // else
     ND_WHILE,    // while
     ND_FOR,      // for
     ND_DUMMY,    // ダミー
@@ -100,6 +99,12 @@ struct Node {
     int val;          // kindがND_NUMの場合のみ使用
     int offset;       // kindがND_LVARの場合のみ使う
     struct Type *ty;  // 変数の型
+
+    struct Node *cond;  // 条件文
+    struct Node *then;  // trueのとき実行するもの
+    struct Node *els;   // elseのとき実行するもの
+    struct Node *init;  // 初期化文
+    struct Node *inc;   // increment文
 };
 
 struct Function {

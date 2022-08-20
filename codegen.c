@@ -44,28 +44,14 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_IF) {
         int number = label++;
-        gen(node->lhs);
-        printf("  pop rax\n");
-        printf("  cmp rax, 0\n");
-        printf("  je  .Lend%d\n", number);
-        gen(node->rhs);
-        printf(".Lend%d:\n", number);
-        return;
-    }
-
-    if (node->kind == ND_ELSE) {
-        int number = label++;
-        if (node->lhs->kind != ND_IF) {
-            error("if節のないelseです");
-        }
-        gen(node->lhs->lhs);
+        gen(node->cond);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lelse%d\n", number);
-        gen(node->lhs->rhs);
-        printf("  jmp  .Lend%d\n", number);
+        gen(node->then);
+        printf("  jmp .Lend%d\n", number);
         printf(".Lelse%d:\n", number);
-        gen(node->rhs);
+        if(node->els) gen(node->els);
         printf(".Lend%d:\n", number);
         return;
     }
@@ -73,11 +59,11 @@ void gen(struct Node *node) {
     if (node->kind == ND_WHILE) {
         int number = label++;
         printf(".Lbegin%d:\n", number);
-        gen(node->lhs);
+        gen(node->cond);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
-        gen(node->rhs);
+        gen(node->then);
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
         return;
@@ -85,17 +71,14 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_FOR) {
         int number = label++;
-        if (node->lhs->kind != ND_DUMMY || node->rhs->kind != ND_DUMMY) {
-            error("for文のフォーマットに違反しています");
-        }
-        gen(node->lhs->lhs);
+        gen(node->init);
         printf(".Lbegin%d:\n", number);
-        gen(node->lhs->rhs);
+        gen(node->cond);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
-        gen(node->rhs->rhs);
-        gen(node->rhs->lhs);
+        gen(node->then);
+        gen(node->inc);
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
         return;
