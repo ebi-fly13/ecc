@@ -35,11 +35,11 @@ void gen_lval(struct Node *node) {
             return;
         case ND_LVAR:
             printf("  mov rax, rbp\n");
-            printf("  sub rax, %d\n", node->offset);
+            printf("  sub rax, %d\n", node->obj->offset);
             printf("  push rax\n");
             return;
         case ND_GVAR:
-            printf("  lea rax, [rip + %s]\n", node->varname);
+            printf("  lea rax, [rip + %s]\n", node->obj->name);
             printf("  push rax\n");
             return;
     }
@@ -126,7 +126,7 @@ void gen(struct Node *node) {
         printf("  push [rsp]\n");
         printf("  and rsp, -0x10\n");
 
-        printf("  call %s\n", node->funcname);
+        printf("  call %s\n", node->obj->name);
 
         // get original rsp
         printf("  add rsp, 8\n");

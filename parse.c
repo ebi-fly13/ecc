@@ -35,12 +35,11 @@ struct Node *new_node_num(int val) {
 
 struct Node *new_node_var(struct Object *var) {
     struct Node *node = calloc(1, sizeof(struct Node));
+    node->obj = var;
     if (var->is_global_variable) {
         node->kind = ND_GVAR;
-        node->varname = var->name;
     } else {
         node->kind = ND_LVAR;
-        node->offset = var->offset;
     }
     node->ty = var->ty;
     return node;
@@ -409,12 +408,12 @@ struct Node *primary() {
         // function call
         if (consume("(")) {
             struct Node *node = new_node(ND_FUNCALL);
-            node->funcname = name;
-            struct Object *func = find_object(functions, node->funcname);
+            struct Object *func = find_object(functions, name);
             if (func == NULL) {
-                error("関数 %s は定義されていません", node->funcname);
+                error("関数 %s は定義されていません", name);
             }
             node->ty = func->ty;
+            node->obj = func;
             struct Node head = {};
             struct Node *cur = &head;
             while (!consume(")")) {
@@ -428,6 +427,10 @@ struct Node *primary() {
         struct Object *var = find_object(locals, name);
         if (var == NULL) {
             var = find_object(globals, name);
+        }
+
+        if(var == NULL) {
+            error("変数%sは定義されていません", name);
         }
 
         struct Node *node = new_node_var(var);
