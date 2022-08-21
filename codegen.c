@@ -211,10 +211,10 @@ void gen(struct Node *node) {
     printf("  push rax\n");
 }
 
-void codegen(struct Function *prog) {
+void codegen(struct Object *prog) {
     printf(".intel_syntax noprefix\n");
 
-    for (struct Function *func = prog; func; func = func->next) {
+    for (struct Object *func = prog; func; func = func->next) {
         printf("  .globl %s\n", func->name);
         printf("%s:\n", func->name);
 

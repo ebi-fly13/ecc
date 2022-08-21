@@ -1,7 +1,7 @@
 #include "ecc.h"
 
-struct Var *locals = NULL;
-struct Var *globals = NULL;
+struct Object *locals = NULL;
+struct Object *globals = NULL;
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -32,7 +32,7 @@ struct Node *new_node_num(int val) {
     return node;
 }
 
-struct Node *new_node_lvar(struct Var *lvar) {
+struct Node *new_node_lvar(struct Object *lvar) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = ND_LVAR;
     node->offset = lvar->offset;
@@ -87,8 +87,8 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 }
 
-struct Var *find_lvar(char *name) {
-    for (struct Var *var = locals; var; var = var->next) {
+struct Object *find_local_var(char *name) {
+    for (struct Object *var = locals; var; var = var->next) {
         if (var->len == strlen(name) &&
             memcmp(name, var->name, var->len) == 0) {
             return var;
@@ -98,11 +98,11 @@ struct Var *find_lvar(char *name) {
 }
 
 void add_local_var(char *name, struct Type *ty) {
-    struct Var *lvar = find_lvar(name);
+    struct Object *lvar = find_local_var(name);
     if (lvar) {
         error("%sはすでに定義されています", name);
     } else {
-        lvar = calloc(1, sizeof(struct Var));
+        lvar = calloc(1, sizeof(struct Object));
         lvar->next = locals;
         lvar->name = name;
         lvar->len = strlen(name);
@@ -112,6 +112,31 @@ void add_local_var(char *name, struct Type *ty) {
         else
             lvar->offset = locals->offset + ty->size;
         locals = lvar;
+        return;
+    }
+}
+
+struct Object *find_global_var(char *name) {
+    for (struct Object *var = globals; var; var = var->next) {
+        if (var->len == strlen(name) &&
+            memcmp(name, var->name, var->len) == 0) {
+            return var;
+        }
+    }
+    return NULL;
+}
+
+void add_global_var(char *name, struct Type *ty) {
+    struct Object *var = find_global_var(name);
+    if (var) {
+        error("%sはすでに定義されています", name);
+    } else {
+        var = calloc(1, sizeof(struct Object));
+        var->next = globals;
+        var->name = name;
+        var->len = strlen(name);
+        var->ty = ty;
+        globals = var;
         return;
     }
 }
@@ -128,14 +153,13 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary | "+"? postfix | "-"? postfix | "*"? unary | "&"? unary
-postfix    = primary ("[" expr "]")?
-primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
-type       = int "*"*
+unary      = "sizeof" unary | "+"? postfix | "-"? postfix | "*"? unary | "&"?
+unary postfix    = primary ("[" expr "]")? primary    = num | ident ( "(" (expr
+("," expr)*)? ")" )? | "(" expr ")" type       = int "*"*
 */
 
-struct Function *program();
-struct Function *function();
+struct Object *program();
+struct Object *function();
 struct Node *stmt();
 struct Node *expr();
 struct Node *assign();
@@ -148,17 +172,17 @@ struct Node *postfix();
 struct Node *primary();
 struct Type *type();
 
-struct Function *program() {
-    struct Function head = {};
-    struct Function *cur = &head;
+struct Object *program() {
+    struct Object head = {};
+    struct Object *cur = &head;
     while (!at_eof()) {
         cur = cur->next = function();
     }
     return head.next;
 }
 
-struct Function *function() {
-    struct Function *func = calloc(1, sizeof(struct Function));
+struct Object *function() {
+    struct Object *func = calloc(1, sizeof(struct Object));
     func->ty = type();
     func->name = strndup(token->str, token->len);
     expect_ident();
@@ -172,7 +196,7 @@ struct Function *function() {
             struct Type *ty = type();
             add_local_var(strndup(token->str, token->len), ty);
             cur = cur->next =
-                new_node_lvar(find_lvar(strndup(token->str, token->len)));
+                new_node_lvar(find_local_var(strndup(token->str, token->len)));
             expect_ident();
         }
         func->args = head.next;
@@ -253,7 +277,7 @@ struct Node *stmt() {
         struct Type *ty = type();
         char *name = strndup(token->str, token->len);
         expect_ident();
-        if(consume("[")) {
+        if (consume("[")) {
             ty = array_to(ty, expect_number());
             expect_op("]");
         }
@@ -355,7 +379,7 @@ struct Node *unary() {
 struct Node *postfix() {
     struct Node *node = primary();
 
-    if(consume("[")) {
+    if (consume("[")) {
         node = new_node_unary(ND_DEREF, new_node_add(node, expr()));
         expect_op("]");
     }
@@ -385,7 +409,7 @@ struct Node *primary() {
             return node;
         }
 
-        struct Var *lvar = find_lvar(strndup(token->str, token->len));
+        struct Object *lvar = find_local_var(strndup(token->str, token->len));
         if (lvar == NULL) {
             error("%sは定義されていません", strndup(token->str, token->len));
         }
