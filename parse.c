@@ -1,6 +1,7 @@
 #include "ecc.h"
 
-struct LVar *locals = NULL;
+struct Var *locals = NULL;
+struct Var *globals = NULL;
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -31,7 +32,7 @@ struct Node *new_node_num(int val) {
     return node;
 }
 
-struct Node *new_node_lvar(struct LVar *lvar) {
+struct Node *new_node_lvar(struct Var *lvar) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = ND_LVAR;
     node->offset = lvar->offset;
@@ -86,8 +87,8 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 }
 
-struct LVar *find_lvar(char *name) {
-    for (struct LVar *var = locals; var; var = var->next) {
+struct Var *find_lvar(char *name) {
+    for (struct Var *var = locals; var; var = var->next) {
         if (var->len == strlen(name) &&
             memcmp(name, var->name, var->len) == 0) {
             return var;
@@ -97,11 +98,11 @@ struct LVar *find_lvar(char *name) {
 }
 
 void add_local_var(char *name, struct Type *ty) {
-    struct LVar *lvar = find_lvar(name);
+    struct Var *lvar = find_lvar(name);
     if (lvar) {
         error("%sはすでに定義されています", name);
     } else {
-        lvar = calloc(1, sizeof(struct LVar));
+        lvar = calloc(1, sizeof(struct Var));
         lvar->next = locals;
         lvar->name = name;
         lvar->len = strlen(name);
@@ -384,7 +385,7 @@ struct Node *primary() {
             return node;
         }
 
-        struct LVar *lvar = find_lvar(strndup(token->str, token->len));
+        struct Var *lvar = find_lvar(strndup(token->str, token->len));
         if (lvar == NULL) {
             error("%sは定義されていません", strndup(token->str, token->len));
         }

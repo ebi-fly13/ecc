@@ -30,15 +30,16 @@ struct Token {
     int len;             // トークンの長さ
 };
 
-struct LVar {
-    struct LVar *next;  // 次の変数かNULL
+struct Var {
+    struct Var *next;  // 次の変数かNULL
     char *name;         // 変数名
     int len;            // 変数名の長さ
     int offset;         // RBPからのオフセット
     struct Type *ty;    // 変数の型
 };
 
-extern struct LVar *locals;
+extern struct Var *locals;
+extern struct Var *globals;
 
 extern struct Token *token;
 extern char *user_input;
@@ -107,7 +108,7 @@ struct Function {
 
     char *name;
     struct Node *body;
-    struct LVar *local_variables;
+    struct Var *local_variables;
     struct Node *args;
     struct Type *ty;
     int stack_size;
