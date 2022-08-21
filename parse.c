@@ -127,7 +127,8 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary | "+"? primary | "-"? primary | "*"? unary | "&"? unary
+unary      = "sizeof" unary | "+"? postfix | "-"? postfix | "*"? unary | "&"? unary
+postfix    = primary ("[" expr "]")?
 primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
 type       = int "*"*
 */
@@ -142,6 +143,7 @@ struct Node *relational();
 struct Node *add();
 struct Node *mul();
 struct Node *unary();
+struct Node *postfix();
 struct Node *primary();
 struct Type *type();
 
@@ -328,10 +330,10 @@ struct Node *mul() {
 
 struct Node *unary() {
     if (consume("+")) {
-        return primary();
+        return postfix();
     }
     if (consume("-")) {
-        return new_node_binary(ND_SUB, new_node_num(0), primary());
+        return new_node_binary(ND_SUB, new_node_num(0), postfix());
     }
     if (consume("*")) {
         return new_node_unary(ND_DEREF, unary());
@@ -346,7 +348,18 @@ struct Node *unary() {
         add_type(node);
         return new_node_num(node->ty->size);
     }
-    return primary();
+    return postfix();
+}
+
+struct Node *postfix() {
+    struct Node *node = primary();
+
+    if(consume("[")) {
+        node = new_node_unary(ND_DEREF, new_node_add(node, expr()));
+        expect_op("]");
+    }
+
+    return node;
 }
 
 struct Node *primary() {
