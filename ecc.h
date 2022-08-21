@@ -129,11 +129,13 @@ struct Type {
     TypeKind ty;
     struct Type *ptr_to;
     size_t array_size;
+    size_t size;
 };
 
 extern struct Type *ty_int;
 
 struct Type *pointer_to(struct Type *);
+struct Type *array_to(struct Type *, size_t);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 void add_type(struct Node *);

@@ -107,9 +107,9 @@ void add_local_var(char *name, struct Type *ty) {
         lvar->len = strlen(name);
         lvar->ty = ty;
         if (locals == NULL)
-            lvar->offset = 8;
+            lvar->offset = ty->size;
         else
-            lvar->offset = locals->offset + 8;
+            lvar->offset = locals->offset + ty->size;
         locals = lvar;
         return;
     }
@@ -120,7 +120,7 @@ program    = function*
 function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}"
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
 )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
-"{" stmt* "}" | type ident
+"{" stmt* "}" | type ident ("[" num "]")?
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -247,8 +247,13 @@ struct Node *stmt() {
         node->body = head.next;
     } else if (at_keyword(TK_MOLD)) {
         struct Type *ty = type();
-        add_local_var(strndup(token->str, token->len), ty);
+        char *name = strndup(token->str, token->len);
         expect_ident();
+        if(consume("[")) {
+            ty = array_to(ty, expect_number());
+            expect_op("]");
+        }
+        add_local_var(name, ty);
     } else {
         if (!consume(";")) node = expr();
     }
@@ -338,10 +343,7 @@ struct Node *unary() {
         expect_keyword(TK_SIZEOF);
         struct Node *node = unary();
         add_type(node);
-        int size;
-        if (is_integer(node->ty)) size = 8;
-        if (is_pointer(node->ty)) size = 8;
-        return new_node_num(size);
+        return new_node_num(node->ty->size);
     }
     return primary();
 }
@@ -385,8 +387,7 @@ struct Node *primary() {
 
 struct Type *type() {
     expect_keyword(TK_MOLD);
-    struct Type *ty = calloc(1, sizeof(struct Type));
-    ty->ty = TY_INT;
+    struct Type *ty = ty_int;
     while (consume("*")) {
         ty = pointer_to(ty);
     }

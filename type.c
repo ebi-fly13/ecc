@@ -1,6 +1,6 @@
 #include "ecc.h"
 
-struct Type *ty_int = &(struct Type){TY_INT};
+struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 8};
 
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_INT;
@@ -14,7 +14,17 @@ struct Type *pointer_to(struct Type *ty) {
     struct Type *pointer = calloc(1, sizeof(struct Type));
     pointer->ty = TY_PTR;
     pointer->ptr_to = ty;
+    pointer->size = 8;
     return pointer;
+}
+
+struct Type *array_to(struct Type *ty, size_t array_size) {
+    struct Type *array = calloc(1, sizeof(struct Type));
+    array->ty = TY_PTR;
+    array->ptr_to = ty;
+    array->array_size = array_size;
+    array->size = ty->size * array_size;
+    return array;
 }
 
 void add_type(struct Node *node) {

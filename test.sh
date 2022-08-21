@@ -61,5 +61,6 @@ assert 1 "int main() { int x; int y; return &x - &y; }"
 assert 2 "int main() { int x; x = 2; int y; return *(&y + 1); }"
 assert 8 "int main() { int x; return sizeof(x); }"
 assert 8 "int main() { int *x; return sizeof(x); }"
+assert 40 "int main() { int x[5]; return sizeof(x); }"
 
 echo OK
