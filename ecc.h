@@ -125,7 +125,7 @@ typedef enum {
 } TypeKind;
 
 struct Type {
-    enum { INT, PTR } ty;
+    TypeKind ty;
     struct Type *ptr_to;
 };
 

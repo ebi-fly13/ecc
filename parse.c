@@ -383,7 +383,7 @@ struct Node *primary() {
 struct Type *type() {
     expect_keyword(TK_MOLD);
     struct Type *ty = calloc(1, sizeof(struct Type));
-    ty->ty = INT;
+    ty->ty = TY_INT;
     while (consume("*")) {
         ty = pointer_to(ty);
     }
