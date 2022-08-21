@@ -182,6 +182,7 @@ struct Function *function() {
             cur->next = stmt();
             if (cur->next == NULL) continue;
             cur = cur->next;
+            add_type(cur);
         }
         func->body = new_node(ND_BLOCK);
         func->body->body = head.next;
@@ -372,7 +373,7 @@ struct Node *primary() {
 
         struct LVar *lvar = find_lvar(strndup(token->str, token->len));
         if (lvar == NULL) {
-            error("%sは定義されていません", lvar->name);
+            error("%sは定義されていません", strndup(token->str, token->len));
         }
 
         struct Node *node = new_node_lvar(lvar);

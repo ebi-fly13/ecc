@@ -7,7 +7,7 @@ bool is_integer(struct Type *ty) {
 }
 
 bool is_pointer(struct Type *ty) {
-    return ty->ty == TY_PTR;
+    return ty->ty == TY_PTR || ty->ty == TY_ARRAY;
 }
 
 struct Type *pointer_to(struct Type *ty) {
@@ -20,7 +20,7 @@ struct Type *pointer_to(struct Type *ty) {
 
 struct Type *array_to(struct Type *ty, size_t array_size) {
     struct Type *array = calloc(1, sizeof(struct Type));
-    array->ty = TY_PTR;
+    array->ty = TY_ARRAY;
     array->ptr_to = ty;
     array->array_size = array_size;
     array->size = ty->size * array_size;

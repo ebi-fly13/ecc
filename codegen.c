@@ -18,6 +18,14 @@ void epilogue() {
     printf("  ret\n");
 }
 
+void load(struct Type *ty) {
+    if(ty->ty == TY_ARRAY) {
+        return;
+    }
+    printf("  mov rax, [rax]\n");
+    return;
+}
+
 void gen(struct Node *);
 
 void gen_lval(struct Node *node) {
@@ -129,7 +137,7 @@ void gen(struct Node *node) {
     if (node->kind == ND_LVAR) {
         gen_lval(node);
         printf("  pop rax\n");
-        printf("  mov rax, [rax]\n");
+        load(node->ty);
         printf("  push rax\n");
         return;
     }
@@ -153,7 +161,7 @@ void gen(struct Node *node) {
     if (node->kind == ND_DEREF) {
         gen(node->lhs);
         printf("  pop rax\n");
-        printf("  mov rax, [rax]\n");
+        load(node->ty);
         printf("  push rax\n");
         return;
     }
