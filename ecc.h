@@ -120,13 +120,15 @@ void codegen(struct Function *);
 
 // type.c
 typedef enum {
-    TY_INT,  // int
-    TY_PTR,  // pointer
+    TY_INT,    // int
+    TY_PTR,    // pointer
+    TY_ARRAY,  // 配列
 } TypeKind;
 
 struct Type {
     TypeKind ty;
     struct Type *ptr_to;
+    size_t array_size;
 };
 
 extern struct Type *ty_int;

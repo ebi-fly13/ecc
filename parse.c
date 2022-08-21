@@ -70,41 +70,41 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
-    if(is_integer(lhs->ty) && is_pointer(rhs->ty)) {
+    if (is_integer(lhs->ty) && is_pointer(rhs->ty)) {
         error("整数 - ポインタの演算です");
     }
 
-    if(is_pointer(lhs->ty) && is_integer(rhs->ty)) {
+    if (is_pointer(lhs->ty) && is_integer(rhs->ty)) {
         rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
-    if(is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
+    if (is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
         struct Node *node = new_node_binary(ND_SUB, lhs, rhs);
         node->ty = ty_int;
         return new_node_binary(ND_DIV, node, new_node_num(8));
     }
 }
 
-struct LVar *find_lvar(struct Token *tok) {
+struct LVar *find_lvar(char *name) {
     for (struct LVar *var = locals; var; var = var->next) {
-        if (var->len == tok->len &&
-            memcmp(tok->str, var->name, var->len) == 0) {
+        if (var->len == strlen(name) &&
+            memcmp(name, var->name, var->len) == 0) {
             return var;
         }
     }
     return NULL;
 }
 
-void add_local_var(struct Token *tok, struct Type *ty) {
-    struct LVar *lvar = find_lvar(tok);
+void add_local_var(char *name, struct Type *ty) {
+    struct LVar *lvar = find_lvar(name);
     if (lvar) {
-        error("%sはすでに定義されています", strndup(tok->str, tok->len));
+        error("%sはすでに定義されています", name);
     } else {
         lvar = calloc(1, sizeof(struct LVar));
         lvar->next = locals;
-        lvar->name = tok->str;
-        lvar->len = tok->len;
+        lvar->name = name;
+        lvar->len = strlen(name);
         lvar->ty = ty;
         if (locals == NULL)
             lvar->offset = 8;
@@ -127,7 +127,7 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary | "+"? primary | "-"? primary | "*"? unary | "&"? unary;
+unary      = "sizeof" unary | "+"? primary | "-"? primary | "*"? unary | "&"? unary
 primary    = num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")"
 type       = int "*"*
 */
@@ -166,8 +166,10 @@ struct Function *function() {
         struct Node *cur = &head;
         while (!consume(")")) {
             if (locals != NULL) expect_op(",");
-            add_local_var(token, type());
-            cur = cur->next = new_node_lvar(find_lvar(token));
+            struct Type *ty = type();
+            add_local_var(strndup(token->str, token->len), ty);
+            cur = cur->next =
+                new_node_lvar(find_lvar(strndup(token->str, token->len)));
             expect_ident();
         }
         func->args = head.next;
@@ -244,7 +246,8 @@ struct Node *stmt() {
         node = new_node(ND_BLOCK);
         node->body = head.next;
     } else if (at_keyword(TK_MOLD)) {
-        add_local_var(token, type());
+        struct Type *ty = type();
+        add_local_var(strndup(token->str, token->len), ty);
         expect_ident();
     } else {
         if (!consume(";")) node = expr();
@@ -336,8 +339,8 @@ struct Node *unary() {
         struct Node *node = unary();
         add_type(node);
         int size;
-        if(is_integer(node->ty)) size = 8;
-        if(is_pointer(node->ty)) size = 8;
+        if (is_integer(node->ty)) size = 8;
+        if (is_pointer(node->ty)) size = 8;
         return new_node_num(size);
     }
     return primary();
@@ -365,7 +368,7 @@ struct Node *primary() {
             return node;
         }
 
-        struct LVar *lvar = find_lvar(token);
+        struct LVar *lvar = find_lvar(strndup(token->str, token->len));
         if (lvar == NULL) {
             error("%sは定義されていません", lvar->name);
         }
