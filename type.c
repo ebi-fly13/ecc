@@ -2,9 +2,7 @@
 
 struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 8};
 
-bool is_integer(struct Type *ty) {
-    return ty->ty == TY_INT;
-}
+bool is_integer(struct Type *ty) { return ty->ty == TY_INT; }
 
 bool is_pointer(struct Type *ty) {
     return ty->ty == TY_PTR || ty->ty == TY_ARRAY;
@@ -28,7 +26,7 @@ struct Type *array_to(struct Type *ty, size_t array_size) {
 }
 
 void add_type(struct Node *node) {
-    if(node == NULL || node->ty) return;
+    if (node == NULL || node->ty) return;
     add_type(node->lhs);
     add_type(node->rhs);
 

@@ -429,7 +429,7 @@ struct Node *primary() {
             var = find_object(globals, name);
         }
 
-        if(var == NULL) {
+        if (var == NULL) {
             error("変数%sは定義されていません", name);
         }
 
