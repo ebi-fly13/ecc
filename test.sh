@@ -68,5 +68,7 @@ assert 3 "int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *x; }"
 assert 4 "int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+1); }"
 assert 5 "int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+2); }"
 assert 5 "int main() { int x[3]; *x=3; x[1]=4; 2[x]=5; return *(x+2); }"
+assert 1 "int a; int main() { a = 1; return a;}"
+assert 3 "int a; int change3() {a = 3; return 1;} int main() { change3() return a;}"
 
 echo OK

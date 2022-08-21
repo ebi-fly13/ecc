@@ -19,7 +19,7 @@ void epilogue() {
 }
 
 void load(struct Type *ty) {
-    if(ty->ty == TY_ARRAY) {
+    if (ty->ty == TY_ARRAY) {
         return;
     }
     printf("  mov rax, [rax]\n");
@@ -29,15 +29,22 @@ void load(struct Type *ty) {
 void gen(struct Node *);
 
 void gen_lval(struct Node *node) {
-    if (node->kind == ND_DEREF) {
-        gen(node->lhs);
-        return;
+    switch (node->kind) {
+        case ND_DEREF:
+            gen(node->lhs);
+            return;
+        case ND_LVAR:
+            printf("  mov rax, rbp\n");
+            printf("  sub rax, %d\n", node->offset);
+            printf("  push rax\n");
+            return;
+        case ND_GVAR:
+            printf("  lea rax, [rip + %s]\n", node->varname);
+            printf("  push rax\n");
+            return;
     }
-    if (node->kind != ND_LVAR) error("代入の左辺値が変数でありません");
 
-    printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->offset);
-    printf("  push rax\n");
+    error("代入の左辺値が変数でありません");
 }
 
 void gen(struct Node *node) {
@@ -59,7 +66,7 @@ void gen(struct Node *node) {
         gen(node->then);
         printf("  jmp .Lend%d\n", number);
         printf(".Lelse%d:\n", number);
-        if(node->els) gen(node->els);
+        if (node->els) gen(node->els);
         printf(".Lend%d:\n", number);
         return;
     }
@@ -134,7 +141,7 @@ void gen(struct Node *node) {
         return;
     }
 
-    if (node->kind == ND_LVAR) {
+    if (node->kind == ND_LVAR || node->kind == ND_GVAR) {
         gen_lval(node);
         printf("  pop rax\n");
         load(node->ty);
@@ -211,23 +218,32 @@ void gen(struct Node *node) {
     printf("  push rax\n");
 }
 
-void codegen(struct Object *prog) {
+void codegen() {
     printf(".intel_syntax noprefix\n");
 
-    for (struct Object *func = prog; func; func = func->next) {
-        printf("  .globl %s\n", func->name);
-        printf("%s:\n", func->name);
+    for (struct Object *obj = globals; obj; obj = obj->next) {
+        assert(obj->is_global_variable);
+        printf("  .data\n");
+        printf("  .globl %s\n", obj->name);
+        printf("%s:\n", obj->name);
+        printf("  .zero %ld\n", obj->ty->size);
+    }
 
-        prologue(func->stack_size);
+    for (struct Object *obj = functions; obj; obj = obj->next) {
+        assert(obj->is_function);
+        printf("  .globl %s\n", obj->name);
+        printf("%s:\n", obj->name);
+
+        prologue(obj->stack_size);
 
         int i = 0;
-        for (struct Node *arg = func->args; arg; arg = arg->next) {
+        for (struct Node *arg = obj->args; arg; arg = arg->next) {
             gen_lval(arg);
             printf("  pop rax\n");
             printf("  mov [rax], %s\n", argreg[i++]);
         }
 
-        gen(func->body);
+        gen(obj->body);
         printf("  pop rax\n");
 
         epilogue();

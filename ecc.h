@@ -32,13 +32,16 @@ struct Token {
 
 struct Object {
     struct Object *next;  // 次の変数かNULL
-    char *name;        // 変数名
-    int len;           // 変数名の長さ
-    struct Type *ty;   // 変数の型
+    char *name;           // 変数名
+    int len;              // 変数名の長さ
+    struct Type *ty;      // 変数の型
 
     // local variable
-    int offset;        // RBPからのオフセット
+    int offset;  // RBPからのオフセット
 
+    bool is_global_variable;
+
+    bool is_function;
     struct Node *body;
     struct Object *local_variables;
     struct Node *args;
@@ -47,6 +50,7 @@ struct Object {
 
 extern struct Object *locals;
 extern struct Object *globals;
+extern struct Object *functions;
 
 extern struct Token *token;
 extern char *user_input;
@@ -100,6 +104,8 @@ struct Node {
     char *funcname;     // 関数名
     struct Node *args;  // 関数の引数
 
+    char *varname;  // グローバル変数名
+
     int val;          // kindがND_NUMの場合のみ使用
     int offset;       // kindがND_LVARの場合のみ使う
     struct Type *ty;  // 変数の型
@@ -111,10 +117,10 @@ struct Node {
     struct Node *inc;   // increment文
 };
 
-struct Object *program();
+void program();
 
 // codegen.c
-void codegen(struct Object *);
+void codegen();
 
 // type.c
 typedef enum {

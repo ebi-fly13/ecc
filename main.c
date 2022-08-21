@@ -8,9 +8,9 @@ int main(int argc, char **argv) {
 
     user_input = argv[1];
     token = tokenize(user_input);
-    struct Object *prog = program();
+    program();
 
-    codegen(prog);
+    codegen();
 
     return 0;
 }

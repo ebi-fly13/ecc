@@ -2,6 +2,7 @@
 
 struct Object *locals = NULL;
 struct Object *globals = NULL;
+struct Object *functions = NULL;
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -32,11 +33,16 @@ struct Node *new_node_num(int val) {
     return node;
 }
 
-struct Node *new_node_lvar(struct Object *lvar) {
+struct Node *new_node_var(struct Object *var) {
     struct Node *node = calloc(1, sizeof(struct Node));
-    node->kind = ND_LVAR;
-    node->offset = lvar->offset;
-    node->ty = lvar->ty;
+    if (var->is_global_variable) {
+        node->kind = ND_GVAR;
+        node->varname = var->name;
+    } else {
+        node->kind = ND_LVAR;
+        node->offset = var->offset;
+    }
+    node->ty = var->ty;
     return node;
 }
 
@@ -87,18 +93,18 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 }
 
-struct Object *find_local_var(char *name) {
-    for (struct Object *var = locals; var; var = var->next) {
-        if (var->len == strlen(name) &&
-            memcmp(name, var->name, var->len) == 0) {
-            return var;
+struct Object *find_object(struct Object *map, char *name) {
+    for (struct Object *obj = map; obj; obj = obj->next) {
+        if (obj->len == strlen(name) &&
+            memcmp(name, obj->name, obj->len) == 0) {
+            return obj;
         }
     }
     return NULL;
 }
 
 void add_local_var(char *name, struct Type *ty) {
-    struct Object *lvar = find_local_var(name);
+    struct Object *lvar = find_object(locals, name);
     if (lvar) {
         error("%sはすでに定義されています", name);
     } else {
@@ -112,31 +118,6 @@ void add_local_var(char *name, struct Type *ty) {
         else
             lvar->offset = locals->offset + ty->size;
         locals = lvar;
-        return;
-    }
-}
-
-struct Object *find_global_var(char *name) {
-    for (struct Object *var = globals; var; var = var->next) {
-        if (var->len == strlen(name) &&
-            memcmp(name, var->name, var->len) == 0) {
-            return var;
-        }
-    }
-    return NULL;
-}
-
-void add_global_var(char *name, struct Type *ty) {
-    struct Object *var = find_global_var(name);
-    if (var) {
-        error("%sはすでに定義されています", name);
-    } else {
-        var = calloc(1, sizeof(struct Object));
-        var->next = globals;
-        var->name = name;
-        var->len = strlen(name);
-        var->ty = ty;
-        globals = var;
         return;
     }
 }
@@ -158,7 +139,7 @@ unary postfix    = primary ("[" expr "]")? primary    = num | ident ( "(" (expr
 ("," expr)*)? ")" )? | "(" expr ")" type       = int "*"*
 */
 
-struct Object *program();
+void program();
 struct Object *function();
 struct Node *stmt();
 struct Node *expr();
@@ -172,54 +153,84 @@ struct Node *postfix();
 struct Node *primary();
 struct Type *type();
 
-struct Object *program() {
-    struct Object head = {};
-    struct Object *cur = &head;
+void program() {
+    globals = NULL;
+    functions = NULL;
+    struct Object *cur_function = NULL;
+    struct Object *cur_global_variables = NULL;
     while (!at_eof()) {
-        cur = cur->next = function();
+        struct Object *obj = function();
+        if (obj->is_function) {
+            if (functions == NULL) {
+                functions = obj;
+                cur_function = obj;
+                continue;
+            }
+            cur_function = cur_function->next = obj;
+        } else if (obj->is_global_variable) {
+            if (globals == NULL) {
+                globals = obj;
+                cur_global_variables = obj;
+                continue;
+            }
+            cur_global_variables = cur_global_variables->next = obj;
+        } else {
+            assert(0);
+        }
     }
-    return head.next;
+    return;
 }
 
 struct Object *function() {
-    struct Object *func = calloc(1, sizeof(struct Object));
-    func->ty = type();
-    func->name = strndup(token->str, token->len);
+    struct Object *obj = calloc(1, sizeof(struct Object));
+    obj->ty = type();
+    obj->name = strndup(token->str, token->len);
+    obj->len = token->len;
     expect_ident();
-    expect_op("(");
-    locals = NULL;
-    {
-        struct Node head = {};
-        struct Node *cur = &head;
-        while (!consume(")")) {
-            if (locals != NULL) expect_op(",");
-            struct Type *ty = type();
-            add_local_var(strndup(token->str, token->len), ty);
-            cur = cur->next =
-                new_node_lvar(find_local_var(strndup(token->str, token->len)));
-            expect_ident();
+    if (consume("(")) {
+        obj->is_function = true;
+        locals = NULL;
+        {
+            struct Node head = {};
+            struct Node *cur = &head;
+            while (!consume(")")) {
+                if (locals != NULL) expect_op(",");
+                struct Type *ty = type();
+                char *name = strndup(token->str, token->len);
+                expect_ident();
+                add_local_var(name, ty);
+                cur = cur->next = new_node_var(find_object(locals, name));
+            }
+            obj->args = head.next;
         }
-        func->args = head.next;
-    }
-    expect_op("{");
-    {  // 関数内の記述
-        struct Node head = {};
-        struct Node *cur = &head;
-        while (!consume("}")) {
-            cur->next = stmt();
-            if (cur->next == NULL) continue;
-            cur = cur->next;
-            add_type(cur);
+        expect_op("{");
+        {  // 関数内の記述
+            struct Node head = {};
+            struct Node *cur = &head;
+            while (!consume("}")) {
+                cur->next = stmt();
+                if (cur->next == NULL) continue;
+                cur = cur->next;
+                add_type(cur);
+            }
+            obj->body = new_node(ND_BLOCK);
+            obj->body->body = head.next;
         }
-        func->body = new_node(ND_BLOCK);
-        func->body->body = head.next;
+        obj->local_variables = locals;
+        if (locals)
+            obj->stack_size = locals->offset;
+        else
+            obj->stack_size = 0;
+        return obj;
+    } else {
+        obj->is_global_variable = true;
+        if (consume("[")) {
+            obj->ty = array_to(obj->ty, expect_number());
+            expect_op("]");
+        }
+        expect_op(";");
+        return obj;
     }
-    func->local_variables = locals;
-    if (locals)
-        func->stack_size = locals->offset;
-    else
-        func->stack_size = 0;
-    return func;
 }
 
 struct Node *stmt() {
@@ -393,12 +404,17 @@ struct Node *primary() {
         expect_op(")");
         return node;
     } else if (at_ident()) {
+        char *name = strndup(token->str, token->len);
+        expect_ident();
         // function call
-        if (equal_op(token->next, "(")) {
+        if (consume("(")) {
             struct Node *node = new_node(ND_FUNCALL);
-            node->funcname = strndup(token->str, token->len);
-            expect_ident();
-            expect_op("(");
+            node->funcname = name;
+            struct Object *func = find_object(functions, node->funcname);
+            if (func == NULL) {
+                error("関数 %s は定義されていません", node->funcname);
+            }
+            node->ty = func->ty;
             struct Node head = {};
             struct Node *cur = &head;
             while (!consume(")")) {
@@ -409,13 +425,12 @@ struct Node *primary() {
             return node;
         }
 
-        struct Object *lvar = find_local_var(strndup(token->str, token->len));
-        if (lvar == NULL) {
-            error("%sは定義されていません", strndup(token->str, token->len));
+        struct Object *var = find_object(locals, name);
+        if (var == NULL) {
+            var = find_object(globals, name);
         }
 
-        struct Node *node = new_node_lvar(lvar);
-        expect_ident();
+        struct Node *node = new_node_var(var);
         return node;
     } else if (at_number()) {
         return new_node_num(expect_number());

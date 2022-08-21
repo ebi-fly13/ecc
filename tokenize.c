@@ -63,7 +63,7 @@ void expect_keyword(TokenKind kind) {
 
 void expect_ident() {
     if (token->kind != TK_IDENT)
-        error_at(token->str, "ローカル変数ではありません");
+        error_at(token->str, "変数ではありません");
     token = token->next;
     return;
 }
