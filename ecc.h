@@ -20,6 +20,7 @@ typedef enum {
     TK_EOF,       // 入力の終わりを表すトークン
     TK_MOLD,      // 型識別子
     TK_SIZEOF,    // sizeof
+    TK_STR,       // string
 } TokenKind;
 
 struct Token {
@@ -41,6 +42,8 @@ struct Object {
 
     bool is_global_variable;
 
+    char *init_data;
+
     bool is_function;
     struct Node *body;
     struct Object *local_variables;
@@ -59,12 +62,14 @@ bool consume(char *);
 bool consume_type(char *);
 void expect_op(char *);
 int expect_number();
+char *expect_string();
 void expect_keyword();
 void expect_ident();
 bool equal(struct Token *, char *);
 bool at_keyword();
 bool at_ident();
 bool at_number();
+bool at_string();
 bool at_eof();
 struct Token *tokenize(char *);
 

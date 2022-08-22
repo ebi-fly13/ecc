@@ -55,6 +55,13 @@ int expect_number() {
     return val;
 }
 
+char *expect_string() {
+    if (token->kind != TK_STR) error_at(token->str, "文字列ではありません");
+    char *p = strndup(token->str + 1, token->len - 2);
+    token = token->next;
+    return p;
+}
+
 void expect_keyword(TokenKind kind) {
     if (token->kind != kind) error_at(token->str, "キーワードではありません");
     token = token->next;
@@ -78,6 +85,8 @@ bool at_keyword(TokenKind kind) { return token->kind == kind; }
 bool at_ident() { return token->kind == TK_IDENT; }
 
 bool at_number() { return token->kind == TK_NUM; }
+
+bool at_string() { return token->kind == TK_STR; }
 
 bool at_eof() { return token->kind == TK_EOF; }
 
@@ -116,6 +125,17 @@ struct Token *tokenize(char *p) {
             *p == '{' || *p == '}' || *p == ',' || *p == '&' || *p == '[' ||
             *p == ']') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if(*p == '"') {
+            int len = 0;
+            char *q = p + 1;
+            while(*q != '"') {
+                q++;
+            }
+            cur = new_token(TK_STR, cur, p, q - p + 1);
+            p += cur->len;
             continue;
         }
 

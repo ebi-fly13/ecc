@@ -238,7 +238,14 @@ void codegen() {
         printf("  .data\n");
         printf("  .globl %s\n", obj->name);
         printf("%s:\n", obj->name);
-        printf("  .zero %ld\n", obj->ty->size);
+        if(obj->init_data) {
+            for (int i = 0; i < obj->ty->size; i++) {
+                printf("  .byte %d\n", obj->init_data[i]);
+            }
+        }
+        else {
+            printf("  .zero %ld\n", obj->ty->size);
+        }
     }
 
     for (struct Object *obj = functions; obj; obj = obj->next) {

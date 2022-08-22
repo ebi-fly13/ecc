@@ -72,5 +72,12 @@ assert 1 "int a; int main() { a = 1; return a;}"
 assert 3 "int a; int change3() {a = 3; return 1;} int main() { change3() return a;}"
 assert 3 "int main() { char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y; }"
 assert 5 "int func(char x) { int y; y = 4; return x + y; } int main() { char c; c = 1; return func(c); }"
+assert 0 "int main() { return \"\"[0]; }"
+assert 1 "int main() { return sizeof(\"\"); }"
+assert 97 "int main() { return \"abc\"[0]; }"
+assert 98 "int main() { return \"abc\"[1]; }"
+assert 99 "int main() { return \"abc\"[2]; }"
+assert 0 "int main() { return \"abc\"[3]; }"
+assert 4 "int main() { return sizeof(\"abc\"); }"
 
 echo OK

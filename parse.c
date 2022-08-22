@@ -4,9 +4,7 @@ struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
 
-int align_to(int n, int align) {
-  return (n + align - 1) / align * align;
-}
+int align_to(int n, int align) { return (n + align - 1) / align * align; }
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -67,7 +65,7 @@ struct Node *new_node_add(struct Node *lhs, struct Node *rhs) {
         rhs = buff;
     }
 
-    rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+    rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->ptr_to->size));
 
     return new_node_binary(ND_ADD, lhs, rhs);
 }
@@ -85,14 +83,14 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 
     if (is_pointer(lhs->ty) && is_integer(rhs->ty)) {
-        rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+        rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->ptr_to->size));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
     if (is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
         struct Node *node = new_node_binary(ND_SUB, lhs, rhs);
         node->ty = ty_int;
-        return new_node_binary(ND_DIV, node, new_node_num(8));
+        return new_node_binary(ND_DIV, node, new_node_num(lhs->ty->ptr_to->size));
     }
 }
 
@@ -125,6 +123,40 @@ void add_local_var(char *name, struct Type *ty) {
     }
 }
 
+void add_global_var(struct Object *obj) {
+    static struct Object *cur = NULL;
+    assert(obj != NULL);
+    if(find_object(globals, obj->name) != NULL) {
+        printf("%sはすでに定義されています", obj->name);
+    }
+    if(globals == NULL) {
+        globals = obj;
+        cur = obj;
+    }
+    else {
+        cur = cur->next = obj;
+    }
+    return;
+}
+
+char *new_unique_name() {
+    static int id = 0;
+    char *buf = calloc(1, 20);
+    sprintf(buf, ".LC%d", id++);
+    return buf;
+}
+
+struct Object *new_string_literal(char *p) {
+    struct Object *obj = calloc(1, sizeof(struct Object));
+    obj->name = new_unique_name();
+    obj->len = strlen(obj->name);
+    obj->ty = array_to(ty_char, strlen(p) + 1);
+    obj->is_global_variable = true;
+    obj->init_data = p;
+    add_global_var(obj);
+    return obj;
+}
+
 /*
 program    = function*
 function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}"
@@ -138,8 +170,8 @@ relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = "sizeof" unary | "+"? postfix | "-"? postfix | "*"? unary | "&"?
-unary postfix    = primary ("[" expr "]")? primary    = num | ident ( "(" (expr
-("," expr)*)? ")" )? | "(" expr ")" type       = int "*"*
+unary postfix    = primary ("[" expr "]")? primary    = string | num | ident (
+"(" (expr ("," expr)*)? ")" )? | "(" expr ")" type       = int "*"*
 */
 
 void program();
@@ -160,7 +192,6 @@ void program() {
     globals = NULL;
     functions = NULL;
     struct Object *cur_function = NULL;
-    struct Object *cur_global_variables = NULL;
     while (!at_eof()) {
         struct Object *obj = function();
         if (obj->is_function) {
@@ -171,12 +202,7 @@ void program() {
             }
             cur_function = cur_function->next = obj;
         } else if (obj->is_global_variable) {
-            if (globals == NULL) {
-                globals = obj;
-                cur_global_variables = obj;
-                continue;
-            }
-            cur_global_variables = cur_global_variables->next = obj;
+            add_global_var(obj);
         } else {
             assert(0);
         }
@@ -444,6 +470,8 @@ struct Node *primary() {
         return node;
     } else if (at_number()) {
         return new_node_num(expect_number());
+    } else if (at_string()) {
+        return new_node_var(new_string_literal(expect_string()));
     } else {
         error("parseエラー");
     }
@@ -452,13 +480,11 @@ struct Node *primary() {
 struct Type *type() {
     assert(at_keyword(TK_MOLD));
     struct Type *ty = NULL;
-    if(equal(token, "int")) {
+    if (equal(token, "int")) {
         ty = ty_int;
-    }
-    else if(equal(token, "char")) {
+    } else if (equal(token, "char")) {
         ty = ty_char;
-    }
-    else {
+    } else {
         error("既定の型でありません");
     }
 
