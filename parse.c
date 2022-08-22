@@ -4,6 +4,10 @@ struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
 
+int align_to(int n, int align) {
+  return (n + align - 1) / align * align;
+}
+
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
@@ -220,6 +224,7 @@ struct Object *function() {
             obj->stack_size = locals->offset;
         else
             obj->stack_size = 0;
+        obj->stack_size = align_to(obj->stack_size, 16);
         return obj;
     } else {
         obj->is_global_variable = true;
@@ -280,6 +285,7 @@ struct Node *stmt() {
             cur->next = stmt();
             if (cur->next == NULL) continue;
             cur = cur->next;
+            add_type(cur);
         }
         node = new_node(ND_BLOCK);
         node->body = head.next;
@@ -295,6 +301,7 @@ struct Node *stmt() {
     } else {
         if (!consume(";")) node = expr();
     }
+    add_type(node);
     return node;
 }
 
@@ -443,8 +450,19 @@ struct Node *primary() {
 }
 
 struct Type *type() {
+    assert(at_keyword(TK_MOLD));
+    struct Type *ty = NULL;
+    if(equal(token, "int")) {
+        ty = ty_int;
+    }
+    else if(equal(token, "char")) {
+        ty = ty_char;
+    }
+    else {
+        error("既定の型でありません");
+    }
+
     expect_keyword(TK_MOLD);
-    struct Type *ty = ty_int;
     while (consume("*")) {
         ty = pointer_to(ty);
     }

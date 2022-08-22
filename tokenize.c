@@ -67,9 +67,8 @@ void expect_ident() {
     return;
 }
 
-bool equal_op(struct Token *tok, char *op) {
-    if (tok->kind != TK_RESERVED || strlen(op) != tok->len ||
-        memcmp(tok->str, op, tok->len))
+bool equal(struct Token *tok, char *name) {
+    if (strlen(name) != tok->len || memcmp(name, tok->str, tok->len))
         return false;
     return true;
 }
@@ -153,6 +152,12 @@ struct Token *tokenize(char *p) {
         if (startswith(p, "int") && !is_alnum(p[3])) {
             cur = new_token(TK_MOLD, cur, p, 3);
             p += 3;
+            continue;
+        }
+
+        if (startswith(p, "char") && !is_alnum(p[4])) {
+            cur = new_token(TK_MOLD, cur, p, 4);
+            p += 4;
             continue;
         }
 

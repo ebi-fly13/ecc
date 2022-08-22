@@ -1,8 +1,11 @@
 #include "ecc.h"
 
 struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 8};
+struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1};
 
-bool is_integer(struct Type *ty) { return ty->ty == TY_INT; }
+bool is_integer(struct Type *ty) {
+    return ty->ty == TY_INT || ty->ty == TY_CHAR;
+}
 
 bool is_pointer(struct Type *ty) {
     return ty->ty == TY_PTR || ty->ty == TY_ARRAY;
@@ -30,6 +33,20 @@ void add_type(struct Node *node) {
     add_type(node->lhs);
     add_type(node->rhs);
 
+    add_type(node->cond);
+    add_type(node->then);
+    add_type(node->els);
+    add_type(node->init);
+    add_type(node->inc);
+
+    for(struct Node *ret = node->body; ret; ret = ret->next) {
+        add_type(ret);
+    }
+
+    for(struct Node *ret = node->args; ret; ret = ret->next) {
+        add_type(ret);
+    }
+
     switch (node->kind) {
         case ND_ADD:
         case ND_SUB:
@@ -42,7 +59,6 @@ void add_type(struct Node *node) {
         case ND_NE:
         case ND_LT:
         case ND_LE:
-        case ND_LVAR:
         case ND_NUM:
             node->ty = ty_int;
             return;
@@ -51,6 +67,11 @@ void add_type(struct Node *node) {
             return;
         case ND_DEREF:
             node->ty = node->lhs->ty->ptr_to;
+            return;
+        case ND_LVAR:
+        case ND_GVAR:
+        case ND_FUNCALL:
+            node->ty = node->obj->ty;
             return;
     }
 }

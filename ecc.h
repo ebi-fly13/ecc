@@ -61,7 +61,7 @@ void expect_op(char *);
 int expect_number();
 void expect_keyword();
 void expect_ident();
-bool equal_op(struct Token *, char *);
+bool equal(struct Token *, char *);
 bool at_keyword();
 bool at_ident();
 bool at_number();
@@ -123,6 +123,7 @@ void codegen();
 // type.c
 typedef enum {
     TY_INT,    // int
+    TY_CHAR,   // char
     TY_PTR,    // pointer
     TY_ARRAY,  // 配列
 } TypeKind;
@@ -135,6 +136,7 @@ struct Type {
 };
 
 extern struct Type *ty_int;
+extern struct Type *ty_char;
 
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, size_t);

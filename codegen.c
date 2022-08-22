@@ -2,7 +2,8 @@
 
 int label = 100;
 
-static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void prologue(int stack_size) {
     // 変数の領域を確保する
@@ -22,7 +23,18 @@ void load(struct Type *ty) {
     if (ty->ty == TY_ARRAY) {
         return;
     }
-    printf("  mov rax, [rax]\n");
+    if (ty->size == 1)
+        printf("  movsbq rax, [rax]\n");
+    else
+        printf("  mov rax, [rax]\n");
+    return;
+}
+
+void store(struct Type *ty) {
+    if (ty->size == 1)
+        printf("  mov [rax], dil\n");
+    else
+        printf("  mov [rax], rdi\n");
     return;
 }
 
@@ -116,7 +128,7 @@ void gen(struct Node *node) {
         }
 
         for (int i = nargs - 1; i >= 0; i--) {
-            printf("  pop %s\n", argreg[i]);
+            printf("  pop %s\n", argreg64[i]);
         }
 
         printf("  mov rax, 0\n");
@@ -155,7 +167,7 @@ void gen(struct Node *node) {
 
         printf("  pop rdi\n");
         printf("  pop rax\n");
-        printf("  mov [rax], rdi\n");
+        store(node->ty);
         printf("  push rdi\n");
         return;
     }
@@ -240,7 +252,10 @@ void codegen() {
         for (struct Node *arg = obj->args; arg; arg = arg->next) {
             gen_lval(arg);
             printf("  pop rax\n");
-            printf("  mov [rax], %s\n", argreg[i++]);
+            if (arg->ty->size == 1)
+                printf("  mov [rax], %s\n", argreg8[i++]);
+            else
+                printf("  mov [rax], %s\n", argreg64[i++]);
         }
 
         gen(obj->body);
