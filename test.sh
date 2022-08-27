@@ -4,8 +4,9 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./ecc "$input" > tmp.s
-  cc -o tmp tmp.s
+  echo "$input" > -
+  ./ecc - > tmp.s || exit
+  gcc -static -o tmp tmp.s
   ./tmp
   actual="$?"
 
@@ -15,6 +16,7 @@ assert() {
     echo "$input => $expected expected, but got $actual"
     exit 1
   fi
+  rm -
 }
 
 assert 0 "int main() { return 0;}"
