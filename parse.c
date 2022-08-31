@@ -169,9 +169,10 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary | "+"? postfix | "-"? postfix | "*"? unary | "&"?
-unary postfix    = primary ("[" expr "]")? primary    = string | num | ident (
-"(" (expr ("," expr)*)? ")" )? | "(" expr ")" type       = int "*"*
+unary      = "sizeof" unary | "+"? unary | "-"? unary | "*"? unary | "&"? unary 
+postfix    = primary ("[" expr "]")? 
+primary    = string | num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")" 
+type       = int "*"*
 */
 
 void program();
@@ -401,10 +402,10 @@ struct Node *mul() {
 
 struct Node *unary() {
     if (consume("+")) {
-        return postfix();
+        return unary();
     }
     if (consume("-")) {
-        return new_node_binary(ND_SUB, new_node_num(0), postfix());
+        return new_node_binary(ND_SUB, new_node_num(0), unary());
     }
     if (consume("*")) {
         return new_node_unary(ND_DEREF, unary());
