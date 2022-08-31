@@ -9,6 +9,10 @@ $(OBJS): ecc.h
 
 test: ecc
 		./test.sh
+		./ecc test/arith.c > tmp.s
+		gcc -xc -c -o common test/common
+		gcc -static -o tmp tmp.s tmp2.o
+		./tmp
 
 clean:
 		rm -f ecc *.o *~ tmp*
