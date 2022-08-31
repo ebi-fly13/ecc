@@ -232,6 +232,9 @@ struct Object *function() {
             }
             obj->args = head.next;
         }
+        if(consume(";")) {
+            return obj;
+        }
         expect_op("{");
         {  // 関数内の記述
             struct Node head = {};
