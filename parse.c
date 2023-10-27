@@ -162,7 +162,7 @@ program    = function*
 function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}"
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
 )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
-"{" stmt* "}" | type ident ("[" num "]")?
+"{" stmt* "}" | type ident ("[" num "]")? ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -327,6 +327,7 @@ struct Node *stmt() {
             ty = array_to(ty, expect_number());
             expect_op("]");
         }
+        expect_op(";");
         add_local_var(name, ty);
     } else {
         if (!consume(";")) node = expr();
