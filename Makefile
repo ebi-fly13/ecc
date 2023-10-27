@@ -10,8 +10,8 @@ $(OBJS): ecc.h
 test: ecc
 		./test.sh
 		./ecc test/arith.c > tmp.s
-		gcc -xc -c -o common test/common
-		gcc -static -o tmp tmp.s tmp2.o
+		gcc -xc -c -o common.o test/common
+		gcc -static -o tmp tmp.s common.o
 		./tmp
 
 clean:
