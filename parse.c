@@ -159,7 +159,7 @@ struct Object *new_string_literal(char *p) {
 
 /*
 program    = function*
-function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}"
+function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}" | type ident ("[" num "]")? ";"
 stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
 )? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
 "{" stmt* "}" | type ident ("[" num "]")? ";"
