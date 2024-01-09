@@ -171,13 +171,14 @@ add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = "sizeof" unary | "+"? unary | "-"? unary | "*"? unary | "&"? unary 
 postfix    = primary ("[" expr "]")? 
-primary    = string | num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")" 
+primary    = string | num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")" | "(" "{" stmt+ "}" ")"
 type       = int "*"*
 */
 
 void program();
 struct Object *function();
 struct Node *stmt();
+struct Node *compound_stmt();
 struct Node *expr();
 struct Node *assign();
 struct Node *equality();
@@ -238,16 +239,8 @@ struct Object *function() {
         }
         expect_op("{");
         {  // 関数内の記述
-            struct Node head = {};
-            struct Node *cur = &head;
-            while (!consume("}")) {
-                cur->next = stmt();
-                if (cur->next == NULL) continue;
-                cur = cur->next;
-                add_type(cur);
-            }
             obj->body = new_node(ND_BLOCK);
-            obj->body->body = head.next;
+            obj->body->body = compound_stmt();
         }
         obj->local_variables = locals;
         if (locals)
@@ -309,16 +302,8 @@ struct Node *stmt() {
         }
         node->then = stmt();
     } else if (consume("{")) {
-        struct Node head = {};
-        struct Node *cur = &head;
-        while (!consume("}")) {
-            cur->next = stmt();
-            if (cur->next == NULL) continue;
-            cur = cur->next;
-            add_type(cur);
-        }
         node = new_node(ND_BLOCK);
-        node->body = head.next;
+        node->body = compound_stmt();
     } else if (at_keyword(TK_MOLD)) {
         struct Type *ty = type();
         char *name = strndup(token->str, token->len);
@@ -334,6 +319,18 @@ struct Node *stmt() {
     }
     add_type(node);
     return node;
+}
+
+struct Node *compound_stmt() {
+    struct Node head = {};
+    struct Node *cur = &head;
+    while (!consume("}")) {
+        cur->next = stmt();
+        if (cur->next == NULL) continue;
+        cur = cur->next;
+        add_type(cur);
+    }
+    return head.next;
 }
 
 struct Node *expr() {
