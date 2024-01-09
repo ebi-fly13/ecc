@@ -315,7 +315,10 @@ struct Node *stmt() {
         expect_op(";");
         add_local_var(name, ty);
     } else {
-        if (!consume(";")) node = expr();
+        if (!consume(";")) {
+            node = expr();
+            expect_op(";");
+        }
     }
     add_type(node);
     return node;
