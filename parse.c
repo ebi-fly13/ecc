@@ -436,7 +436,15 @@ struct Node *postfix() {
 }
 
 struct Node *primary() {
-    if (consume("(")) {
+    if(equal(token, "(") && equal(token->next, "{")) {
+        expect_op("(");
+        expect_op("{");
+        struct Node *node = new_node(ND_STMT_EXPR);
+        node->body = compound_stmt();
+        expect_op(")");
+        return node;
+    }
+    else if (consume("(")) {
         struct Node *node = expr();
         expect_op(")");
         return node;

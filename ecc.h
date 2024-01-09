@@ -101,6 +101,7 @@ typedef enum {
     ND_DUMMY,    // ダミー
     ND_BLOCK,    // block
     ND_FUNCALL,  // function call
+    ND_STMT_EXPR, // statement expression
 } NodeKind;
 
 struct Node {

@@ -111,7 +111,7 @@ void gen(struct Node *node) {
         return;
     }
 
-    if (node->kind == ND_BLOCK) {
+    if (node->kind == ND_BLOCK || node->kind == ND_STMT_EXPR) {
         for (struct Node *block = node->body; block; block = block->next) {
             gen(block);
             printf("  pop rax\n");
@@ -238,18 +238,17 @@ void codegen() {
         printf("  .data\n");
         printf("  .globl %s\n", obj->name);
         printf("%s:\n", obj->name);
-        if(obj->init_data) {
+        if (obj->init_data) {
             for (int i = 0; i < obj->ty->size; i++) {
                 printf("  .byte %d\n", obj->init_data[i]);
             }
-        }
-        else {
+        } else {
             printf("  .zero %ld\n", obj->ty->size);
         }
     }
 
     for (struct Object *obj = functions; obj; obj = obj->next) {
-        if(obj->body == NULL) continue;
+        if (obj->body == NULL) continue;
         assert(obj->is_function);
         printf("  .globl %s\n", obj->name);
         printf("%s:\n", obj->name);
