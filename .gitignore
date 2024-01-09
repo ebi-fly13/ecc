@@ -1,6 +1,8 @@
 *~
 *.o
 tmp*
+*.s
+*.exe
 a.out
 ecc
 .gdb_history
