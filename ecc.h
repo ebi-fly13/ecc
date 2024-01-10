@@ -36,6 +36,17 @@ struct Token {
     int len;             // トークンの長さ
 };
 
+struct VarScope {
+    struct VarScope *next;
+    char *name;
+    struct Object *var;
+};
+
+struct Scope {
+    struct Scope *next;
+    struct VarScope *vars;
+};
+
 struct Object {
     struct Object *next;  // 次の変数かNULL
     char *name;           // 変数名
@@ -51,7 +62,6 @@ struct Object {
 
     bool is_function;
     struct Node *body;
-    struct Object *local_variables;
     struct Node *args;
     int stack_size;
 };
@@ -106,6 +116,7 @@ typedef enum {
 
 struct Node {
     NodeKind kind;     // ノードの型
+    bool is_control_statement;
     struct Node *lhs;  // 左辺
     struct Node *rhs;  // 右辺
 

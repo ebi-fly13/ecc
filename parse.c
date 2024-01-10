@@ -4,6 +4,8 @@ struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
 
+struct Scope *scope = &(struct Scope){};
+
 int align_to(int n, int align) { return (n + align - 1) / align * align; }
 
 struct Node *new_node(NodeKind kind) {
@@ -94,6 +96,27 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 }
 
+void enter_scope() {
+    struct Scope *scp = calloc(1, sizeof(struct Scope));
+    scp->next = scope;
+    scope = scp;
+    return;
+}
+
+void leave_scope() {
+    scope = scope->next;
+    return;
+}
+
+void push_scope(struct Object *var) {
+    struct VarScope *vs = calloc(1, sizeof(struct VarScope));
+    vs->name = var->name;
+    vs->var = var;
+    vs->next = scope->vars;
+    scope->vars = vs;
+    return;
+}
+
 struct Object *find_object(struct Object *map, char *name) {
     for (struct Object *obj = map; obj; obj = obj->next) {
         if (obj->len == strlen(name) &&
@@ -104,39 +127,15 @@ struct Object *find_object(struct Object *map, char *name) {
     return NULL;
 }
 
-void add_local_var(char *name, struct Type *ty) {
-    struct Object *lvar = find_object(locals, name);
-    if (lvar) {
-        error("%sはすでに定義されています", name);
-    } else {
-        lvar = calloc(1, sizeof(struct Object));
-        lvar->next = locals;
-        lvar->name = name;
-        lvar->len = strlen(name);
-        lvar->ty = ty;
-        if (locals == NULL)
-            lvar->offset = ty->size;
-        else
-            lvar->offset = locals->offset + ty->size;
-        locals = lvar;
-        return;
+struct Object *find_variable_from_scope(char *name) {
+    for(struct Scope *scp = scope; scp != NULL; scp = scp->next) {
+        for(struct VarScope *var = scp->vars; var != NULL; var = var->next) {
+            if(!strcmp(var->name, name)) {
+                return var->var;
+            }
+        }
     }
-}
-
-void add_global_var(struct Object *obj) {
-    static struct Object *cur = NULL;
-    assert(obj != NULL);
-    if(find_object(globals, obj->name) != NULL) {
-        printf("%sはすでに定義されています", obj->name);
-    }
-    if(globals == NULL) {
-        globals = obj;
-        cur = obj;
-    }
-    else {
-        cur = cur->next = obj;
-    }
-    return;
+    return NULL;
 }
 
 char *new_unique_name() {
@@ -146,14 +145,58 @@ char *new_unique_name() {
     return buf;
 }
 
+struct Object *new_var(char *name, struct Type *ty) {
+    struct Object *var = calloc(1, sizeof(struct Object));
+    var->name = name;
+    var->ty = ty;
+    push_scope(var);
+    return var;
+}
+
+struct Object *new_local_var(char *name, struct Type *ty) {
+    struct Object *lvar = find_variable_from_scope(name);
+    if(lvar) {
+        error("%sは既に定義されています", name);
+    }
+    else {
+        lvar = new_var(name, ty);
+        lvar->next = locals;
+        lvar->len = strlen(name);
+        if(locals == NULL) {
+            lvar->offset = ty->size;
+        }
+        else {
+            lvar->offset = locals->offset + ty->size;
+        }
+        locals = lvar;
+        return lvar;
+    }
+}
+
+struct Object *new_global_var(char *name, struct Type *ty) {
+    struct Object *gvar = find_object(globals, name);
+    if(gvar) {
+        error("%sは既に定義されています", name);
+    }
+    else {
+        gvar = new_var(name, ty);
+        gvar->next = globals;
+        gvar->len = strlen(name);
+        gvar->is_global_variable = true;
+        globals = gvar;
+        return gvar;
+    }
+}
+
+struct Object *new_anon_gvar(struct Type *ty) {
+    return new_global_var(new_unique_name(), ty);
+}
+
 struct Object *new_string_literal(char *p) {
-    struct Object *obj = calloc(1, sizeof(struct Object));
-    obj->name = new_unique_name();
+    struct Object *obj = new_anon_gvar(array_to(ty_char, strlen(p) + 1));
     obj->len = strlen(obj->name);
-    obj->ty = array_to(ty_char, strlen(p) + 1);
     obj->is_global_variable = true;
     obj->init_data = p;
-    add_global_var(obj);
     return obj;
 }
 
@@ -204,7 +247,7 @@ void program() {
             }
             cur_function = cur_function->next = obj;
         } else if (obj->is_global_variable) {
-            add_global_var(obj);
+            new_global_var(obj->name, obj->ty);
         } else {
             assert(0);
         }
@@ -221,6 +264,7 @@ struct Object *function() {
     if (consume("(")) {
         obj->is_function = true;
         locals = NULL;
+        enter_scope();
         {
             struct Node head = {};
             struct Node *cur = &head;
@@ -229,25 +273,26 @@ struct Object *function() {
                 struct Type *ty = type();
                 char *name = strndup(token->str, token->len);
                 expect_ident();
-                add_local_var(name, ty);
-                cur = cur->next = new_node_var(find_object(locals, name));
+                new_local_var(name, ty);
+                cur = cur->next = new_node_var(find_variable_from_scope(name));
             }
             obj->args = head.next;
         }
+
         if(consume(";")) {
+            leave_scope();
             return obj;
         }
         expect_op("{");
         {  // 関数内の記述
-            obj->body = new_node(ND_BLOCK);
-            obj->body->body = compound_stmt();
+            obj->body = compound_stmt();
         }
-        obj->local_variables = locals;
         if (locals)
             obj->stack_size = locals->offset;
         else
             obj->stack_size = 0;
-        obj->stack_size = align_to(obj->stack_size, 16);
+        obj->stack_size = align_to(obj->stack_size + 8, 16);
+        leave_scope();
         return obj;
     } else {
         obj->is_global_variable = true;
@@ -302,8 +347,7 @@ struct Node *stmt() {
         }
         node->then = stmt();
     } else if (consume("{")) {
-        node = new_node(ND_BLOCK);
-        node->body = compound_stmt();
+        return compound_stmt();
     } else if (at_keyword(TK_MOLD)) {
         struct Type *ty = type();
         char *name = strndup(token->str, token->len);
@@ -313,7 +357,7 @@ struct Node *stmt() {
             expect_op("]");
         }
         expect_op(";");
-        add_local_var(name, ty);
+        new_local_var(name, ty);
     } else {
         if (!consume(";")) {
             node = expr();
@@ -325,15 +369,20 @@ struct Node *stmt() {
 }
 
 struct Node *compound_stmt() {
+    struct Node *node = new_node(ND_BLOCK);
     struct Node head = {};
     struct Node *cur = &head;
+
+    enter_scope();
     while (!consume("}")) {
         cur->next = stmt();
         if (cur->next == NULL) continue;
         cur = cur->next;
         add_type(cur);
     }
-    return head.next;
+    leave_scope();
+    node->body = head.next;
+    return node;
 }
 
 struct Node *expr() {
@@ -440,7 +489,7 @@ struct Node *primary() {
         expect_op("(");
         expect_op("{");
         struct Node *node = new_node(ND_STMT_EXPR);
-        node->body = compound_stmt();
+        node->body = compound_stmt()->body;
         expect_op(")");
         return node;
     }
@@ -470,10 +519,7 @@ struct Node *primary() {
             return node;
         }
 
-        struct Object *var = find_object(locals, name);
-        if (var == NULL) {
-            var = find_object(globals, name);
-        }
+        struct Object *var = find_variable_from_scope(name);
 
         if (var == NULL) {
             error("変数%sは定義されていません", name);

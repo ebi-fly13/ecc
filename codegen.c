@@ -60,7 +60,10 @@ void gen_lval(struct Node *node) {
 }
 
 void gen(struct Node *node) {
-    if (node == NULL) return;
+    if (node == NULL) {
+        printf("  push 0\n");
+        return;
+    }
 
     if (node->kind == ND_RETURN) {
         gen(node->lhs);
@@ -91,23 +94,29 @@ void gen(struct Node *node) {
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
         gen(node->then);
+        printf("  pop rax\n");
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
+        printf("  push rax\n");
         return;
     }
 
     if (node->kind == ND_FOR) {
         int number = label++;
         gen(node->init);
+        printf("  pop rax\n");
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
         printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
         gen(node->then);
+        printf("  pop rax\n");
         gen(node->inc);
+        printf("  pop rax\n");
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
+        printf("  push rax\n");
         return;
     }
 
