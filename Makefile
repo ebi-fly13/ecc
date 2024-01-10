@@ -22,6 +22,6 @@ test: $(TESTS)
 
 clean:
 		rm -f ecc *.o *~ tmp*
-		rm -f test/*.s test/*.o test/*.exe
+		rm -f test/*.s test/*.o test/*.exe test/_*
 
 .PHONY: test clean
