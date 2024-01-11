@@ -28,6 +28,14 @@ struct Type *array_to(struct Type *ty, size_t array_size) {
     return array;
 }
 
+struct Type *func_to(struct Type *return_ty, struct Type *params) {
+    struct Type *func = calloc(1, sizeof(struct Type));
+    func->ty = TY_FUNC;
+    func->return_ty = return_ty;
+    func->params = params;
+    return func;
+}
+
 void add_type(struct Node *node) {
     if (node == NULL || node->ty) return;
     add_type(node->lhs);
@@ -39,11 +47,11 @@ void add_type(struct Node *node) {
     add_type(node->init);
     add_type(node->inc);
 
-    for(struct Node *ret = node->body; ret; ret = ret->next) {
+    for (struct Node *ret = node->body; ret; ret = ret->next) {
         add_type(ret);
     }
 
-    for(struct Node *ret = node->args; ret; ret = ret->next) {
+    for (struct Node *ret = node->args; ret; ret = ret->next) {
         add_type(ret);
     }
 

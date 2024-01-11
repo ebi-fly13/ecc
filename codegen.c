@@ -64,7 +64,6 @@ void gen_lval(struct Node *node) {
             printf("  lea rax, [rip + %s]\n", node->obj->name);
             return;
     }
-
     error("代入の左辺値が変数でありません");
 }
 
@@ -231,7 +230,6 @@ void gen(struct Node *node) {
             printf("  movzb rax, al\n");
             break;
     }
-
 }
 
 void codegen() {
@@ -272,7 +270,7 @@ void codegen() {
 
         epilogue();
     }
-    if(depth != 0) {
+    if (depth != 0) {
         printf("%d\n", depth);
     }
     assert(depth == 0);

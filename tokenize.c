@@ -1,8 +1,5 @@
 #include "ecc.h"
 
-// 現在着目しているToken
-struct Token *token;
-
 // 入力プログラム
 char *user_input;
 
@@ -45,49 +42,30 @@ void error_at(char *loc, char *fmt, ...) {
     exit(1);
 }
 
-// 次のTokenが期待している記号の時には、Tokenを1つ進めて
-// 真を返す。それ以外の場合には偽を返す。
-bool consume(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len ||
-        memcmp(token->str, op, token->len))
-        return false;
-    token = token->next;
-    return true;
-}
-
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
-void expect_op(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len ||
-        memcmp(token->str, op, token->len))
+struct Token *skip(struct Token *token, char *op) {
+    if (strlen(op) != token->len || memcmp(token->str, op, token->len))
         error_at(token->str, "expected \"%s\"", op);
-    token = token->next;
+    return token->next;
 }
 
-int expect_number() {
+struct Token *skip_keyword(struct Token *token, TokenKind kind) {
+    if (token->kind != kind) {
+        error_at(token->str, "skip TokenKind error");
+    }
+    return token->next;
+}
+
+int get_number(struct Token *token) {
     if (token->kind != TK_NUM) error_at(token->str, "数ではありません");
-    int val = token->val;
-    token = token->next;
-    return val;
+    return token->val;
 }
 
-char *expect_string() {
+char *get_string(struct Token *token) {
     if (token->kind != TK_STR) error_at(token->str, "文字列ではありません");
     char *p = strndup(token->str + 1, token->len - 2);
-    token = token->next;
     return p;
-}
-
-void expect_keyword(TokenKind kind) {
-    if (token->kind != kind) error_at(token->str, "キーワードではありません");
-    token = token->next;
-    return;
-}
-
-void expect_ident() {
-    if (token->kind != TK_IDENT) error_at(token->str, "変数ではありません");
-    token = token->next;
-    return;
 }
 
 bool equal(struct Token *tok, char *name) {
@@ -96,17 +74,13 @@ bool equal(struct Token *tok, char *name) {
     return true;
 }
 
-bool at_keyword(TokenKind kind) { return token->kind == kind; }
+bool equal_keyword(struct Token *tok, TokenKind kind) {
+    return tok->kind == kind;
+}
 
-bool at_ident() { return token->kind == TK_IDENT; }
-
-bool at_number() { return token->kind == TK_NUM; }
-
-bool at_string() { return token->kind == TK_STR; }
-
-bool at_eof() { return token->kind == TK_EOF; }
-
-bool is_alnum(char c) { return isdigit(c) || isalpha(c) || c == '_'; }
+bool is_alnum(char c) {
+    return isdigit(c) || isalpha(c) || c == '_';
+}
 
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
@@ -117,7 +91,9 @@ struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     return tok;
 }
 
-bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
+bool startswith(char *p, char *q) {
+    return memcmp(p, q, strlen(q)) == 0;
+}
 
 struct Token *tokenize(char *p) {
     struct Token head;
@@ -131,20 +107,20 @@ struct Token *tokenize(char *p) {
 
         if (strncmp(p, "//", 2) == 0) {
             p += 2;
-            while(*p != '\n') {
+            while (*p != '\n') {
                 p++;
             }
             continue;
         }
 
-        if(strncmp(p, "/*", 2) == 0) {
+        if (strncmp(p, "/*", 2) == 0) {
             char *q = strstr(p + 2, "*/");
-            if(!q) {
+            if (!q) {
                 error_at(p, "コメントが閉じられていません");
             }
             p = q + 2;
             continue;
-        } 
+        }
 
         if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
             startswith(p, ">=")) {
@@ -238,7 +214,7 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        error_at(token->str, "トークナイズできません");
+        error_at(p, "トークナイズできません");
     }
 
     new_token(TK_EOF, cur, p, 0);

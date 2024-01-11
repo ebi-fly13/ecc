@@ -6,7 +6,9 @@ struct Object *functions = NULL;
 
 struct Scope *scope = &(struct Scope){};
 
-int align_to(int n, int align) { return (n + align - 1) / align * align; }
+int align_to(int n, int align) {
+    return (n + align - 1) / align * align;
+}
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -92,7 +94,8 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     if (is_pointer(lhs->ty) && is_pointer(rhs->ty)) {
         struct Node *node = new_node_binary(ND_SUB, lhs, rhs);
         node->ty = ty_int;
-        return new_node_binary(ND_DIV, node, new_node_num(lhs->ty->ptr_to->size));
+        return new_node_binary(ND_DIV, node,
+                               new_node_num(lhs->ty->ptr_to->size));
     }
 }
 
@@ -128,9 +131,9 @@ struct Object *find_object(struct Object *map, char *name) {
 }
 
 struct Object *find_variable_from_scope(char *name) {
-    for(struct Scope *scp = scope; scp != NULL; scp = scp->next) {
-        for(struct VarScope *var = scp->vars; var != NULL; var = var->next) {
-            if(!strcmp(var->name, name)) {
+    for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
+        for (struct VarScope *var = scp->vars; var != NULL; var = var->next) {
+            if (!strcmp(var->name, name)) {
                 return var->var;
             }
         }
@@ -155,18 +158,16 @@ struct Object *new_var(char *name, struct Type *ty) {
 
 struct Object *new_local_var(char *name, struct Type *ty) {
     struct Object *lvar = find_variable_from_scope(name);
-    if(lvar) {
-        error("%sは既に定義されています", name);
-    }
-    else {
+    if (lvar) {
+        error("ローカル変数%sは既に定義されています", name);
+    } else {
         lvar = new_var(name, ty);
         lvar->next = locals;
         lvar->len = strlen(name);
-        if(locals == NULL) {
-            lvar->offset = ty->size;
-        }
-        else {
-            lvar->offset = locals->offset + ty->size;
+        if (locals == NULL) {
+            lvar->offset = (int)ty->size;
+        } else {
+            lvar->offset = locals->offset + (int)ty->size;
         }
         locals = lvar;
         return lvar;
@@ -175,10 +176,9 @@ struct Object *new_local_var(char *name, struct Type *ty) {
 
 struct Object *new_global_var(char *name, struct Type *ty) {
     struct Object *gvar = find_object(globals, name);
-    if(gvar) {
-        error("%sは既に定義されています", name);
-    }
-    else {
+    if (gvar) {
+        error("グローバル変数%sは既に定義されています", name);
+    } else {
         gvar = new_var(name, ty);
         gvar->next = globals;
         gvar->len = strlen(name);
@@ -200,356 +200,492 @@ struct Object *new_string_literal(char *p) {
     return obj;
 }
 
+struct Object *new_func(char *name, struct Type *ty) {
+    struct Object *fn = find_object(globals, name);
+    if (fn) {
+        error("関数%sは既に定義されています", name);
+    } else {
+        fn = new_var(name, ty);
+        fn->next = globals;
+        fn->len = strlen(name);
+        fn->is_function = true;
+        fn->next = functions;
+        functions = fn;
+    }
+    return fn;
+}
+
+struct Node *expand_func_params(struct Type *ty) {
+    struct Node head = {};
+    struct Node *cur = &head;
+    for (struct Type *p = ty->params; p != NULL; p = p->next) {
+        new_local_var(p->name, p);
+        cur = cur->next = new_node_var(find_variable_from_scope(p->name));
+    }
+    return head.next;
+}
+
+struct Object *program(struct Token *);
+struct Token *function(struct Token *);
+struct Token *global_variable(struct Token *);
+struct Type *declspec(struct Token **, struct Token *);
+struct Type *declarator(struct Token **, struct Token *, struct Type *);
+struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
+struct Type *func_params(struct Token **, struct Token *, struct Type *);
+struct Type *params(struct Token **, struct Token *);
+struct Node *stmt(struct Token **, struct Token *);
+struct Node *compound_stmt(struct Token **, struct Token *);
+struct Node *declaration(struct Token **, struct Token *);
+struct Node *expr_stmt(struct Token **, struct Token *);
+struct Node *expr(struct Token **, struct Token *);
+struct Node *assign(struct Token **, struct Token *);
+struct Node *equality(struct Token **, struct Token *);
+struct Node *relation(struct Token **, struct Token *);
+struct Node *add(struct Token **, struct Token *);
+struct Node *mul(struct Token **, struct Token *);
+struct Node *unary(struct Token **, struct Token *);
+struct Node *postfix(struct Token **, struct Token *);
+struct Node *funcall(struct Token **, struct Token *);
+struct Node *primary(struct Token **, struct Token *);
+
+bool is_function(struct Token *token) {
+    if (equal(token, ";")) return false;
+    struct Type dummy = {};
+    struct Type *ty = declarator(&token, token->next, &dummy);
+    return equal(token, "(");
+}
+
 /*
-program    = function*
-function   = type ident "(" (type ident ("," type ident)*)? ")" "{" stmt* "}" | type ident ("[" num "]")? ";"
-stmt       = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt
-)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt |
-"{" stmt* "}" | type ident ("[" num "]")? ";"
-expr       = assign
-assign     = equality ("=" assign)?
-equality   = relational ("==" relational | "!=" relational)*
-relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-add        = mul ("+" mul | "-" mul)*
-mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary | "+"? unary | "-"? unary | "*"? unary | "&"? unary 
-postfix    = primary ("[" expr "]")? 
-primary    = string | num | ident ( "(" (expr ("," expr)*)? ")" )? | "(" expr ")" | "(" "{" stmt+ "}" ")"
-type       = int "*"*
+program = (function | global_variable)*
 */
-
-void program();
-struct Object *function();
-struct Node *stmt();
-struct Node *compound_stmt();
-struct Node *expr();
-struct Node *assign();
-struct Node *equality();
-struct Node *relational();
-struct Node *add();
-struct Node *mul();
-struct Node *unary();
-struct Node *postfix();
-struct Node *primary();
-struct Type *type();
-
-void program() {
+struct Object *program(struct Token *token) {
     globals = NULL;
-    functions = NULL;
-    struct Object *cur_function = NULL;
-    while (!at_eof()) {
-        struct Object *obj = function();
-        if (obj->is_function) {
-            if (functions == NULL) {
-                functions = obj;
-                cur_function = obj;
-                continue;
-            }
-            cur_function = cur_function->next = obj;
-        } else if (obj->is_global_variable) {
-            new_global_var(obj->name, obj->ty);
+    while (token->kind != TK_EOF) {
+        if (is_function(token)) {
+            token = function(token);
         } else {
-            assert(0);
+            token = global_variable(token);
         }
     }
-    return;
+    return globals;
 }
 
-struct Object *function() {
-    struct Object *obj = calloc(1, sizeof(struct Object));
-    obj->ty = type();
-    obj->name = strndup(token->str, token->len);
-    obj->len = token->len;
-    expect_ident();
-    if (consume("(")) {
-        obj->is_function = true;
-        locals = NULL;
-        enter_scope();
-        {
-            struct Node head = {};
-            struct Node *cur = &head;
-            while (!consume(")")) {
-                if (locals != NULL) expect_op(",");
-                struct Type *ty = type();
-                char *name = strndup(token->str, token->len);
-                expect_ident();
-                new_local_var(name, ty);
-                cur = cur->next = new_node_var(find_variable_from_scope(name));
-            }
-            obj->args = head.next;
-        }
-
-        if(consume(";")) {
-            leave_scope();
-            return obj;
-        }
-        expect_op("{");
-        {  // 関数内の記述
-            obj->body = compound_stmt();
-        }
+/*
+function = declspec declarator "(" func_params "{" compound_stmt
+*/
+struct Token *function(struct Token *token) {
+    struct Type *ty = declspec(&token, token);
+    ty = declarator(&token, token, ty);
+    token = skip(token, "(");
+    ty = func_params(&token, token, ty);
+    struct Object *fn = new_func(ty->name, ty);
+    locals = NULL;
+    enter_scope();
+    fn->args = expand_func_params(ty);
+    if (equal(token, "{")) {
+        token = skip(token, "{");
+        fn->body = compound_stmt(&token, token);
         if (locals)
-            obj->stack_size = locals->offset;
+            fn->stack_size = locals->offset;
         else
-            obj->stack_size = 0;
-        obj->stack_size = align_to(obj->stack_size + 8, 16);
+            fn->stack_size = 0;
+        fn->stack_size = align_to(fn->stack_size + 8, 16);
         leave_scope();
-        return obj;
     } else {
-        obj->is_global_variable = true;
-        if (consume("[")) {
-            obj->ty = array_to(obj->ty, expect_number());
-            expect_op("]");
-        }
-        expect_op(";");
-        return obj;
+        token = skip(token, ";");
     }
+    return token;
 }
 
-struct Node *stmt() {
-    struct Node *node = NULL;
-    if (at_keyword(TK_RETURN)) {
-        expect_keyword(TK_RETURN);
-        node = new_node_unary(ND_RETURN, expr());
-        expect_op(";");
-    } else if (at_keyword(TK_IF)) {
-        expect_keyword(TK_IF);
-        expect_op("(");
-        node = new_node(ND_IF);
-        node->cond = expr();
-        expect_op(")");
-        node->then = stmt();
-        if (at_keyword(TK_ELSE)) {
-            expect_keyword(TK_ELSE);
-            node->els = stmt();
-        }
-    } else if (at_keyword(TK_WHILE)) {
-        node = new_node(ND_WHILE);
-        expect_keyword(TK_WHILE);
-        expect_op("(");
-        node->cond = expr();
-        expect_op(")");
-        node->then = stmt();
-    } else if (at_keyword(TK_FOR)) {
-        node = new_node(ND_FOR);
-        expect_keyword(TK_FOR);
-        expect_op("(");
-        if (!consume(";")) {
-            node->init = expr();
-            expect_op(";");
-        }
-        if (!consume(";")) {
-            node->cond = expr();
-            expect_op(";");
-        }
-        if (!consume(")")) {
-            node->inc = expr();
-            expect_op(")");
-        }
-        node->then = stmt();
-    } else if (consume("{")) {
-        return compound_stmt();
-    } else if (at_keyword(TK_MOLD)) {
-        struct Type *ty = type();
-        char *name = strndup(token->str, token->len);
-        expect_ident();
-        if (consume("[")) {
-            ty = array_to(ty, expect_number());
-            expect_op("]");
-        }
-        expect_op(";");
-        new_local_var(name, ty);
-    } else {
-        if (!consume(";")) {
-            node = expr();
-            expect_op(";");
-        }
+/*
+global_variable = declspec (declarator ("," declarator)* )? ";"
+*/
+struct Token *global_variable(struct Token *token) {
+    struct Type *ty = declspec(&token, token);
+    bool is_first = true;
+    while (!equal(token, ";")) {
+        if (!is_first)
+            token = skip(token, ",");
+        else
+            is_first = false;
+        struct Type *gvar = declarator(&token, token, ty);
+        new_global_var(gvar->name, gvar);
     }
-    add_type(node);
+    return token->next;
+}
+
+/*
+declspec = "int" | "char"
+*/
+struct Type *declspec(struct Token **rest, struct Token *token) {
+    assert(token->kind == TK_MOLD);
+    struct Type *ty = calloc(1, sizeof(struct Type));
+    if (equal(token, "int")) {
+        *rest = skip(token, "int");
+        memcpy(ty, ty_int, sizeof(struct Type));
+    } else if (equal(token, "char")) {
+        *rest = skip(token, "char");
+        memcpy(ty, ty_char, sizeof(struct Type));
+    } else {
+        error("既定の型でありません");
+    }
+    return ty;
+}
+
+/*
+declarator = "*"* ident type-suffix
+*/
+struct Type *declarator(struct Token **rest, struct Token *token,
+                        struct Type *ty) {
+    while (equal(token, "*")) {
+        token = skip(token, "*");
+        ty = pointer_to(ty);
+    }
+    assert(token->kind == TK_IDENT);
+    char *name = strndup(token->str, token->len);
+    ty = type_suffix(rest, token->next, ty);
+    ty->name = name;
+    return ty;
+}
+
+struct Type *type_suffix(struct Token **rest, struct Token *token,
+                         struct Type *ty) {
+    while (equal(token, "[")) {
+        int sz = get_number(token->next);
+        token = skip(token->next->next, "]");
+        ty = array_to(ty, sz);
+    }
+    *rest = token;
+    return ty;
+}
+
+/*
+func_params = (param ("," param )? )? ")"
+*/
+struct Type *func_params(struct Token **rest, struct Token *token,
+                         struct Type *return_ty) {
+    struct Type head = {};
+    struct Type *cur = &head;
+    while (!equal(token, ")")) {
+        if (cur != &head) token = skip(token, ",");
+        struct Type *ty = declspec(&token, token);
+        ty = declarator(&token, token, ty);
+        cur = cur->next = ty;
+    }
+    *rest = token->next;
+    struct Type *fn = func_to(return_ty, head.next);
+    fn->name = return_ty->name;
+    return fn;
+}
+
+/*
+param = declspec declarator
+*/
+struct Type *param(struct Token **rest, struct Token *token) {
+    struct Type *ty = declspec(&token, token);
+    ty = declarator(&token, token, ty);
+    *rest = token;
+    return ty;
+}
+
+/*
+stmt = "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
+expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
+expr-stmt
+*/
+struct Node *stmt(struct Token **rest, struct Token *token) {
+    struct Node *node = NULL;
+    if (equal_keyword(token, TK_RETURN)) {
+        token = skip_keyword(token, TK_RETURN);
+        node = new_node_unary(ND_RETURN, expr(&token, token));
+        token = skip(token, ";");
+    } else if (equal_keyword(token, TK_IF)) {
+        token = skip_keyword(token, TK_IF);
+        token = skip(token, "(");
+        node = new_node(ND_IF);
+        node->cond = expr(&token, token);
+        token = skip(token, ")");
+        node->then = stmt(&token, token);
+        if (equal_keyword(token, TK_ELSE)) {
+            token = skip_keyword(token, TK_ELSE);
+            node->els = stmt(&token, token);
+        }
+    } else if (equal_keyword(token, TK_WHILE)) {
+        token = skip_keyword(token, TK_WHILE);
+        node = new_node(ND_WHILE);
+        token = skip(token, "(");
+        node->cond = expr(&token, token);
+        token = skip(token, ")");
+        node->then = stmt(&token, token);
+    } else if (equal_keyword(token, TK_FOR)) {
+        token = skip_keyword(token, TK_FOR);
+        node = new_node(ND_FOR);
+        token = skip(token, "(");
+        if (!equal(token, ";")) {
+            node->init = expr(&token, token);
+        }
+        token = skip(token, ";");
+        if (!equal(token, ";")) {
+            node->cond = expr(&token, token);
+        }
+        token = skip(token, ";");
+        if (!equal(token, ")")) {
+            node->inc = expr(&token, token);
+        }
+        token = skip(token, ")");
+        node->then = stmt(&token, token);
+    } else if (equal(token, "{")) {
+        node = compound_stmt(&token, token->next);
+    } else {
+        node = expr_stmt(&token, token);
+    }
+    *rest = token;
     return node;
 }
 
-struct Node *compound_stmt() {
+/*
+compound_stmt = (declaration | stmt)* "}"
+*/
+struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     struct Node *node = new_node(ND_BLOCK);
     struct Node head = {};
     struct Node *cur = &head;
 
     enter_scope();
-    while (!consume("}")) {
-        cur->next = stmt();
+    while (!equal(token, "}")) {
+        if (token->kind == TK_MOLD) {
+            cur->next = declaration(&token, token);
+        } else {
+            cur->next = stmt(&token, token);
+        }
         if (cur->next == NULL) continue;
         cur = cur->next;
         add_type(cur);
     }
     leave_scope();
+    *rest = skip(token, "}");
     node->body = head.next;
     return node;
 }
 
-struct Node *expr() {
-    return assign();
-}
-
-struct Node *assign() {
-    struct Node *node = equality();
-    if (consume("=")) {
-        node = new_node_binary(ND_ASSIGN, node, assign());
+/*
+declaration = declspec (declarator ("," declarator)* )? ";"
+*/
+struct Node *declaration(struct Token **rest, struct Token *token) {
+    struct Type *ty = declspec(&token, token);
+    if (!equal(token, ";")) {
+        ty = declarator(&token, token, ty);
     }
+    *rest = skip(token, ";");
+    struct Node *node = new_node_var(new_local_var(ty->name, ty));
+    add_type(node);
     return node;
 }
 
-struct Node *equality() {
-    struct Node *node = relational();
+/*
+expr-stmt = expr? ";"
+*/
+struct Node *expr_stmt(struct Token **rest, struct Token *token) {
+    struct Node *node = NULL;
+    if (!equal(token, ";")) {
+        node = expr(&token, token);
+    }
+    *rest = skip(token, ";");
+    return node;
+}
+
+/*
+expr = assign
+*/
+struct Node *expr(struct Token **rest, struct Token *token) {
+    return assign(rest, token);
+}
+
+/*
+assign = equality ("=" assign)?
+*/
+struct Node *assign(struct Token **rest, struct Token *token) {
+    struct Node *node = equality(&token, token);
+    if (equal(token, "=")) {
+        node = new_node_binary(ND_ASSIGN, node, assign(&token, token->next));
+    }
+    *rest = token;
+    return node;
+}
+
+/*
+equality = relation ("==" relation | "!=" relation)*
+*/
+struct Node *equality(struct Token **rest, struct Token *token) {
+    struct Node *node = relation(&token, token);
     for (;;) {
-        if (consume("=="))
-            node = new_node_binary(ND_EQ, node, relational());
-        else if (consume("!="))
-            node = new_node_binary(ND_NE, node, relational());
-        else
+        if (equal(token, "==")) {
+            node = new_node_binary(ND_EQ, node, relation(&token, token->next));
+        } else if (equal(token, "!=")) {
+            node = new_node_binary(ND_NE, node, relation(&token, token->next));
+        } else {
+            *rest = token;
             return node;
+        }
     }
 }
 
-struct Node *relational() {
-    struct Node *node = add();
+/*
+relation = add ("<" add | "<=" add | ">" add | ">=" add)*
+*/
+struct Node *relation(struct Token **rest, struct Token *token) {
+    struct Node *node = add(&token, token);
+
     for (;;) {
-        if (consume("<"))
-            node = new_node_binary(ND_LT, node, add());
-        else if (consume("<="))
-            node = new_node_binary(ND_LE, node, add());
-        else if (consume(">"))
-            node = new_node_binary(ND_LT, add(), node);
-        else if (consume(">="))
-            node = new_node_binary(ND_LE, add(), node);
-        else
+        if (equal(token, "<")) {
+            node = new_node_binary(ND_LT, node, add(&token, token->next));
+        } else if (equal(token, "<=")) {
+            node = new_node_binary(ND_LE, node, add(&token, token->next));
+        } else if (equal(token, ">")) {
+            node = new_node_binary(ND_LT, add(&token, token->next), node);
+        } else if (equal(token, ">=")) {
+            node = new_node_binary(ND_LE, add(&token, token->next), node);
+        } else {
+            *rest = token;
             return node;
+        }
     }
 }
 
-struct Node *add() {
-    struct Node *node = mul();
-
+/*
+add = mul ("+" mul | "-" mul)*
+*/
+struct Node *add(struct Token **rest, struct Token *token) {
+    struct Node *node = mul(&token, token);
     for (;;) {
-        if (consume("+"))
-            node = new_node_add(node, mul());
-        else if (consume("-"))
-            node = new_node_sub(node, mul());
-        else
+        if (equal(token, "+")) {
+            node = new_node_add(node, mul(&token, token->next));
+        } else if (equal(token, "-")) {
+            node = new_node_sub(node, mul(&token, token->next));
+        } else {
+            *rest = token;
             return node;
+        }
     }
 }
 
-struct Node *mul() {
-    struct Node *node = unary();
+/*
+mul = unary ("*" unary | "/" unary)*
+*/
+struct Node *mul(struct Token **rest, struct Token *token) {
+    struct Node *node = unary(&token, token);
     for (;;) {
-        if (consume("*"))
-            node = new_node_binary(ND_MUL, node, unary());
-        else if (consume("/"))
-            node = new_node_binary(ND_DIV, node, unary());
-        else
+        if (equal(token, "*")) {
+            node = new_node_binary(ND_MUL, node, unary(&token, token->next));
+        } else if (equal(token, "/")) {
+            node = new_node_binary(ND_DIV, node, unary(&token, token->next));
+        } else {
+            *rest = token;
             return node;
+        }
     }
 }
 
-struct Node *unary() {
-    if (consume("+")) {
-        return unary();
+/*
+unary = ("+" | "-" | "*" | "&") unary | postfix
+*/
+struct Node *unary(struct Token **rest, struct Token *token) {
+    if (equal(token, "+")) {
+        return unary(rest, token->next);
+    } else if (equal(token, "-")) {
+        return new_node_binary(ND_SUB, new_node_num(0),
+                               unary(rest, token->next));
+    } else if (equal(token, "*")) {
+        return new_node_unary(ND_DEREF, unary(rest, token->next));
+    } else if (equal(token, "&")) {
+        return new_node_unary(ND_ADDR, unary(rest, token->next));
+    } else {
+        return postfix(rest, token);
     }
-    if (consume("-")) {
-        return new_node_binary(ND_SUB, new_node_num(0), unary());
-    }
-    if (consume("*")) {
-        return new_node_unary(ND_DEREF, unary());
-    }
-    if (consume("&")) {
-        return new_node_unary(ND_ADDR, unary());
-    }
+}
 
-    if (at_keyword(TK_SIZEOF)) {
-        expect_keyword(TK_SIZEOF);
-        struct Node *node = unary();
+/*
+postfix = primary ( "[" expr() "]" )*
+*/
+struct Node *postfix(struct Token **rest, struct Token *token) {
+    struct Node *node = primary(&token, token);
+    while (equal(token, "[")) {
+        node = new_node_unary(ND_DEREF,
+                              new_node_add(node, expr(&token, token->next)));
+        token = skip(token, "]");
+    }
+    *rest = token;
+    return node;
+}
+
+/*
+funcall = ident "(" (expr ("," expr)*)? ")"
+*/
+struct Node *funcall(struct Token **rest, struct Token *token) {
+    assert(token->kind == TK_IDENT);
+    char *name = strndup(token->str, token->len);
+    struct Node *node = new_node(ND_FUNCALL);
+    struct Object *func = find_object(functions, name);
+    if (func == NULL) {
+        error("関数 %s は定義されていません", name);
+    }
+    token = token->next;
+    node->ty = func->ty;
+    node->obj = func;
+    struct Node head = {};
+    struct Node *cur = &head;
+    assert(equal(token, "("));
+    token = skip(token, "(");
+    while (!equal(token, ")")) {
+        if (cur != &head) token = skip(token, ",");
+        cur = cur->next = expr(&token, token);
+    }
+    node->args = head.next;
+    *rest = token->next;
+    return node;
+}
+
+/*
+primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident
+func-args? | string | num
+*/
+struct Node *primary(struct Token **rest, struct Token *token) {
+    struct Node *node = NULL;
+    if (equal(token, "(") && equal(token->next, "{")) {
+        token = skip(token->next, "{");
+        node = new_node(ND_STMT_EXPR);
+        node->body = compound_stmt(&token, token)->body;
+        *rest = skip(token, ")");
+    } else if (equal(token, "(")) {
+        token = skip(token, "(");
+        node = expr(&token, token);
+        *rest = skip(token, ")");
+    } else if (equal(token, "sizeof")) {
+        node = unary(&token, token->next);
         add_type(node);
-        return new_node_num(node->ty->size);
-    }
-    return postfix();
-}
-
-struct Node *postfix() {
-    struct Node *node = primary();
-
-    if (consume("[")) {
-        node = new_node_unary(ND_DEREF, new_node_add(node, expr()));
-        expect_op("]");
-    }
-
-    return node;
-}
-
-struct Node *primary() {
-    if(equal(token, "(") && equal(token->next, "{")) {
-        expect_op("(");
-        expect_op("{");
-        struct Node *node = new_node(ND_STMT_EXPR);
-        node->body = compound_stmt()->body;
-        expect_op(")");
-        return node;
-    }
-    else if (consume("(")) {
-        struct Node *node = expr();
-        expect_op(")");
-        return node;
-    } else if (at_ident()) {
-        char *name = strndup(token->str, token->len);
-        expect_ident();
-        // function call
-        if (consume("(")) {
-            struct Node *node = new_node(ND_FUNCALL);
-            struct Object *func = find_object(functions, name);
-            if (func == NULL) {
-                error("関数 %s は定義されていません", name);
+        node = new_node_num(node->ty->size);
+        *rest = token;
+    } else if (token->kind == TK_IDENT) {
+        if (equal(token->next, "(")) {
+            node = funcall(&token, token);
+            *rest = token;
+        } else {
+            char *name = strndup(token->str, token->len);
+            struct Object *var = find_variable_from_scope(name);
+            if (var == NULL) {
+                error("変数%sは定義されていません", name);
             }
-            node->ty = func->ty;
-            node->obj = func;
-            struct Node head = {};
-            struct Node *cur = &head;
-            while (!consume(")")) {
-                if (cur != &head) expect_op(",");
-                cur = cur->next = expr();
-            }
-            node->args = head.next;
-            return node;
+            node = new_node_var(var);
+            *rest = token->next;
         }
-
-        struct Object *var = find_variable_from_scope(name);
-
-        if (var == NULL) {
-            error("変数%sは定義されていません", name);
-        }
-
-        struct Node *node = new_node_var(var);
-        return node;
-    } else if (at_number()) {
-        return new_node_num(expect_number());
-    } else if (at_string()) {
-        return new_node_var(new_string_literal(expect_string()));
+    } else if (token->kind == TK_STR) {
+        node = new_node_var(new_string_literal(get_string(token)));
+        *rest = token->next;
+    } else if (token->kind == TK_NUM) {
+        node = new_node_num(get_number(token));
+        *rest = token->next;
     } else {
         error("parseエラー");
     }
-}
-
-struct Type *type() {
-    assert(at_keyword(TK_MOLD));
-    struct Type *ty = NULL;
-    if (equal(token, "int")) {
-        ty = ty_int;
-    } else if (equal(token, "char")) {
-        ty = ty_char;
-    } else {
-        error("既定の型でありません");
-    }
-
-    expect_keyword(TK_MOLD);
-    while (consume("*")) {
-        ty = pointer_to(ty);
-    }
-    return ty;
+    return node;
 }
