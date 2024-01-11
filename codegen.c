@@ -1,6 +1,7 @@
 #include "ecc.h"
 
 int label = 100;
+int depth = 0;
 
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -17,6 +18,16 @@ void epilogue() {
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
+}
+
+void push() {
+    printf("  push rax\n");
+    depth++;
+}
+
+void pop(char *reg) {
+    printf("  pop %s\n", reg);
+    depth--;
 }
 
 void load(struct Type *ty) {
@@ -48,11 +59,9 @@ void gen_lval(struct Node *node) {
         case ND_LVAR:
             printf("  mov rax, rbp\n");
             printf("  sub rax, %d\n", node->obj->offset);
-            printf("  push rax\n");
             return;
         case ND_GVAR:
             printf("  lea rax, [rip + %s]\n", node->obj->name);
-            printf("  push rax\n");
             return;
     }
 
@@ -61,13 +70,11 @@ void gen_lval(struct Node *node) {
 
 void gen(struct Node *node) {
     if (node == NULL) {
-        printf("  push 0\n");
         return;
     }
 
     if (node->kind == ND_RETURN) {
         gen(node->lhs);
-        printf("  pop rax\n");
         epilogue();
         return;
     }
@@ -75,7 +82,6 @@ void gen(struct Node *node) {
     if (node->kind == ND_IF) {
         int number = label++;
         gen(node->cond);
-        printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lelse%d\n", number);
         gen(node->then);
@@ -90,42 +96,32 @@ void gen(struct Node *node) {
         int number = label++;
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
-        printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
         gen(node->then);
-        printf("  pop rax\n");
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
-        printf("  push rax\n");
         return;
     }
 
     if (node->kind == ND_FOR) {
         int number = label++;
         gen(node->init);
-        printf("  pop rax\n");
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
-        printf("  pop rax\n");
         printf("  cmp rax, 0\n");
         printf("  je  .Lend%d\n", number);
         gen(node->then);
-        printf("  pop rax\n");
         gen(node->inc);
-        printf("  pop rax\n");
         printf("  jmp  .Lbegin%d\n", number);
         printf(".Lend%d:\n", number);
-        printf("  push rax\n");
         return;
     }
 
     if (node->kind == ND_BLOCK || node->kind == ND_STMT_EXPR) {
         for (struct Node *block = node->body; block; block = block->next) {
             gen(block);
-            printf("  pop rax\n");
         }
-        printf("  push rax\n");
         return;
     }
 
@@ -133,11 +129,12 @@ void gen(struct Node *node) {
         int nargs = 0;
         for (struct Node *arg = node->args; arg; arg = arg->next) {
             gen(arg);
+            push();
             nargs++;
         }
 
         for (int i = nargs - 1; i >= 0; i--) {
-            printf("  pop %s\n", argreg64[i]);
+            pop(argreg64[i]);
         }
 
         printf("  mov rax, 0\n");
@@ -153,31 +150,30 @@ void gen(struct Node *node) {
         printf("  add rsp, 8\n");
         printf("  mov rsp, [rsp]\n");
 
-        printf("  push rax\n");
         return;
     }
 
     if (node->kind == ND_NUM) {
-        printf("  push %d\n", node->val);
+        printf("  mov rax, %d\n", node->val);
         return;
     }
 
     if (node->kind == ND_LVAR || node->kind == ND_GVAR) {
         gen_lval(node);
-        printf("  pop rax\n");
         load(node->ty);
-        printf("  push rax\n");
         return;
     }
 
     if (node->kind == ND_ASSIGN) {
         gen_lval(node->lhs);
+        push();
         gen(node->rhs);
+        push();
 
-        printf("  pop rdi\n");
-        printf("  pop rax\n");
+        pop("rdi");
+        pop("rax");
+
         store(node->ty);
-        printf("  push rdi\n");
         return;
     }
 
@@ -188,17 +184,17 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_DEREF) {
         gen(node->lhs);
-        printf("  pop rax\n");
         load(node->ty);
-        printf("  push rax\n");
         return;
     }
 
     gen(node->lhs);
+    push();
     gen(node->rhs);
+    push();
 
-    printf("  pop rdi\n");
-    printf("  pop rax\n");
+    pop("rdi");
+    pop("rax");
 
     switch (node->kind) {
         case ND_ADD:
@@ -236,7 +232,6 @@ void gen(struct Node *node) {
             break;
     }
 
-    printf("  push rax\n");
 }
 
 void codegen() {
@@ -267,7 +262,6 @@ void codegen() {
         int i = 0;
         for (struct Node *arg = obj->args; arg; arg = arg->next) {
             gen_lval(arg);
-            printf("  pop rax\n");
             if (arg->ty->size == 1)
                 printf("  mov [rax], %s\n", argreg8[i++]);
             else
@@ -275,9 +269,12 @@ void codegen() {
         }
 
         gen(obj->body);
-        printf("  pop rax\n");
 
         epilogue();
     }
+    if(depth != 0) {
+        printf("%d\n", depth);
+    }
+    assert(depth == 0);
     return;
 }
