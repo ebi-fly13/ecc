@@ -86,6 +86,10 @@ bool at_ident();
 bool at_number();
 bool at_string();
 bool at_eof();
+
+int get_number(struct Token *);
+struct Token *skip(struct Token *, char *);
+bool equal(struct Token *, char *);
 struct Token *tokenize(char *);
 
 // parse.c
@@ -148,6 +152,7 @@ typedef enum {
     TY_CHAR,   // char
     TY_PTR,    // pointer
     TY_ARRAY,  // 配列
+    TY_FUNC,   // 関数
 } TypeKind;
 
 struct Type {
@@ -155,6 +160,14 @@ struct Type {
     struct Type *ptr_to;
     size_t array_size;
     size_t size;
+
+    char *name;
+
+    // for function type
+    struct Type *return_ty;
+    struct Type *params;
+
+    struct Type *next;
 };
 
 extern struct Type *ty_int;
@@ -162,6 +175,7 @@ extern struct Type *ty_char;
 
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, size_t);
+struct Type *func_to(struct Type*, struct Type*);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 void add_type(struct Node *);
