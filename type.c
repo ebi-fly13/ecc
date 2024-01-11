@@ -28,7 +28,7 @@ struct Type *array_to(struct Type *ty, size_t array_size) {
     return array;
 }
 
-struct Type *func_to(struct Type *return_ty, struct type *params) {
+struct Type *func_to(struct Type *return_ty, struct Type *params) {
     struct Type *func = calloc(1, sizeof(struct Type));
     func->ty = TY_FUNC;
     func->return_ty = return_ty;

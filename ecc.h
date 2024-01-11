@@ -73,23 +73,13 @@ extern struct Object *functions;
 extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
-bool consume(char *);
-bool consume_type(char *);
-void expect_op(char *);
-int expect_number();
-char *expect_string();
-void expect_keyword();
-void expect_ident();
-bool equal(struct Token *, char *);
-bool at_keyword();
-bool at_ident();
-bool at_number();
-bool at_string();
-bool at_eof();
 
 int get_number(struct Token *);
+char *get_string(struct Token *);
 struct Token *skip(struct Token *, char *);
+struct Token *skip_keyword(struct Token *, TokenKind);
 bool equal(struct Token *, char *);
+bool equal_keyword(struct Token *, TokenKind);
 struct Token *tokenize(char *);
 
 // parse.c
@@ -141,7 +131,7 @@ struct Node {
     struct Node *inc;   // increment文
 };
 
-void program();
+struct Object *program();
 
 // codegen.c
 void codegen();

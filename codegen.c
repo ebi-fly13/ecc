@@ -64,7 +64,6 @@ void gen_lval(struct Node *node) {
             printf("  lea rax, [rip + %s]\n", node->obj->name);
             return;
     }
-
     error("代入の左辺値が変数でありません");
 }
 
