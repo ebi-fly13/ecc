@@ -47,11 +47,11 @@ void add_type(struct Node *node) {
     add_type(node->init);
     add_type(node->inc);
 
-    for(struct Node *ret = node->body; ret; ret = ret->next) {
+    for (struct Node *ret = node->body; ret; ret = ret->next) {
         add_type(ret);
     }
 
-    for(struct Node *ret = node->args; ret; ret = ret->next) {
+    for (struct Node *ret = node->args; ret; ret = ret->next) {
         add_type(ret);
     }
 

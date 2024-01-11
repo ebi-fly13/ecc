@@ -230,7 +230,6 @@ void gen(struct Node *node) {
             printf("  movzb rax, al\n");
             break;
     }
-
 }
 
 void codegen() {
@@ -271,7 +270,7 @@ void codegen() {
 
         epilogue();
     }
-    if(depth != 0) {
+    if (depth != 0) {
         printf("%d\n", depth);
     }
     assert(depth == 0);

@@ -291,8 +291,7 @@ struct Token *function(struct Token *token) {
             fn->stack_size = 0;
         fn->stack_size = align_to(fn->stack_size + 8, 16);
         leave_scope();
-    }
-    else {
+    } else {
         token = skip(token, ";");
     }
     return token;
