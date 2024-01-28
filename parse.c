@@ -481,7 +481,8 @@ struct Node *declaration(struct Token **rest, struct Token *token) {
         is_first = false;
         struct Type *ty = declarator(&token, token, base_ty);
         struct Object *var = new_local_var(ty->name, ty);
-        if(!equal(token, "=")) continue; 
+        if(!equal(token, "=")) continue;
+        token = skip(token, "=");
         cur->next = new_node_binary(ND_ASSIGN, new_node_var(var), expr(&token, token));
         cur = cur->next;
         add_type(cur);
@@ -640,7 +641,7 @@ struct Node *funcall(struct Token **rest, struct Token *token) {
         error("関数 %s は定義されていません", name);
     }
     token = token->next;
-    node->ty = func->ty;
+    node->ty = func->ty->return_ty;
     node->obj = func;
     struct Node head = {};
     struct Node *cur = &head;

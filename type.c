@@ -79,7 +79,7 @@ void add_type(struct Node *node) {
         case ND_LVAR:
         case ND_GVAR:
         case ND_FUNCALL:
-            node->ty = node->obj->ty;
+            node->ty = node->obj->ty->return_ty;
             return;
     }
 }
