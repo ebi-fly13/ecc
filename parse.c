@@ -469,16 +469,26 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-declaration = declspec (declarator ("," declarator)* )? ";"
+declaration = declspec (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
 */
 struct Node *declaration(struct Token **rest, struct Token *token) {
-    struct Type *ty = declspec(&token, token);
-    if (!equal(token, ";")) {
-        ty = declarator(&token, token, ty);
+    struct Type *base_ty = declspec(&token, token);
+    struct Node head = {};
+    struct  Node *cur = &head;
+    bool is_first = true;
+    while (!equal(token, ";")) {
+        if(!is_first) token = skip(token, ",");
+        is_first = false;
+        struct Type *ty = declarator(&token, token, base_ty);
+        struct Object *var = new_local_var(ty->name, ty);
+        if(!equal(token, "=")) continue; 
+        cur->next = new_node_binary(ND_ASSIGN, new_node_var(var), expr(&token, token));
+        cur = cur->next;
+        add_type(cur);
     }
     *rest = skip(token, ";");
-    struct Node *node = new_node_var(new_local_var(ty->name, ty));
-    add_type(node);
+    struct Node *node = new_node(ND_BLOCK);
+    node->body = head.next;
     return node;
 }
 
