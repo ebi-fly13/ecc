@@ -182,6 +182,7 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_DEREF) {
+        add_type(node);
         gen(node->lhs);
         load(node->ty);
         return;

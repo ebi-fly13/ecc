@@ -141,6 +141,7 @@ struct Token *tokenize(char *p) {
             int len = 0;
             char *q = p + 1;
             while (*q != '"') {
+                if(*q == '\\') q++;
                 q++;
             }
             cur = new_token(TK_STR, cur, p, q - p + 1);

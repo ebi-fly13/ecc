@@ -17,7 +17,6 @@ test/%.exe: ecc test/%.c
 		rm test/_.c
 
 test: $(TESTS)
-		./test.sh
 		for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 
 clean:
