@@ -350,10 +350,11 @@ struct Type *declarator(struct Token **rest, struct Token *token,
 
 struct Type *type_suffix(struct Token **rest, struct Token *token,
                          struct Type *ty) {
-    while (equal(token, "[")) {
+    if (equal(token, "[")) {
         int sz = get_number(token->next);
         token = skip(token->next->next, "]");
-        ty = array_to(ty, sz);
+        ty = type_suffix(rest, token, ty);
+        return array_to(ty, sz);
     }
     *rest = token;
     return ty;
