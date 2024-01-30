@@ -63,6 +63,10 @@ void gen_lval(struct Node *node) {
         case ND_GVAR:
             printf("  lea rax, [rip + %s]\n", node->obj->name);
             return;
+        case ND_MEMBER:
+            gen_lval(node->lhs);
+            printf("  add rax, %d\n", node->member->offset);
+            return;
     }
     error("代入の左辺値が変数でありません");
 }
@@ -149,6 +153,12 @@ void gen(struct Node *node) {
         printf("  add rsp, 8\n");
         printf("  mov rsp, [rsp]\n");
 
+        return;
+    }
+
+    if(node->kind == ND_MEMBER) {
+        gen_lval(node);
+        load(node->member->ty);
         return;
     }
 

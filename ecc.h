@@ -106,6 +106,7 @@ typedef enum {
     ND_BLOCK,      // block
     ND_FUNCALL,    // function call
     ND_STMT_EXPR,  // statement expression
+    ND_MEMBER,     // member of struct
 } NodeKind;
 
 struct Node {
@@ -120,6 +121,8 @@ struct Node {
     struct Object *obj;
 
     struct Node *args;  // 関数の引数
+
+    struct Member *member; // 構造体のメンバー変数
 
     int val;          // kindがND_NUMの場合のみ使用
     struct Type *ty;  // 変数の型
@@ -139,6 +142,7 @@ void codegen();
 struct Member {
     char *name;
     struct Type *ty;
+    int offset;
 
     struct Member *next;
 };

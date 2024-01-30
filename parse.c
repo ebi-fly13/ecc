@@ -225,6 +225,24 @@ struct Node *expand_func_params(struct Type *ty) {
     return head.next;
 }
 
+struct Member *get_struct_member(struct Type *ty, char *name) {
+    for (struct Member *member = ty->member; member != NULL;
+         member = member->next) {
+        if (strcmp(member->name, name) == 0) return member;
+    }
+    error("struct%sにメンバ変数%sは存在しません", ty->name, name);
+    return NULL;
+}
+
+struct Node *struct_ref(struct Node *node, char *name) {
+    assert(node->ty->ty == TY_STRUCT);
+    struct Member *member = get_struct_member(node->ty, name);
+    struct Node *res = new_node_unary(ND_MEMBER, node);
+    res->member = member;
+    res->ty = member->ty;
+    return res;
+}
+
 struct Object *program(struct Token *);
 struct Token *function(struct Token *);
 struct Token *global_variable(struct Token *);
@@ -345,10 +363,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = TY_STRUCT;
     ty->member = struct_members(rest, token);
-    for (struct Member *member = ty->member; member != NULL;
-         member = member->next) {
-        ty->size += member->ty->size;
-    }
+    ty->size = ty->member->offset + ty->member->ty->size;
     return ty;
 }
 
@@ -358,6 +373,7 @@ struct_members = (declspec declarator (","  declarator)* ";")* "}"
 struct Member *struct_members(struct Token **rest, struct Token *token) {
     struct Member head = {};
     struct Member *cur = &head;
+    int offset = 0;
     while (!equal(token, "}")) {
         struct Type *base_ty = declspec(&token, token);
         bool is_first = true;
@@ -368,9 +384,14 @@ struct Member *struct_members(struct Token **rest, struct Token *token) {
             struct Member *member = calloc(1, sizeof(struct Member));
             member->name = ty->name;
             member->ty = ty;
+            offset += ty->size;
             cur = cur->next = member;
         }
         token = skip(token, ";");
+    }
+    for(struct Member *member = head.next; member != NULL; member = member->next) {
+        offset -= member->ty->size;
+        member->offset = offset;
     }
     *rest = token->next;
     return head.next;
@@ -662,14 +683,28 @@ struct Node *unary(struct Token **rest, struct Token *token) {
 }
 
 /*
-postfix = primary ( "[" expr() "]" )*
+postfix = primary ( "[" expr "]" | "." ident )*
 */
 struct Node *postfix(struct Token **rest, struct Token *token) {
     struct Node *node = primary(&token, token);
-    while (equal(token, "[")) {
-        node = new_node_unary(ND_DEREF,
-                              new_node_add(node, expr(&token, token->next)));
-        token = skip(token, "]");
+    while (true) {
+        if (equal(token, "[")) {
+            node = new_node_unary(
+                ND_DEREF, new_node_add(node, expr(&token, token->next)));
+            token = skip(token, "]");
+            continue;
+        }
+
+        if (equal(token, ".")) {
+            token = skip(token, ".");
+            add_type(node);
+            assert(token->kind == TK_IDENT);
+            node = struct_ref(node, strndup(token->str, token->len));
+            token = token->next;
+            add_type(node);
+            continue;
+        }
+        break;
     }
     *rest = token;
     return node;
