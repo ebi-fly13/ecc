@@ -229,9 +229,11 @@ struct Object *program(struct Token *);
 struct Token *function(struct Token *);
 struct Token *global_variable(struct Token *);
 struct Type *declspec(struct Token **, struct Token *);
+struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *func_params(struct Token **, struct Token *, struct Type *);
+struct Member *struct_members(struct Token **, struct Token *);
 struct Type *params(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
@@ -315,7 +317,7 @@ struct Token *global_variable(struct Token *token) {
 }
 
 /*
-declspec = "int" | "char"
+declspec = "int" | "char" | struct_decl
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_MOLD);
@@ -326,10 +328,51 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
     } else if (equal(token, "char")) {
         *rest = skip(token, "char");
         memcpy(ty, ty_char, sizeof(struct Type));
+    } else if(equal(token, "struct")) {
+        ty = struct_decl(rest, token);
     } else {
         error("既定の型でありません");
     }
     return ty;
+}
+
+/*
+struct_decl = "struct" "{" struct_members
+*/
+struct Type *struct_decl(struct Token **rest, struct Token *token) {
+    token = skip(token, "struct");
+    token = skip(token, "{");
+    struct Type *ty = calloc(1, sizeof(struct Type));
+    ty->ty = TY_STRUCT;
+    ty->member = struct_members(rest, token);
+    for(struct Member *member = ty->member; member != NULL; member =  member->next) {
+        ty->size += member->ty->size;
+    }
+    return ty;
+}
+
+/*
+struct_members = (declspec declarator (","  declarator)* ";")* "}"
+*/
+struct Member *struct_members(struct Token **rest, struct Token *token) {
+    struct Member head = {};
+    struct Member *cur = &head;
+    while(!equal(token, "}")) {
+        struct Type *base_ty = declspec(&token, token);
+        bool is_first = true;
+        while(!equal(token, ";")) {
+            if(!is_first) token = skip(token, ",");
+            is_first = false;
+            struct Type *ty = declarator(&token, token, base_ty);
+            struct Member *member = calloc(1, sizeof(struct Member));
+            member->name = ty->name;
+            member->ty = ty;
+            cur = cur->next = member;
+        }
+        token = skip(token, ";");
+    }
+    *rest = token->next;
+    return head.next;
 }
 
 /*

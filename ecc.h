@@ -136,6 +136,13 @@ struct Object *program();
 // codegen.c
 void codegen();
 
+struct Member {
+    char *name;
+    struct Type *ty;
+
+    struct Member *next;
+};
+
 // type.c
 typedef enum {
     TY_INT,    // int
@@ -143,6 +150,7 @@ typedef enum {
     TY_PTR,    // pointer
     TY_ARRAY,  // 配列
     TY_FUNC,   // 関数
+    TY_STRUCT, // 構造体
 } TypeKind;
 
 struct Type {
@@ -156,6 +164,9 @@ struct Type {
     // for function type
     struct Type *return_ty;
     struct Type *params;
+
+    // for struct
+    struct Member *member;
 
     struct Type *next;
 };
