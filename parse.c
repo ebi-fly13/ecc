@@ -701,8 +701,7 @@ struct Node *funcall(struct Token **rest, struct Token *token) {
 }
 
 /*
-primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident
-func-args? | string | num
+primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident funccall? | string | num
 */
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
