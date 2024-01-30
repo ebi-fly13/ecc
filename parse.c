@@ -328,7 +328,7 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
     } else if (equal(token, "char")) {
         *rest = skip(token, "char");
         memcpy(ty, ty_char, sizeof(struct Type));
-    } else if(equal(token, "struct")) {
+    } else if (equal(token, "struct")) {
         ty = struct_decl(rest, token);
     } else {
         error("既定の型でありません");
@@ -345,7 +345,8 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = TY_STRUCT;
     ty->member = struct_members(rest, token);
-    for(struct Member *member = ty->member; member != NULL; member =  member->next) {
+    for (struct Member *member = ty->member; member != NULL;
+         member = member->next) {
         ty->size += member->ty->size;
     }
     return ty;
@@ -357,11 +358,11 @@ struct_members = (declspec declarator (","  declarator)* ";")* "}"
 struct Member *struct_members(struct Token **rest, struct Token *token) {
     struct Member head = {};
     struct Member *cur = &head;
-    while(!equal(token, "}")) {
+    while (!equal(token, "}")) {
         struct Type *base_ty = declspec(&token, token);
         bool is_first = true;
-        while(!equal(token, ";")) {
-            if(!is_first) token = skip(token, ",");
+        while (!equal(token, ";")) {
+            if (!is_first) token = skip(token, ",");
             is_first = false;
             struct Type *ty = declarator(&token, token, base_ty);
             struct Member *member = calloc(1, sizeof(struct Member));
@@ -518,16 +519,17 @@ declaration = declspec (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
 struct Node *declaration(struct Token **rest, struct Token *token) {
     struct Type *base_ty = declspec(&token, token);
     struct Node head = {};
-    struct  Node *cur = &head;
+    struct Node *cur = &head;
     bool is_first = true;
     while (!equal(token, ";")) {
-        if(!is_first) token = skip(token, ",");
+        if (!is_first) token = skip(token, ",");
         is_first = false;
         struct Type *ty = declarator(&token, token, base_ty);
         struct Object *var = new_local_var(ty->name, ty);
-        if(!equal(token, "=")) continue;
+        if (!equal(token, "=")) continue;
         token = skip(token, "=");
-        cur->next = new_node_binary(ND_ASSIGN, new_node_var(var), expr(&token, token));
+        cur->next =
+            new_node_binary(ND_ASSIGN, new_node_var(var), expr(&token, token));
         cur = cur->next;
         add_type(cur);
     }
@@ -701,7 +703,8 @@ struct Node *funcall(struct Token **rest, struct Token *token) {
 }
 
 /*
-primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident funccall? | string | num
+primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident
+funccall? | string | num
 */
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
