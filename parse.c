@@ -255,6 +255,7 @@ struct Member *get_struct_member(struct Type *ty, char *name) {
 }
 
 struct Node *struct_ref(struct Node *node, char *name) {
+    add_type(node);
     assert(node->ty->ty == TY_STRUCT);
     struct Member *member = get_struct_member(node->ty, name);
     struct Node *res = new_node_unary(ND_MEMBER, node);
@@ -383,9 +384,9 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         name = strndup(token->str, token->len);
         token = skip_keyword(token, TK_IDENT);
     }
-    if(name != NULL && !equal(token, "{")) {
+    if (name != NULL && !equal(token, "{")) {
         struct Type *ty = find_tag_from_scope(name);
-        if(ty == NULL) {
+        if (ty == NULL) {
             error("構造体%sは存在しません", name);
         }
         *rest = token;
@@ -397,7 +398,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     ty->member = struct_members(rest, token);
     ty->size = ty->member->offset + ty->member->ty->size;
     ty->name = name;
-    if(name != NULL) {
+    if (name != NULL) {
         push_tag_scope(ty);
     }
     return ty;
@@ -720,7 +721,7 @@ struct Node *unary(struct Token **rest, struct Token *token) {
 }
 
 /*
-postfix = primary ( "[" expr "]" | "." ident )*
+postfix = primary ( "[" expr "]" | "." ident | "->" ident)*
 */
 struct Node *postfix(struct Token **rest, struct Token *token) {
     struct Node *node = primary(&token, token);
@@ -734,12 +735,18 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 
         if (equal(token, ".")) {
             token = skip(token, ".");
-            add_type(node);
             assert(token->kind == TK_IDENT);
             node = struct_ref(node, strndup(token->str, token->len));
-            token = token->next;
-            add_type(node);
+            token = skip_keyword(token, TK_IDENT);
             continue;
+        }
+
+        if (equal(token, "->")) {
+            token = skip(token, "->");
+            assert(token->kind == TK_IDENT);
+            node = new_node_unary(ND_DEREF, node);
+            node = struct_ref(node, strndup(token->str, token->len));
+            token = skip_keyword(token, TK_IDENT);
         }
         break;
     }
