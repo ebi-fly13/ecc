@@ -42,9 +42,16 @@ struct VarScope {
     struct Object *var;
 };
 
+struct TagScope {
+    struct TagScope *next;
+    char *name;
+    struct Type *ty;
+};
+
 struct Scope {
     struct Scope *next;
     struct VarScope *vars;
+    struct TagScope *tags;
 };
 
 struct Object {

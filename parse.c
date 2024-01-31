@@ -111,12 +111,21 @@ void leave_scope() {
     return;
 }
 
-void push_scope(struct Object *var) {
+void push_var_scope(struct Object *var) {
     struct VarScope *vs = calloc(1, sizeof(struct VarScope));
     vs->name = var->name;
     vs->var = var;
     vs->next = scope->vars;
     scope->vars = vs;
+    return;
+}
+
+void push_tag_scope(struct Type *ty) {
+    struct TagScope *tag = calloc(1, sizeof(struct TagScope));
+    tag->name = ty->name;
+    tag->ty = ty;
+    tag->next = scope->tags;
+    scope->tags = tag;
     return;
 }
 
@@ -141,6 +150,17 @@ struct Object *find_variable_from_scope(char *name) {
     return NULL;
 }
 
+struct Type *find_tag_from_scope(char *name) {
+    for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
+        for (struct TagScope *tag = scp->tags; tag != NULL; tag = tag->next) {
+            if (!strcmp(tag->name, name)) {
+                return tag->ty;
+            }
+        }
+    }
+    return NULL;
+}
+
 char *new_unique_name() {
     static int id = 0;
     char *buf = calloc(1, 20);
@@ -152,7 +172,7 @@ struct Object *new_var(char *name, struct Type *ty) {
     struct Object *var = calloc(1, sizeof(struct Object));
     var->name = name;
     var->ty = ty;
-    push_scope(var);
+    push_var_scope(var);
     return var;
 }
 
@@ -347,7 +367,7 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         *rest = skip(token, "char");
         memcpy(ty, ty_char, sizeof(struct Type));
     } else if (equal(token, "struct")) {
-        ty = struct_decl(rest, token);
+        ty = struct_decl(rest, token->next);
     } else {
         error("既定の型でありません");
     }
@@ -355,15 +375,31 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
 }
 
 /*
-struct_decl = "struct" "{" struct_members
+struct_decl = "struct" "{" struct_members "}"
 */
 struct Type *struct_decl(struct Token **rest, struct Token *token) {
-    token = skip(token, "struct");
+    char *name = NULL;
+    if (token->kind == TK_IDENT) {
+        name = strndup(token->str, token->len);
+        token = skip_keyword(token, TK_IDENT);
+    }
+    if(name != NULL && !equal(token, "{")) {
+        struct Type *ty = find_tag_from_scope(name);
+        if(ty == NULL) {
+            error("構造体%sは存在しません", name);
+        }
+        *rest = token;
+        return ty;
+    }
     token = skip(token, "{");
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = TY_STRUCT;
     ty->member = struct_members(rest, token);
     ty->size = ty->member->offset + ty->member->ty->size;
+    ty->name = name;
+    if(name != NULL) {
+        push_tag_scope(ty);
+    }
     return ty;
 }
 
@@ -389,7 +425,8 @@ struct Member *struct_members(struct Token **rest, struct Token *token) {
         }
         token = skip(token, ";");
     }
-    for(struct Member *member = head.next; member != NULL; member = member->next) {
+    for (struct Member *member = head.next; member != NULL;
+         member = member->next) {
         offset -= member->ty->size;
         member->offset = offset;
     }
