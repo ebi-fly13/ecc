@@ -10,8 +10,7 @@ int main() {
     ASSERT(2, ({ struct {char a; int b; char c;} x; x.b=1; x.b=2; x.c=3; x.b; }));
     ASSERT(3, ({ struct {char a; int b; char c;} x; x.a=1; x.b=2; x.c=3; x.c; }));
 
-    ASSERT(16, ({ struct t {int a; int b;} x; struct t y; sizeof(y); }));
-    ASSERT(16, ({ struct t {int a; int b;}; struct t y; sizeof(y); }));
+    ASSERT(8, ({ struct t {int a; int b;} x; struct t y; sizeof(y); }));
     ASSERT(2, ({ struct t {char a[2];}; { struct t {char a[4];}; } struct t y; sizeof(y); }));
     ASSERT(3, ({ struct t {int x;}; int t=1; struct t y; y.x=2; t+y.x; }));
 

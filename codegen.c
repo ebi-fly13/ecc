@@ -4,6 +4,7 @@ int label = 100;
 int depth = 0;
 
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void prologue(int stack_size) {
@@ -36,6 +37,8 @@ void load(struct Type *ty) {
     }
     if (ty->size == 1)
         printf("  movsbq rax, [rax]\n");
+    else if(ty->size == 4) 
+        printf("  movsxd rax, [rax]\n");
     else
         printf("  mov rax, [rax]\n");
     return;
@@ -44,6 +47,8 @@ void load(struct Type *ty) {
 void store(struct Type *ty) {
     if (ty->size == 1)
         printf("  mov [rax], dil\n");
+    else if(ty->size == 4)
+        printf("  mov [rax], edi\n");
     else
         printf("  mov [rax], rdi\n");
     return;
@@ -273,6 +278,8 @@ void codegen() {
             gen_lval(arg);
             if (arg->ty->size == 1)
                 printf("  mov [rax], %s\n", argreg8[i++]);
+            else if(arg->ty->size == 4)
+                printf("  mov [rax], %s\n", argreg32[i++]);
             else
                 printf("  mov [rax], %s\n", argreg64[i++]);
         }

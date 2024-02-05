@@ -1,6 +1,6 @@
 #include "ecc.h"
 
-struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 8};
+struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 4};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1};
 
 bool is_integer(struct Type *ty) {
