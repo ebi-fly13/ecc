@@ -203,6 +203,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if(startswith(p, "union") && !is_alnum(p[5])) {
+            cur = new_token(TK_MOLD, cur, p, 5);
+            p += 5;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;

@@ -254,9 +254,9 @@ struct Member *get_struct_member(struct Type *ty, char *name) {
     return NULL;
 }
 
-struct Node *struct_ref(struct Node *node, char *name) {
+struct Node *struct_union_ref(struct Node *node, char *name) {
     add_type(node);
-    assert(node->ty->ty == TY_STRUCT);
+    assert(node->ty->ty == TY_STRUCT || node->ty->ty == TY_UNION);
     struct Member *member = get_struct_member(node->ty, name);
     struct Node *res = new_node_unary(ND_MEMBER, node);
     res->member = member;
@@ -269,10 +269,11 @@ struct Token *function(struct Token *);
 struct Token *global_variable(struct Token *);
 struct Type *declspec(struct Token **, struct Token *);
 struct Type *struct_decl(struct Token **, struct Token *);
+struct Type *union_decl(struct Token **, struct Token *);
 struct Type *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *func_params(struct Token **, struct Token *, struct Type *);
-struct Member *struct_members(struct Token **, struct Token *);
+struct Member *struct_union_members(struct Token **, struct Token *);
 struct Type *params(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
@@ -356,7 +357,7 @@ struct Token *global_variable(struct Token *token) {
 }
 
 /*
-declspec = "int" | "char" | struct_decl
+declspec = "int" | "char" | struct_decl | union_decl
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_MOLD);
@@ -369,6 +370,8 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         memcpy(ty, ty_char, sizeof(struct Type));
     } else if (equal(token, "struct")) {
         ty = struct_decl(rest, token->next);
+    } else if (equal(token, "union")) {
+        ty = union_decl(rest, token->next);
     } else {
         error("既定の型でありません");
     }
@@ -376,7 +379,7 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
 }
 
 /*
-struct_decl = "struct" "{" struct_members "}"
+struct_decl = "struct" "{" struct_union_members
 */
 struct Type *struct_decl(struct Token **rest, struct Token *token) {
     char *name = NULL;
@@ -395,8 +398,13 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     token = skip(token, "{");
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = TY_STRUCT;
-    ty->member = struct_members(rest, token);
-    ty->size = ty->member->offset + ty->member->ty->size;
+    ty->member = struct_union_members(rest, token);
+    int offset = 0;
+    for(struct Member *member = ty->member; member != NULL; member = member->next) {
+        member->offset = offset;
+        offset += member->ty->size;
+    }
+    ty->size = offset;
     ty->name = name;
     if (name != NULL) {
         push_tag_scope(ty);
@@ -405,12 +413,47 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
 }
 
 /*
-struct_members = (declspec declarator (","  declarator)* ";")* "}"
+struct union_decl = "union" "{" struct_union_members
 */
-struct Member *struct_members(struct Token **rest, struct Token *token) {
+struct Type *union_decl(struct Token **rest, struct Token *token) {
+    char *name = NULL;
+    if (token->kind == TK_IDENT) {
+        name = strndup(token->str, token->len);
+        token = skip_keyword(token, TK_IDENT);
+    }
+    if (name != NULL && !equal(token, "{")) {
+        struct Type *ty = find_tag_from_scope(name);
+        if (ty == NULL) {
+            error("共用体%sは存在しません", name);
+        }
+        *rest = token;
+        return ty;
+    }
+    token = skip(token, "{");
+    struct Type *ty = calloc(1, sizeof(struct Type));
+    ty->ty = TY_UNION;
+    ty->member = struct_union_members(rest, token);
+    int offset = 0;
+    for(struct Member *member = ty->member; member != NULL; member = member->next) {
+        member->offset = 0;
+        if(offset < member->ty->size) {
+            offset = member->ty->size;
+        }
+    }
+    ty->size = offset;
+    ty->name = name;
+    if (name != NULL) {
+        push_tag_scope(ty);
+    }
+    return ty;
+}
+
+/*
+struct_union_members = (declspec declarator (","  declarator)* ";")* "}"
+*/
+struct Member *struct_union_members(struct Token **rest, struct Token *token) {
     struct Member head = {};
     struct Member *cur = &head;
-    int offset = 0;
     while (!equal(token, "}")) {
         struct Type *base_ty = declspec(&token, token);
         bool is_first = true;
@@ -421,15 +464,9 @@ struct Member *struct_members(struct Token **rest, struct Token *token) {
             struct Member *member = calloc(1, sizeof(struct Member));
             member->name = ty->name;
             member->ty = ty;
-            offset += ty->size;
             cur = cur->next = member;
         }
         token = skip(token, ";");
-    }
-    for (struct Member *member = head.next; member != NULL;
-         member = member->next) {
-        offset -= member->ty->size;
-        member->offset = offset;
     }
     *rest = token->next;
     return head.next;
@@ -736,7 +773,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
         if (equal(token, ".")) {
             token = skip(token, ".");
             assert(token->kind == TK_IDENT);
-            node = struct_ref(node, strndup(token->str, token->len));
+            node = struct_union_ref(node, strndup(token->str, token->len));
             token = skip_keyword(token, TK_IDENT);
             continue;
         }
@@ -745,7 +782,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
             token = skip(token, "->");
             assert(token->kind == TK_IDENT);
             node = new_node_unary(ND_DEREF, node);
-            node = struct_ref(node, strndup(token->str, token->len));
+            node = struct_union_ref(node, strndup(token->str, token->len));
             token = skip_keyword(token, TK_IDENT);
         }
         break;
