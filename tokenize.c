@@ -57,7 +57,7 @@ struct Token *skip_keyword(struct Token *token, TokenKind kind) {
     return token->next;
 }
 
-int get_number(struct Token *token) {
+long get_number(struct Token *token) {
     if (token->kind != TK_NUM) error_at(token->str, "数ではありません");
     return token->val;
 }
@@ -179,9 +179,21 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if(startswith(p, "long") && !is_alnum(p[4])) {
+            cur = new_token(TK_MOLD, cur, p, 4);
+            p += 4;
+            continue;
+        }
+
         if (startswith(p, "int") && !is_alnum(p[3])) {
             cur = new_token(TK_MOLD, cur, p, 3);
             p += 3;
+            continue;
+        }
+
+        if (startswith(p, "short") && !is_alnum(p[5])) {
+            cur = new_token(TK_MOLD, cur, p, 5);
+            p += 5;
             continue;
         }
 

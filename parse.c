@@ -357,14 +357,20 @@ struct Token *global_variable(struct Token *token) {
 }
 
 /*
-declspec = "int" | "char" | struct_decl | union_decl
+declspec = "long" | "int" | "short" | "char" | struct_decl | union_decl
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_MOLD);
     struct Type *ty = calloc(1, sizeof(struct Type));
-    if (equal(token, "int")) {
+    if (equal(token, "long")) {
+        *rest = skip(token, "long");
+        memcpy(ty, ty_long, sizeof(struct Type));
+    } else if (equal(token, "int")) {
         *rest = skip(token, "int");
         memcpy(ty, ty_int, sizeof(struct Type));
+    } else if (equal(token, "short")) {
+        *rest = skip(token, "short");
+        memcpy(ty, ty_short, sizeof(struct Type));
     } else if (equal(token, "char")) {
         *rest = skip(token, "char");
         memcpy(ty, ty_char, sizeof(struct Type));

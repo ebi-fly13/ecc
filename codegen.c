@@ -4,6 +4,7 @@ int label = 100;
 int depth = 0;
 
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
@@ -37,6 +38,8 @@ void load(struct Type *ty) {
     }
     if (ty->size == 1)
         printf("  movsbq rax, [rax]\n");
+    else if (ty->size == 2)
+        printf("  movswq rax, [rax]\n");
     else if(ty->size == 4) 
         printf("  movsxd rax, [rax]\n");
     else
@@ -47,6 +50,8 @@ void load(struct Type *ty) {
 void store(struct Type *ty) {
     if (ty->size == 1)
         printf("  mov [rax], dil\n");
+    else if(ty->size == 2)
+        printf("  mov [rax], di\n");
     else if(ty->size == 4)
         printf("  mov [rax], edi\n");
     else
@@ -168,7 +173,7 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_NUM) {
-        printf("  mov rax, %d\n", node->val);
+        printf("  mov rax, %ld\n", node->val);
         return;
     }
 
@@ -278,7 +283,9 @@ void codegen() {
             gen_lval(arg);
             if (arg->ty->size == 1)
                 printf("  mov [rax], %s\n", argreg8[i++]);
-            else if(arg->ty->size == 4)
+            else if (arg->ty->size == 2)
+                printf("  mov [rax], %s\n", argreg16[i++]);
+            else if (arg->ty->size == 4)
                 printf("  mov [rax], %s\n", argreg32[i++]);
             else
                 printf("  mov [rax], %s\n", argreg64[i++]);

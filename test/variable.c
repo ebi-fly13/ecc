@@ -45,6 +45,9 @@ int main() {
   
     ASSERT(1, ({ char x; sizeof(x); }));
     ASSERT(10, ({ char x[10]; sizeof(x); }));
+
+    ASSERT(2, ({ short x; sizeof(x); }));
+    ASSERT(8, ({ long x; sizeof(x); }));
   
     printf("OK\n");
     return 0;
