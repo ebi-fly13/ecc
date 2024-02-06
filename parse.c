@@ -228,7 +228,7 @@ struct Object *new_func(char *name, struct Type *ty) {
         fn = new_var(name, ty);
         fn->next = globals;
         fn->len = strlen(name);
-        fn->is_function = true;
+        fn->is_function_definition = true;
         fn->next = functions;
         functions = fn;
     }
@@ -320,11 +320,21 @@ struct Token *function(struct Token *token) {
     ty = declarator(&token, token, ty);
     token = skip(token, "(");
     ty = func_params(&token, token, ty);
-    struct Object *fn = new_func(ty->name, ty);
+    struct Object *fn = find_object(functions, ty->name);
+    if(fn == NULL) {
+        fn = new_func(ty->name, ty);
+    }
+    else {
+        assert(is_same_type(fn->ty, ty));
+    }
     locals = NULL;
-    enter_scope();
-    fn->args = expand_func_params(ty);
     if (equal(token, "{")) {
+        assert(fn->is_function_definition);
+        fn->is_function = true;
+        fn->is_function_definition = false;
+
+        enter_scope();
+        fn->args = expand_func_params(ty);
         token = skip(token, "{");
         fn->body = compound_stmt(&token, token);
         if (locals)
@@ -487,9 +497,12 @@ struct Type *declarator(struct Token **rest, struct Token *token,
         token = skip(token, "*");
         ty = pointer_to(ty);
     }
-    assert(token->kind == TK_IDENT);
-    char *name = strndup(token->str, token->len);
-    ty = type_suffix(rest, token->next, ty);
+    char *name = NULL;
+    if(token->kind == TK_IDENT) {
+        name = strndup(token->str, token->len);
+        token = token->next;
+    }
+    ty = type_suffix(rest, token, ty);
     ty->name = name;
     return ty;
 }

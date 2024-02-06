@@ -68,6 +68,7 @@ struct Object {
     char *init_data;
 
     bool is_function;
+    bool is_function_definition;
     struct Node *body;
     struct Node *args;
     int stack_size;
@@ -195,4 +196,5 @@ struct Type *array_to(struct Type *, size_t);
 struct Type *func_to(struct Type *, struct Type *);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
+bool is_same_type(struct Type *, struct Type *);
 void add_type(struct Node *);

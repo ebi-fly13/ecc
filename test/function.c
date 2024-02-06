@@ -2,6 +2,8 @@
 
 int assert();
 int printf();
+int ret3();
+int addx(int *, int);
 
 int ret3() {
     return 3;
