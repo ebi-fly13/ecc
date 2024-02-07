@@ -178,6 +178,8 @@ struct Object *new_local_var(struct NameTag *tag) {
     struct Object *lvar = find_variable_from_scope(tag->name);
     if (lvar) {
         error("ローカル変数%sは既に定義されています", tag->name);
+    } else if (is_void(tag->ty)) {
+        error("%sはvoidで宣言されています", tag->name);
     } else {
         lvar = new_var(tag);
         lvar->next = locals;
@@ -196,6 +198,8 @@ struct Object *new_global_var(struct NameTag *tag) {
     struct Object *gvar = find_object(globals, tag->name);
     if (gvar) {
         error("グローバル変数%sは既に定義されています", tag->name);
+    } else if (is_void(tag->ty)) {
+        error("%sはvoidで宣言されています", tag->name);
     } else {
         gvar = new_var(tag);
         gvar->next = globals;
@@ -384,6 +388,9 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
     } else if (equal(token, "char")) {
         *rest = skip(token, "char");
         ty = ty_char;
+    } else if (equal(token, "void")) {
+        *rest = skip(token, "void");
+        ty = ty_void;
     } else if (equal(token, "struct")) {
         ty = struct_decl(rest, token->next);
     } else if (equal(token, "union")) {
@@ -555,7 +562,7 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 }
 
 /*
-stmt = "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
+stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
 expr-stmt
 */
@@ -563,7 +570,10 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
     if (equal_keyword(token, TK_RETURN)) {
         token = skip_keyword(token, TK_RETURN);
-        node = new_node_unary(ND_RETURN, expr(&token, token));
+        node = new_node(ND_RETURN);
+        if (!equal(token, ";")) {
+            node->lhs = expr(&token, token);
+        }
         token = skip(token, ";");
     } else if (equal_keyword(token, TK_IF)) {
         token = skip_keyword(token, TK_IF);

@@ -165,6 +165,7 @@ typedef enum {
     TY_INT,     // int
     TY_SHORT,   // short
     TY_CHAR,    // char
+    TY_VOID,    // void
     TY_PTR,     // pointer
     TY_ARRAY,   // 配列
     TY_FUNC,    // 関数
@@ -192,11 +193,13 @@ extern struct Type *ty_long;
 extern struct Type *ty_int;
 extern struct Type *ty_short;
 extern struct Type *ty_char;
+extern struct Type *ty_void;
 
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, size_t);
 struct Type *func_to(struct Type *, struct NameTag *);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
+bool is_void(struct Type *);
 bool is_same_type(struct Type *, struct Type *);
 void add_type(struct Node *);

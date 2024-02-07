@@ -15,6 +15,10 @@ int add_struct(struct A a, struct A b) {
     return a.a + b.a;
 }
 
+void void_func() {
+    return;
+}
+
 int ret3() {
     return 3;
     return 5;
@@ -74,6 +78,8 @@ int main() {
     ASSERT(1, sub_short(7, 3, 3));
 
     ASSERT(3, ({ struct A a,b; a.a = 2; b.a = 1; add_struct(a, b); }));
+
+    void_func();
 
     printf("OK\n");
     return 0;

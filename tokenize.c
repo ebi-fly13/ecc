@@ -203,6 +203,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "void") && !is_alnum(p[4])) {
+            cur = new_token(TK_MOLD, cur, p, 4);
+            p += 4;
+            continue;
+        }
+
         if (startswith(p, "sizeof") && !is_alnum(p[6])) {
             cur = new_token(TK_SIZEOF, cur, p, 6);
             p += 6;

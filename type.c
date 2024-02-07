@@ -4,10 +4,15 @@ struct Type *ty_long = &(struct Type){TY_LONG, NULL, 0, 8};
 struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 4};
 struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1};
+struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0};
 
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
            ty->ty == TY_CHAR;
+}
+
+bool is_void(struct Type *ty) {
+    return ty->ty == TY_VOID;
 }
 
 bool is_pointer(struct Type *ty) {

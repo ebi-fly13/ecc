@@ -48,6 +48,8 @@ int main() {
 
     ASSERT(2, ({ short x; sizeof(x); }));
     ASSERT(8, ({ long x; sizeof(x); }));
+
+    ASSERT(8, ({ void *a; sizeof(a); }));
   
     printf("OK\n");
     return 0;
