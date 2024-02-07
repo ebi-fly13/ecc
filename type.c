@@ -20,12 +20,13 @@ bool is_same_type(struct Type *lhs, struct Type *rhs) {
     }
     else if(lhs->ty == TY_FUNC) {
         if(!is_same_type(lhs->return_ty, rhs->return_ty) || strcmp(lhs->name, rhs->name) != 0) return false;
+        return true;
         struct Type *param_lhs = lhs->params;
         struct Type *param_rhs = rhs->params;
         while(param_lhs != NULL && param_rhs != NULL) {
             if(!is_same_type(param_lhs, param_rhs)) return false;
-            param_lhs = param_lhs->next;
-            param_rhs = param_rhs->next;
+            param_lhs = param_lhs->next_param;
+            param_rhs = param_rhs->next_param;
         }
     }
 

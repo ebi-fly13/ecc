@@ -238,7 +238,7 @@ struct Object *new_func(char *name, struct Type *ty) {
 struct Node *expand_func_params(struct Type *ty) {
     struct Node head = {};
     struct Node *cur = &head;
-    for (struct Type *p = ty->params; p != NULL; p = p->next) {
+    for (struct Type *p = ty->params; p != NULL; p = p->next_param) {
         new_local_var(p->name, p);
         cur = cur->next = new_node_var(find_variable_from_scope(p->name));
     }
@@ -274,7 +274,7 @@ struct Type *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *func_params(struct Token **, struct Token *, struct Type *);
 struct Member *struct_union_members(struct Token **, struct Token *);
-struct Type *params(struct Token **, struct Token *);
+struct Type *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
 struct Node *declaration(struct Token **, struct Token *);
@@ -404,10 +404,12 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = find_tag_from_scope(name);
-        if (ty == NULL) {
+        struct Type *ty = calloc(1, sizeof(struct Type));
+        struct Type *base = find_tag_from_scope(name);
+        if (base == NULL) {
             error("構造体%sは存在しません", name);
         }
+        memcpy(ty, base, sizeof(struct Type));
         *rest = token;
         return ty;
     }
@@ -438,10 +440,12 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = find_tag_from_scope(name);
-        if (ty == NULL) {
+        struct Type *ty = calloc(1, sizeof(struct Type));
+        struct Type *base = find_tag_from_scope(name);
+        if (base == NULL) {
             error("共用体%sは存在しません", name);
         }
+        memcpy(ty, base, sizeof(struct Type));
         *rest = token;
         return ty;
     }
@@ -527,13 +531,15 @@ struct Type *func_params(struct Token **rest, struct Token *token,
     struct Type head = {};
     struct Type *cur = &head;
     while (!equal(token, ")")) {
-        if (cur != &head) token = skip(token, ",");
-        struct Type *ty = declspec(&token, token);
-        ty = declarator(&token, token, ty);
-        cur = cur->next = ty;
+        if (cur != &head) {
+            token = skip(token, ",");
+        }
+        struct Type *ty = param(&token, token);
+        cur->next_param = ty;
+        cur = ty;
     }
     *rest = token->next;
-    struct Type *fn = func_to(return_ty, head.next);
+    struct Type *fn = func_to(return_ty, head.next_param);
     fn->name = return_ty->name;
     return fn;
 }

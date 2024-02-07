@@ -5,6 +5,16 @@ int printf();
 int ret3();
 int addx(int *, int);
 
+struct A {
+    int a;
+};
+
+int add_struct(struct A a, struct A b);
+
+int add_struct(struct A a, struct A b) {
+    return a.a + b.a;
+}
+
 int ret3() {
     return 3;
     return 5;
@@ -62,6 +72,8 @@ int main() {
     ASSERT(1, sub_long(7, 3, 3));
 
     ASSERT(1, sub_short(7, 3, 3));
+
+    ASSERT(3, ({ struct A a,b; a.a = 2; b.a = 1; add_struct(a, b); }));
 
     printf("OK\n");
     return 0;

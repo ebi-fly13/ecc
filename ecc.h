@@ -183,7 +183,7 @@ struct Type {
     // for struct
     struct Member *member;
 
-    struct Type *next;
+    struct Type *next_param;
 };
 
 extern struct Type *ty_long;
