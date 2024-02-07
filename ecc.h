@@ -38,13 +38,11 @@ struct Token {
 
 struct VarScope {
     struct VarScope *next;
-    char *name;
     struct Object *var;
 };
 
 struct TagScope {
     struct TagScope *next;
-    char *name;
     struct Type *ty;
 };
 
@@ -52,6 +50,12 @@ struct Scope {
     struct Scope *next;
     struct VarScope *vars;
     struct TagScope *tags;
+};
+
+struct NameTag {
+    struct NameTag *next;
+    char *name;
+    struct Type *ty;
 };
 
 struct Object {
@@ -178,12 +182,11 @@ struct Type {
 
     // for function type
     struct Type *return_ty;
-    struct Type *params;
+    struct NameTag *params;
 
     // for struct
     struct Member *member;
 
-    struct Type *next_param;
 };
 
 extern struct Type *ty_long;
@@ -193,7 +196,7 @@ extern struct Type *ty_char;
 
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, size_t);
-struct Type *func_to(struct Type *, struct Type *);
+struct Type *func_to(struct Type *, struct NameTag *);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 bool is_same_type(struct Type *, struct Type *);
