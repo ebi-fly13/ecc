@@ -31,7 +31,7 @@ typedef enum {
 struct Token {
     TokenKind kind;      // トークンの型
     struct Token *next;  // 次の入力トークン
-    long val;             // kindがTK_NUMの場合、その数値
+    long val;            // kindがTK_NUMの場合、その数値
     char *str;           // トークンの文字列
     int len;             // トークンの長さ
 };
@@ -134,9 +134,9 @@ struct Node {
 
     struct Node *args;  // 関数の引数
 
-    struct Member *member; // 構造体のメンバー変数
+    struct Member *member;  // 構造体のメンバー変数
 
-    long val;          // kindがND_NUMの場合のみ使用
+    long val;         // kindがND_NUMの場合のみ使用
     struct Type *ty;  // 変数の型
 
     struct Node *cond;  // 条件文
@@ -161,15 +161,15 @@ struct Member {
 
 // type.c
 typedef enum {
-    TY_LONG,   // long
-    TY_INT,    // int
-    TY_SHORT,  // short
-    TY_CHAR,   // char
-    TY_PTR,    // pointer
-    TY_ARRAY,  // 配列
-    TY_FUNC,   // 関数
-    TY_STRUCT, // 構造体
-    TY_UNION,  // 共用体
+    TY_LONG,    // long
+    TY_INT,     // int
+    TY_SHORT,   // short
+    TY_CHAR,    // char
+    TY_PTR,     // pointer
+    TY_ARRAY,   // 配列
+    TY_FUNC,    // 関数
+    TY_STRUCT,  // 構造体
+    TY_UNION,   // 共用体
 } TypeKind;
 
 struct Type {
@@ -186,7 +186,6 @@ struct Type {
 
     // for struct
     struct Member *member;
-
 };
 
 extern struct Type *ty_long;

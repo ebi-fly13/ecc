@@ -6,7 +6,8 @@ struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1};
 
 bool is_integer(struct Type *ty) {
-    return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT || ty->ty == TY_CHAR;
+    return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
+           ty->ty == TY_CHAR;
 }
 
 bool is_pointer(struct Type *ty) {
@@ -14,20 +15,19 @@ bool is_pointer(struct Type *ty) {
 }
 
 bool is_same_type(struct Type *lhs, struct Type *rhs) {
-    if(lhs->ty != rhs->ty) return false;
-    if(lhs->ty == TY_STRUCT || lhs->ty == TY_UNION) {
-        if(strcmp(lhs->name, rhs->name) != 0) return false;
-    }
-    else if(lhs->ty == TY_FUNC) {
-        if(!is_same_type(lhs->return_ty, rhs->return_ty)) return false;
+    if (lhs->ty != rhs->ty) return false;
+    if (lhs->ty == TY_STRUCT || lhs->ty == TY_UNION) {
+        if (strcmp(lhs->name, rhs->name) != 0) return false;
+    } else if (lhs->ty == TY_FUNC) {
+        if (!is_same_type(lhs->return_ty, rhs->return_ty)) return false;
         struct NameTag *param_lhs = lhs->params;
         struct NameTag *param_rhs = rhs->params;
-        while(param_lhs != NULL && param_rhs != NULL) {
-            if(!is_same_type(param_lhs->ty, param_rhs->ty)) return false;
+        while (param_lhs != NULL && param_rhs != NULL) {
+            if (!is_same_type(param_lhs->ty, param_rhs->ty)) return false;
             param_lhs = param_lhs->next;
             param_rhs = param_rhs->next;
         }
-        if(param_lhs != NULL && param_rhs != NULL) return false;
+        if (param_lhs != NULL && param_rhs != NULL) return false;
     }
 
     return true;

@@ -40,7 +40,7 @@ void load(struct Type *ty) {
         printf("  movsbq rax, [rax]\n");
     else if (ty->size == 2)
         printf("  movswq rax, [rax]\n");
-    else if(ty->size == 4) 
+    else if (ty->size == 4)
         printf("  movsxd rax, [rax]\n");
     else
         printf("  mov rax, [rax]\n");
@@ -50,9 +50,9 @@ void load(struct Type *ty) {
 void store(struct Type *ty) {
     if (ty->size == 1)
         printf("  mov [rax], dil\n");
-    else if(ty->size == 2)
+    else if (ty->size == 2)
         printf("  mov [rax], di\n");
-    else if(ty->size == 4)
+    else if (ty->size == 4)
         printf("  mov [rax], edi\n");
     else
         printf("  mov [rax], rdi\n");
@@ -166,7 +166,7 @@ void gen(struct Node *node) {
         return;
     }
 
-    if(node->kind == ND_MEMBER) {
+    if (node->kind == ND_MEMBER) {
         gen_lval(node);
         load(node->member->ty);
         return;

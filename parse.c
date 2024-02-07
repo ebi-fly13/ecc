@@ -320,12 +320,11 @@ struct Token *function(struct Token *token) {
     struct Type *ty = declspec(&token, token);
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
-    tag = func_params(&token, token, tag); 
+    tag = func_params(&token, token, tag);
     struct Object *fn = find_object(functions, tag->name);
-    if(fn == NULL) {
+    if (fn == NULL) {
         fn = new_func(tag);
-    }
-    else {
+    } else {
         assert(is_same_type(fn->ty, tag->ty));
     }
     locals = NULL;
@@ -417,7 +416,8 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     ty->ty = TY_STRUCT;
     ty->member = struct_union_members(rest, token);
     int offset = 0;
-    for(struct Member *member = ty->member; member != NULL; member = member->next) {
+    for (struct Member *member = ty->member; member != NULL;
+         member = member->next) {
         member->offset = offset;
         offset += member->ty->size;
     }
@@ -451,9 +451,10 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     ty->ty = TY_UNION;
     ty->member = struct_union_members(rest, token);
     int offset = 0;
-    for(struct Member *member = ty->member; member != NULL; member = member->next) {
+    for (struct Member *member = ty->member; member != NULL;
+         member = member->next) {
         member->offset = 0;
-        if(offset < member->ty->size) {
+        if (offset < member->ty->size) {
             offset = member->ty->size;
         }
     }
@@ -493,13 +494,13 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
 declarator = "*"* ident type-suffix
 */
 struct NameTag *declarator(struct Token **rest, struct Token *token,
-                        struct Type *ty) {
+                           struct Type *ty) {
     while (equal(token, "*")) {
         token = skip(token, "*");
         ty = pointer_to(ty);
     }
     char *name = NULL;
-    if(token->kind == TK_IDENT) {
+    if (token->kind == TK_IDENT) {
         name = strndup(token->str, token->len);
         token = token->next;
     }
@@ -525,7 +526,7 @@ struct Type *type_suffix(struct Token **rest, struct Token *token,
 func_params = (param ("," param )? )? ")"
 */
 struct NameTag *func_params(struct Token **rest, struct Token *token,
-                         struct NameTag *return_tag) {
+                            struct NameTag *return_tag) {
     struct NameTag head = {};
     struct NameTag *cur = &head;
     while (!equal(token, ")")) {

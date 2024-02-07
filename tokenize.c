@@ -141,7 +141,7 @@ struct Token *tokenize(char *p) {
             int len = 0;
             char *q = p + 1;
             while (*q != '"') {
-                if(*q == '\\') q++;
+                if (*q == '\\') q++;
                 q++;
             }
             cur = new_token(TK_STR, cur, p, q - p + 1);
@@ -179,7 +179,7 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if(startswith(p, "long") && !is_alnum(p[4])) {
+        if (startswith(p, "long") && !is_alnum(p[4])) {
             cur = new_token(TK_MOLD, cur, p, 4);
             p += 4;
             continue;
@@ -209,13 +209,13 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if(startswith(p, "struct") && !is_alnum(p[6])) {
+        if (startswith(p, "struct") && !is_alnum(p[6])) {
             cur = new_token(TK_MOLD, cur, p, 6);
             p += 6;
             continue;
         }
 
-        if(startswith(p, "union") && !is_alnum(p[5])) {
+        if (startswith(p, "union") && !is_alnum(p[5])) {
             cur = new_token(TK_MOLD, cur, p, 5);
             p += 5;
             continue;
