@@ -19,15 +19,15 @@ bool is_same_type(struct Type *lhs, struct Type *rhs) {
         if(strcmp(lhs->name, rhs->name) != 0) return false;
     }
     else if(lhs->ty == TY_FUNC) {
-        if(!is_same_type(lhs->return_ty, rhs->return_ty) || strcmp(lhs->name, rhs->name) != 0) return false;
-        return true;
-        struct Type *param_lhs = lhs->params;
-        struct Type *param_rhs = rhs->params;
+        if(!is_same_type(lhs->return_ty, rhs->return_ty)) return false;
+        struct NameTag *param_lhs = lhs->params;
+        struct NameTag *param_rhs = rhs->params;
         while(param_lhs != NULL && param_rhs != NULL) {
-            if(!is_same_type(param_lhs, param_rhs)) return false;
-            param_lhs = param_lhs->next_param;
-            param_rhs = param_rhs->next_param;
+            if(!is_same_type(param_lhs->ty, param_rhs->ty)) return false;
+            param_lhs = param_lhs->next;
+            param_rhs = param_rhs->next;
         }
+        if(param_lhs != NULL && param_rhs != NULL) return false;
     }
 
     return true;
@@ -50,7 +50,7 @@ struct Type *array_to(struct Type *ty, size_t array_size) {
     return array;
 }
 
-struct Type *func_to(struct Type *return_ty, struct Type *params) {
+struct Type *func_to(struct Type *return_ty, struct NameTag *params) {
     struct Type *func = calloc(1, sizeof(struct Type));
     func->ty = TY_FUNC;
     func->return_ty = return_ty;

@@ -113,7 +113,6 @@ void leave_scope() {
 
 void push_var_scope(struct Object *var) {
     struct VarScope *vs = calloc(1, sizeof(struct VarScope));
-    vs->name = var->name;
     vs->var = var;
     vs->next = scope->vars;
     scope->vars = vs;
@@ -122,7 +121,6 @@ void push_var_scope(struct Object *var) {
 
 void push_tag_scope(struct Type *ty) {
     struct TagScope *tag = calloc(1, sizeof(struct TagScope));
-    tag->name = ty->name;
     tag->ty = ty;
     tag->next = scope->tags;
     scope->tags = tag;
@@ -142,7 +140,7 @@ struct Object *find_object(struct Object *map, char *name) {
 struct Object *find_variable_from_scope(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
         for (struct VarScope *var = scp->vars; var != NULL; var = var->next) {
-            if (!strcmp(var->name, name)) {
+            if (!strcmp(var->var->name, name)) {
                 return var->var;
             }
         }
@@ -153,7 +151,7 @@ struct Object *find_variable_from_scope(char *name) {
 struct Type *find_tag_from_scope(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
         for (struct TagScope *tag = scp->tags; tag != NULL; tag = tag->next) {
-            if (!strcmp(tag->name, name)) {
+            if (!strcmp(tag->ty->name, name)) {
                 return tag->ty;
             }
         }
@@ -168,40 +166,40 @@ char *new_unique_name() {
     return buf;
 }
 
-struct Object *new_var(char *name, struct Type *ty) {
+struct Object *new_var(struct NameTag *tag) {
     struct Object *var = calloc(1, sizeof(struct Object));
-    var->name = name;
-    var->ty = ty;
+    var->name = tag->name;
+    var->ty = tag->ty;
     push_var_scope(var);
     return var;
 }
 
-struct Object *new_local_var(char *name, struct Type *ty) {
-    struct Object *lvar = find_variable_from_scope(name);
+struct Object *new_local_var(struct NameTag *tag) {
+    struct Object *lvar = find_variable_from_scope(tag->name);
     if (lvar) {
-        error("ローカル変数%sは既に定義されています", name);
+        error("ローカル変数%sは既に定義されています", tag->name);
     } else {
-        lvar = new_var(name, ty);
+        lvar = new_var(tag);
         lvar->next = locals;
-        lvar->len = strlen(name);
+        lvar->len = strlen(tag->name);
         if (locals == NULL) {
-            lvar->offset = (int)ty->size;
+            lvar->offset = (int)tag->ty->size;
         } else {
-            lvar->offset = locals->offset + (int)ty->size;
+            lvar->offset = locals->offset + (int)tag->ty->size;
         }
         locals = lvar;
         return lvar;
     }
 }
 
-struct Object *new_global_var(char *name, struct Type *ty) {
-    struct Object *gvar = find_object(globals, name);
+struct Object *new_global_var(struct NameTag *tag) {
+    struct Object *gvar = find_object(globals, tag->name);
     if (gvar) {
-        error("グローバル変数%sは既に定義されています", name);
+        error("グローバル変数%sは既に定義されています", tag->name);
     } else {
-        gvar = new_var(name, ty);
+        gvar = new_var(tag);
         gvar->next = globals;
-        gvar->len = strlen(name);
+        gvar->len = strlen(tag->name);
         gvar->is_global_variable = true;
         globals = gvar;
         return gvar;
@@ -209,7 +207,10 @@ struct Object *new_global_var(char *name, struct Type *ty) {
 }
 
 struct Object *new_anon_gvar(struct Type *ty) {
-    return new_global_var(new_unique_name(), ty);
+    struct NameTag *tag = calloc(1, sizeof(1, sizeof(struct NameTag)));
+    tag->name = new_unique_name();
+    tag->ty = ty;
+    return new_global_var(tag);
 }
 
 struct Object *new_string_literal(char *p) {
@@ -220,14 +221,14 @@ struct Object *new_string_literal(char *p) {
     return obj;
 }
 
-struct Object *new_func(char *name, struct Type *ty) {
-    struct Object *fn = find_object(globals, name);
+struct Object *new_func(struct NameTag *tag) {
+    struct Object *fn = find_object(globals, tag->name);
     if (fn) {
-        error("関数%sは既に定義されています", name);
+        error("関数%sは既に定義されています", tag->name);
     } else {
-        fn = new_var(name, ty);
+        fn = new_var(tag);
         fn->next = globals;
-        fn->len = strlen(name);
+        fn->len = strlen(tag->name);
         fn->is_function_definition = true;
         fn->next = functions;
         functions = fn;
@@ -238,8 +239,8 @@ struct Object *new_func(char *name, struct Type *ty) {
 struct Node *expand_func_params(struct Type *ty) {
     struct Node head = {};
     struct Node *cur = &head;
-    for (struct Type *p = ty->params; p != NULL; p = p->next_param) {
-        new_local_var(p->name, p);
+    for (struct NameTag *p = ty->params; p != NULL; p = p->next) {
+        new_local_var(p);
         cur = cur->next = new_node_var(find_variable_from_scope(p->name));
     }
     return head.next;
@@ -270,11 +271,11 @@ struct Token *global_variable(struct Token *);
 struct Type *declspec(struct Token **, struct Token *);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
-struct Type *declarator(struct Token **, struct Token *, struct Type *);
+struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
-struct Type *func_params(struct Token **, struct Token *, struct Type *);
+struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
 struct Member *struct_union_members(struct Token **, struct Token *);
-struct Type *param(struct Token **, struct Token *);
+struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
 struct Node *declaration(struct Token **, struct Token *);
@@ -293,7 +294,7 @@ struct Node *primary(struct Token **, struct Token *);
 bool is_function(struct Token *token) {
     if (equal(token, ";")) return false;
     struct Type dummy = {};
-    struct Type *ty = declarator(&token, token->next, &dummy);
+    declarator(&token, token->next, &dummy);
     return equal(token, "(");
 }
 
@@ -317,15 +318,15 @@ function = declspec declarator "(" func_params "{" compound_stmt
 */
 struct Token *function(struct Token *token) {
     struct Type *ty = declspec(&token, token);
-    ty = declarator(&token, token, ty);
+    struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
-    ty = func_params(&token, token, ty);
-    struct Object *fn = find_object(functions, ty->name);
+    tag = func_params(&token, token, tag); 
+    struct Object *fn = find_object(functions, tag->name);
     if(fn == NULL) {
-        fn = new_func(ty->name, ty);
+        fn = new_func(tag);
     }
     else {
-        assert(is_same_type(fn->ty, ty));
+        assert(is_same_type(fn->ty, tag->ty));
     }
     locals = NULL;
     if (equal(token, "{")) {
@@ -334,7 +335,7 @@ struct Token *function(struct Token *token) {
         fn->is_function_definition = false;
 
         enter_scope();
-        fn->args = expand_func_params(ty);
+        fn->args = expand_func_params(tag->ty);
         token = skip(token, "{");
         fn->body = compound_stmt(&token, token);
         if (locals)
@@ -360,8 +361,8 @@ struct Token *global_variable(struct Token *token) {
             token = skip(token, ",");
         else
             is_first = false;
-        struct Type *gvar = declarator(&token, token, ty);
-        new_global_var(gvar->name, gvar);
+        struct NameTag *gvar = declarator(&token, token, ty);
+        new_global_var(gvar);
     }
     return token->next;
 }
@@ -374,16 +375,16 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
     struct Type *ty = calloc(1, sizeof(struct Type));
     if (equal(token, "long")) {
         *rest = skip(token, "long");
-        memcpy(ty, ty_long, sizeof(struct Type));
+        ty = ty_long;
     } else if (equal(token, "int")) {
         *rest = skip(token, "int");
-        memcpy(ty, ty_int, sizeof(struct Type));
+        ty = ty_int;
     } else if (equal(token, "short")) {
         *rest = skip(token, "short");
-        memcpy(ty, ty_short, sizeof(struct Type));
+        ty = ty_short;
     } else if (equal(token, "char")) {
         *rest = skip(token, "char");
-        memcpy(ty, ty_char, sizeof(struct Type));
+        ty = ty_char;
     } else if (equal(token, "struct")) {
         ty = struct_decl(rest, token->next);
     } else if (equal(token, "union")) {
@@ -404,12 +405,10 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = calloc(1, sizeof(struct Type));
-        struct Type *base = find_tag_from_scope(name);
-        if (base == NULL) {
+        struct Type *ty = find_tag_from_scope(name);
+        if (ty == NULL) {
             error("構造体%sは存在しません", name);
         }
-        memcpy(ty, base, sizeof(struct Type));
         *rest = token;
         return ty;
     }
@@ -440,12 +439,10 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = calloc(1, sizeof(struct Type));
-        struct Type *base = find_tag_from_scope(name);
-        if (base == NULL) {
+        struct Type *ty = find_tag_from_scope(name);
+        if (ty == NULL) {
             error("共用体%sは存在しません", name);
         }
-        memcpy(ty, base, sizeof(struct Type));
         *rest = token;
         return ty;
     }
@@ -480,10 +477,10 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
         while (!equal(token, ";")) {
             if (!is_first) token = skip(token, ",");
             is_first = false;
-            struct Type *ty = declarator(&token, token, base_ty);
+            struct NameTag *tag = declarator(&token, token, base_ty);
             struct Member *member = calloc(1, sizeof(struct Member));
-            member->name = ty->name;
-            member->ty = ty;
+            member->name = tag->name;
+            member->ty = tag->ty;
             cur = cur->next = member;
         }
         token = skip(token, ";");
@@ -495,7 +492,7 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
 /*
 declarator = "*"* ident type-suffix
 */
-struct Type *declarator(struct Token **rest, struct Token *token,
+struct NameTag *declarator(struct Token **rest, struct Token *token,
                         struct Type *ty) {
     while (equal(token, "*")) {
         token = skip(token, "*");
@@ -506,9 +503,10 @@ struct Type *declarator(struct Token **rest, struct Token *token,
         name = strndup(token->str, token->len);
         token = token->next;
     }
-    ty = type_suffix(rest, token, ty);
-    ty->name = name;
-    return ty;
+    struct NameTag *tag = calloc(1, sizeof(struct NameTag));
+    tag->ty = type_suffix(rest, token, ty);
+    tag->name = name;
+    return tag;
 }
 
 struct Type *type_suffix(struct Token **rest, struct Token *token,
@@ -526,32 +524,33 @@ struct Type *type_suffix(struct Token **rest, struct Token *token,
 /*
 func_params = (param ("," param )? )? ")"
 */
-struct Type *func_params(struct Token **rest, struct Token *token,
-                         struct Type *return_ty) {
-    struct Type head = {};
-    struct Type *cur = &head;
+struct NameTag *func_params(struct Token **rest, struct Token *token,
+                         struct NameTag *return_tag) {
+    struct NameTag head = {};
+    struct NameTag *cur = &head;
     while (!equal(token, ")")) {
         if (cur != &head) {
             token = skip(token, ",");
         }
-        struct Type *ty = param(&token, token);
-        cur->next_param = ty;
-        cur = ty;
+        struct NameTag *tag = param(&token, token);
+        cur->next = tag;
+        cur = tag;
     }
     *rest = token->next;
-    struct Type *fn = func_to(return_ty, head.next_param);
-    fn->name = return_ty->name;
+    struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
+    fn->ty = func_to(return_tag->ty, head.next);
+    fn->name = return_tag->name;
     return fn;
 }
 
 /*
 param = declspec declarator
 */
-struct Type *param(struct Token **rest, struct Token *token) {
+struct NameTag *param(struct Token **rest, struct Token *token) {
     struct Type *ty = declspec(&token, token);
-    ty = declarator(&token, token, ty);
+    struct NameTag *tag = declarator(&token, token, ty);
     *rest = token;
-    return ty;
+    return tag;
 }
 
 /*
@@ -645,8 +644,8 @@ struct Node *declaration(struct Token **rest, struct Token *token) {
     while (!equal(token, ";")) {
         if (!is_first) token = skip(token, ",");
         is_first = false;
-        struct Type *ty = declarator(&token, token, base_ty);
-        struct Object *var = new_local_var(ty->name, ty);
+        struct NameTag *tag = declarator(&token, token, base_ty);
+        struct Object *var = new_local_var(tag);
         if (!equal(token, "=")) continue;
         token = skip(token, "=");
         cur->next =
