@@ -15,7 +15,7 @@ int add_struct(struct A a, struct A b) {
     return a.a + b.a;
 }
 
-void void_func() {
+void f() {
     return;
 }
 
@@ -57,6 +57,13 @@ int sub_short(short a, short b, short c) {
     return a - b - c;
 }
 
+void swap(int *a, int *b) {
+    int c = *a;
+    *a = *b;
+    *b = c;
+    return;
+}
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -79,7 +86,9 @@ int main() {
 
     ASSERT(3, ({ struct A a,b; a.a = 2; b.a = 1; add_struct(a, b); }));
 
-    void_func();
+    ASSERT(3, ({ int a = 2, b = 3; swap(&a, &b); a; }));
+
+    f();
 
     printf("OK\n");
     return 0;
