@@ -137,7 +137,7 @@ struct Object *find_object(struct Object *map, char *name) {
     return NULL;
 }
 
-struct Object *find_variable_from_scope(char *name) {
+struct Object *find_variable(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
         for (struct VarScope *var = scp->vars; var != NULL; var = var->next) {
             if (!strcmp(var->var->name, name)) {
@@ -148,12 +148,30 @@ struct Object *find_variable_from_scope(char *name) {
     return NULL;
 }
 
-struct Type *find_tag_from_scope(char *name) {
+struct Object *find_variable_from_scope(char *name) {
+    for (struct VarScope *var = scope->vars; var != NULL; var = var->next) {
+        if (!strcmp(var->var->name, name)) {
+            return var->var;
+        }
+    }
+    return NULL;
+}
+
+struct Type *find_tag(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
         for (struct TagScope *tag = scp->tags; tag != NULL; tag = tag->next) {
             if (!strcmp(tag->ty->name, name)) {
                 return tag->ty;
             }
+        }
+    }
+    return NULL;
+}
+
+struct Type *find_tag_from_scope(char *name) {
+    for (struct TagScope *tag = scope->tags; tag != NULL; tag = tag->next) {
+        if (!strcmp(tag->ty->name, name)) {
+            return tag->ty;
         }
     }
     return NULL;
@@ -411,7 +429,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = find_tag_from_scope(name);
+        struct Type *ty = find_tag(name);
         if (ty == NULL) {
             error("構造体%sは存在しません", name);
         }
@@ -431,6 +449,9 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     ty->size = offset;
     ty->name = name;
     if (name != NULL) {
+        if (find_tag_from_scope(ty->name)) {
+            error("構造体%sは既に定義されています", ty->name);
+        }
         push_tag_scope(ty);
     }
     return ty;
@@ -446,7 +467,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = find_tag_from_scope(name);
+        struct Type *ty = find_tag(name);
         if (ty == NULL) {
             error("共用体%sは存在しません", name);
         }
@@ -468,6 +489,9 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     ty->size = offset;
     ty->name = name;
     if (name != NULL) {
+        if (find_tag_from_scope(ty->name)) {
+            error("共用体%sは既に定義されています", ty->name);
+        }
         push_tag_scope(ty);
     }
     return ty;
@@ -879,7 +903,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
             *rest = token;
         } else {
             char *name = strndup(token->str, token->len);
-            struct Object *var = find_variable_from_scope(name);
+            struct Object *var = find_variable(name);
             if (var == NULL) {
                 error("変数%sは定義されていません", name);
             }
