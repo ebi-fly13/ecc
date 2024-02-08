@@ -522,7 +522,7 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
 }
 
 /*
-declarator = "*"* ident type-suffix
+declarator = "*"* ( "(" declarator ")" | ident)? type_suffix
 */
 struct NameTag *declarator(struct Token **rest, struct Token *token,
                            struct Type *ty) {
@@ -530,14 +530,24 @@ struct NameTag *declarator(struct Token **rest, struct Token *token,
         token = skip(token, "*");
         ty = pointer_to(ty);
     }
-    char *name = NULL;
-    if (token->kind == TK_IDENT) {
-        name = strndup(token->str, token->len);
+
+    if (equal(token, "(")) {
+        token = skip(token, "(");
+        struct Token *start = token;
+        struct Type dummy = {};
+        struct NameTag *tag = declarator(&token, token, &dummy);
+        token = skip(token, ")");
+        ty = type_suffix(&token, token, ty);
+        *rest = token;
+        return declarator(&start, start, ty);
+    }
+
+    struct NameTag *tag = calloc(1, sizeof(struct NameTag));
+    if (equal_keyword(token, TK_IDENT)) {
+        tag->name = strndup(token->str, token->len);
         token = token->next;
     }
-    struct NameTag *tag = calloc(1, sizeof(struct NameTag));
     tag->ty = type_suffix(rest, token, ty);
-    tag->name = name;
     return tag;
 }
 
