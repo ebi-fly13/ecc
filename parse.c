@@ -389,33 +389,87 @@ struct Token *global_variable(struct Token *token) {
 }
 
 /*
-declspec = "long" | "int" | "short" | "char" | struct_decl | union_decl
+declspec = ("long" | "int" | "short" | "char")+ | struct_decl | union_decl
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_MOLD);
-    struct Type *ty = calloc(1, sizeof(struct Type));
-    if (equal(token, "long")) {
-        *rest = skip(token, "long");
-        ty = ty_long;
-    } else if (equal(token, "int")) {
-        *rest = skip(token, "int");
-        ty = ty_int;
-    } else if (equal(token, "short")) {
-        *rest = skip(token, "short");
-        ty = ty_short;
-    } else if (equal(token, "char")) {
-        *rest = skip(token, "char");
-        ty = ty_char;
-    } else if (equal(token, "void")) {
-        *rest = skip(token, "void");
-        ty = ty_void;
-    } else if (equal(token, "struct")) {
-        ty = struct_decl(rest, token->next);
-    } else if (equal(token, "union")) {
-        ty = union_decl(rest, token->next);
-    } else {
-        error("既定の型でありません");
+
+    enum {
+        VOID = 1 << 0,
+        CHAR = 1 << 2,
+        SHORT = 1 << 4,
+        INT = 1 << 6,
+        LONG = 1 << 8,
+        OTHER = 1 << 10,
+    };
+
+    int counter = 0;
+    while (equal_keyword(token, TK_MOLD)) {
+        if (equal(token, "long")) {
+            token = skip(token, "long");
+            if((counter & (LONG + LONG))) {
+                error("longが3重になっています");
+            }
+            counter += LONG;
+        } else if (equal(token, "int")) {
+            token = skip(token, "int");
+            if(counter & INT) {
+                error("intが2重になっています");
+            }
+            counter += INT;
+        } else if (equal(token, "short")) {
+            token = skip(token, "short");
+            if(counter & SHORT) {
+                error("shortが2重になっています");
+            }
+            counter += SHORT;
+        } else if (equal(token, "char")) {
+            token = skip(token, "char");
+            if(counter & CHAR) {
+                error("charが2重になっています");
+            }
+            counter += CHAR;
+        } else if (equal(token, "void")) {
+            token = skip(token, "void");
+            if(counter & VOID) {
+                error("voidが2重になっています");
+            }
+            counter += VOID;
+        } else if (equal(token, "struct")) {
+            assert(counter == 0);
+            return struct_decl(rest, token->next);
+        } else if (equal(token, "union")) {
+            assert(counter == 0);
+            return union_decl(rest, token->next);
+        } else {
+            error("既定の型でありません");
+        }
     }
+    struct Type *ty = NULL;
+    switch(counter) {
+        case VOID:
+            ty = ty_void;
+            break;
+        case CHAR:
+            ty = ty_char;
+            break;
+        case SHORT:
+        case SHORT + INT:
+            ty = ty_short;
+            break;
+        case INT:
+            ty = ty_int;
+            break;
+        case LONG:
+        case LONG + INT:
+        case LONG + LONG:
+        case LONG + LONG + INT:
+            ty = ty_long;
+            break;
+        default:
+            error("invalid type");
+    }
+    *rest = token;
     return ty;
 }
 
