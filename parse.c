@@ -111,6 +111,15 @@ void leave_scope() {
     return;
 }
 
+void push_typedef_scope(struct NameTag *tag) {
+    struct TypeScope *tydef = calloc(1, sizeof(struct TypeScope));
+    tydef->name = tag->name;
+    tydef->ty = tag->ty;
+    tydef->next = scope->tydef;
+    scope->tydef = tydef;
+    return;
+}
+
 void push_var_scope(struct Object *var) {
     struct VarScope *vs = calloc(1, sizeof(struct VarScope));
     vs->var = var;
@@ -132,6 +141,28 @@ struct Object *find_object(struct Object *map, char *name) {
         if (obj->len == strlen(name) &&
             memcmp(name, obj->name, obj->len) == 0) {
             return obj;
+        }
+    }
+    return NULL;
+}
+
+struct Type *find_type(char *name) {
+    for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
+        for (struct TypeScope *tydef = scp->tydef; tydef != NULL;
+             tydef = tydef->next) {
+            if (!strcmp(tydef->name, name)) {
+                return tydef->ty;
+            }
+        }
+    }
+    return NULL;
+}
+
+struct Type *find_type_from_scope(char *name) {
+    for (struct TypeScope *tydef = scope->tydef; tydef != NULL;
+         tydef = tydef->next) {
+        if (!strcmp(tydef->name, name)) {
+            return tydef->ty;
         }
     }
     return NULL;
@@ -287,6 +318,14 @@ struct Node *struct_union_ref(struct Node *node, char *name) {
     return res;
 }
 
+bool is_typename(struct Token *token) {
+    if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
+        equal(token, "union") || equal(token, "typedef"))
+        return true;
+    struct Type *ty = find_type(strndup(token->str, token->len));
+    return ty != NULL;
+}
+
 struct Object *program(struct Token *);
 struct Token *function(struct Token *);
 struct Token *global_variable(struct Token *);
@@ -300,7 +339,8 @@ struct Member *struct_union_members(struct Token **, struct Token *);
 struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
-struct Node *declaration(struct Token **, struct Token *);
+void typedef_decl(struct Token **, struct Token *, struct Type *);
+struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
 struct Node *expr_stmt(struct Token **, struct Token *);
 struct Node *expr(struct Token **, struct Token *);
 struct Node *assign(struct Token **, struct Token *);
@@ -376,6 +416,10 @@ global_variable = declspec (declarator ("," declarator)* )? ";"
 */
 struct Token *global_variable(struct Token *token) {
     struct Type *ty = declspec(&token, token);
+    if (ty->is_typedef) {
+        typedef_decl(&token, token, ty);
+        return token;
+    }
     bool is_first = true;
     while (!equal(token, ";")) {
         if (!is_first)
@@ -389,11 +433,10 @@ struct Token *global_variable(struct Token *token) {
 }
 
 /*
-declspec = ("long" | "int" | "short" | "char")+ | struct_decl | union_decl
+declspec = ("long" | "int" | "short" | "char" | "typedef" | typedef_type )+ |
+struct_decl | union_decl
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
-    assert(token->kind == TK_MOLD);
-
     enum {
         VOID = 1 << 0,
         CHAR = 1 << 2,
@@ -402,51 +445,62 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         LONG = 1 << 8,
         OTHER = 1 << 10,
     };
-
+    bool is_typedef = false;
     int counter = 0;
-    while (equal_keyword(token, TK_MOLD)) {
-        if (equal(token, "long")) {
+    while (is_typename(token)) {
+        if (equal(token, "typedef")) {
+            is_typedef = true;
+            token = skip(token, "typedef");
+        } else if (equal(token, "long")) {
             token = skip(token, "long");
-            if((counter & (LONG + LONG))) {
+            if ((counter & (LONG + LONG))) {
                 error("longが3重になっています");
             }
             counter += LONG;
         } else if (equal(token, "int")) {
             token = skip(token, "int");
-            if(counter & INT) {
+            if (counter & INT) {
                 error("intが2重になっています");
             }
             counter += INT;
         } else if (equal(token, "short")) {
             token = skip(token, "short");
-            if(counter & SHORT) {
+            if (counter & SHORT) {
                 error("shortが2重になっています");
             }
             counter += SHORT;
         } else if (equal(token, "char")) {
             token = skip(token, "char");
-            if(counter & CHAR) {
+            if (counter & CHAR) {
                 error("charが2重になっています");
             }
             counter += CHAR;
         } else if (equal(token, "void")) {
             token = skip(token, "void");
-            if(counter & VOID) {
+            if (counter & VOID) {
                 error("voidが2重になっています");
             }
             counter += VOID;
         } else if (equal(token, "struct")) {
             assert(counter == 0);
-            return struct_decl(rest, token->next);
+            struct Type *ty = struct_decl(rest, token->next);
+            ty->is_typedef = is_typedef;
+            return ty;
         } else if (equal(token, "union")) {
             assert(counter == 0);
-            return union_decl(rest, token->next);
+            struct Type *ty = union_decl(rest, token->next);
+            ty->is_typedef = is_typedef;
+            return ty;
+        } else if (equal_keyword(token, TK_IDENT)) {
+            struct Type *ty = find_type(strndup(token->str, token->len));
+            *rest = token->next;
+            return ty;
         } else {
             error("既定の型でありません");
         }
     }
     struct Type *ty = NULL;
-    switch(counter) {
+    switch (counter) {
         case VOID:
             ty = ty_void;
             break;
@@ -467,8 +521,13 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
             ty = ty_long;
             break;
         default:
+            if (is_typedef) {
+                ty = ty_int;
+                break;
+            }
             error("invalid type");
     }
+    ty->is_typedef = is_typedef;
     *rest = token;
     return ty;
 }
@@ -708,7 +767,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-compound_stmt = (declaration | stmt)* "}"
+compound_stmt = (declaration | typedef_decl | stmt)* "}"
 */
 struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     struct Node *node = new_node(ND_BLOCK);
@@ -717,8 +776,13 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 
     enter_scope();
     while (!equal(token, "}")) {
-        if (token->kind == TK_MOLD) {
-            cur->next = declaration(&token, token);
+        if (is_typename(token)) {
+            struct Type *base_ty = declspec(&token, token);
+            if (base_ty->is_typedef) {
+                typedef_decl(&token, token, base_ty);
+            } else {
+                cur->next = declaration(&token, token, base_ty);
+            }
         } else {
             cur->next = stmt(&token, token);
         }
@@ -735,8 +799,8 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 /*
 declaration = declspec (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
 */
-struct Node *declaration(struct Token **rest, struct Token *token) {
-    struct Type *base_ty = declspec(&token, token);
+struct Node *declaration(struct Token **rest, struct Token *token,
+                         struct Type *base_ty) {
     struct Node head = {};
     struct Node *cur = &head;
     bool is_first = true;
@@ -756,6 +820,29 @@ struct Node *declaration(struct Token **rest, struct Token *token) {
     struct Node *node = new_node(ND_BLOCK);
     node->body = head.next;
     return node;
+}
+
+/*
+typedef_decl = (declarator ("," declarator)* )? ";"
+*/
+void typedef_decl(struct Token **rest, struct Token *token,
+                  struct Type *base_ty) {
+    assert(base_ty->is_typedef);
+    base_ty->is_typedef = false;
+    bool first = true;
+    while (!equal(token, ";")) {
+        if (!first) {
+            token = skip(token, ",");
+        }
+        first = false;
+        struct NameTag *tag = declarator(&token, token, base_ty);
+        if (find_type_from_scope(tag->name) != NULL) {
+            error("%sは既にtypedefされています", tag->name);
+        }
+        push_typedef_scope(tag);
+    }
+    *rest = skip(token, ";");
+    return;
 }
 
 /*

@@ -227,6 +227,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "typedef") && !is_alnum(p[7])) {
+            cur = new_token(TK_RESERVED, cur, p, 7);
+            p += 7;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p, 0);
             char *q = p;
