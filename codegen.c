@@ -273,6 +273,7 @@ void codegen() {
     for (struct Object *obj = functions; obj; obj = obj->next) {
         if (obj->body == NULL) continue;
         assert(obj->is_function);
+        printf("  .text\n");
         printf("  .globl %s\n", obj->name);
         printf("%s:\n", obj->name);
 
