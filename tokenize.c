@@ -82,6 +82,10 @@ bool is_alnum(char c) {
     return isdigit(c) || isalpha(c) || c == '_';
 }
 
+bool is_ident_head(char c) {
+    return isalpha(c) || c == '_';
+}
+
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
     tok->kind = kind;
@@ -241,7 +245,7 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
-        if (is_alnum(*p)) {
+        if (is_ident_head(*p)) {
             int len = 0;
             while (is_alnum(*(p + len))) {
                 len++;
