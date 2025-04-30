@@ -86,12 +86,92 @@ bool is_ident_head(char c) {
     return isalpha(c) || c == '_';
 }
 
+int from_hex(char c) {
+    assert(isxdigit(c));
+    if ('0' <= c && c <= '9') {
+        return c - '0';
+    }
+    if ('a' <= c && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    return c - 'A' + 10;
+}
+
+int read_escaped_char(char **new_pos, char *p) {
+    if ('0' <= *p && *p <= '7') {
+        int c = *p - '0';
+        p++;
+        for (int i = 0; i < 2; i++) {
+            if ('0' <= *p && *p <= '7') {
+                c = (c << 3) + *p - '0';
+                p++;
+            }
+        }
+        *new_pos = p;
+        return c;
+    }
+
+    if (*p == 'x') {
+        p++;
+        int c = 0;
+        for (; isxdigit(*p); p++) {
+            c = (c << 4) + from_hex(*p);
+        }
+        *new_pos = p;
+        return c;
+    }
+
+    *new_pos = p + 1;
+    switch (*p) {
+        case 'a':
+            return '\a';
+        case 'b':
+            return '\b';
+        case 't':
+            return '\t';
+        case 'n':
+            return '\n';
+        case 'v':
+            return '\v';
+        case 'f':
+            return '\f';
+        case 'r':
+            return '\r';
+        case 'e':
+            return '\e';
+        default:
+            return *p;
+    }
+}
+
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
     tok->kind = kind;
     tok->str = str;
     tok->len = len;
     cur->next = tok;
+    return tok;
+}
+
+struct Token *read_char_literal(struct Token *cur, char *str) {
+    assert(*str == '\'');
+    char *p = str + 1;
+    if (*p == '\0') {
+        error_at(str, "unclosed char literal");
+    }
+    char c;
+    if (*p == '\\') {
+        c = read_escaped_char(&p, p + 1);
+    } else {
+        c = *p;
+        p++;
+    }
+    if (*p != '\'') {
+        error_at(p, "unclosed char literal");
+    }
+    p++;
+    struct Token *tok = new_token(TK_NUM, cur, str, p - str);
+    tok->val = c;
     return tok;
 }
 
@@ -149,6 +229,12 @@ struct Token *tokenize(char *p) {
                 q++;
             }
             cur = new_token(TK_STR, cur, p, q - p + 1);
+            p += cur->len;
+            continue;
+        }
+
+        if (*p == '\'') {
+            cur = read_char_literal(cur, p);
             p += cur->len;
             continue;
         }
