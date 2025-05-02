@@ -32,6 +32,7 @@ struct Token {
     TokenKind kind;      // トークンの型
     struct Token *next;  // 次の入力トークン
     long val;            // kindがTK_NUMの場合、その数値
+    char *loc;           // Tokenの開始位置
     char *str;           // トークンの文字列
     int len;             // トークンの長さ
 };

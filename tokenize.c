@@ -45,31 +45,30 @@ void error_at(char *loc, char *fmt, ...) {
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 struct Token *skip(struct Token *token, char *op) {
-    if (strlen(op) != token->len || memcmp(token->str, op, token->len))
-        error_at(token->str, "expected \"%s\"", op);
+    if (strlen(op) != token->len || memcmp(token->loc, op, token->len))
+        error_at(token->loc, "expected \"%s\"", op);
     return token->next;
 }
 
 struct Token *skip_keyword(struct Token *token, TokenKind kind) {
     if (token->kind != kind) {
-        error_at(token->str, "skip TokenKind error");
+        error_at(token->loc, "skip TokenKind error");
     }
     return token->next;
 }
 
 long get_number(struct Token *token) {
-    if (token->kind != TK_NUM) error_at(token->str, "数ではありません");
+    if (token->kind != TK_NUM) error_at(token->loc, "数ではありません");
     return token->val;
 }
 
 char *get_string(struct Token *token) {
-    if (token->kind != TK_STR) error_at(token->str, "文字列ではありません");
-    char *p = strndup(token->str + 1, token->len - 2);
-    return p;
+    if (token->kind != TK_STR) error_at(token->loc, "文字列ではありません");
+    return token->str;
 }
 
 bool equal(struct Token *tok, char *name) {
-    if (strlen(name) != tok->len || memcmp(name, tok->str, tok->len))
+    if (strlen(name) != tok->len || memcmp(name, tok->loc, tok->len))
         return false;
     return true;
 }
@@ -147,7 +146,7 @@ int read_escaped_char(char **new_pos, char *p) {
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
     tok->kind = kind;
-    tok->str = str;
+    tok->loc = str;
     tok->len = len;
     cur->next = tok;
     return tok;
@@ -172,6 +171,38 @@ struct Token *read_char_literal(struct Token *cur, char *str) {
     p++;
     struct Token *tok = new_token(TK_NUM, cur, str, p - str);
     tok->val = c;
+    return tok;
+}
+
+char *string_literal_end(char *p) {
+    char *str = p;
+    for (; *p != '"'; p++) {
+        if (*p == '\n' || *p == '\0') {
+            error_at(str, "unclosed string literal");
+        }
+        if (*p == '\\') {
+            p++;
+        }
+    }
+    assert(*p == '"');
+    return p;
+}
+
+struct Token *read_string_literal(struct Token *cur, char *str) {
+    assert(*str == '"');
+    char *end = string_literal_end(str + 1);
+    char *buf = calloc(1, end - str);
+    int len = 0;
+    for (char *p = str + 1; p < end;) {
+        if (*p == '\\') {
+            buf[len++] = read_escaped_char(&p, p + 1);
+        } else {
+            buf[len++] = *p;
+            p++;
+        }
+    }
+    struct Token *tok = new_token(TK_STR, cur, str, end - str + 1);
+    tok->str = buf;
     return tok;
 }
 
@@ -222,13 +253,7 @@ struct Token *tokenize(char *p) {
         }
 
         if (*p == '"') {
-            int len = 0;
-            char *q = p + 1;
-            while (*q != '"') {
-                if (*q == '\\') q++;
-                q++;
-            }
-            cur = new_token(TK_STR, cur, p, q - p + 1);
+            cur = read_string_literal(cur, p);
             p += cur->len;
             continue;
         }

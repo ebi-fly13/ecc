@@ -322,7 +322,7 @@ bool is_typename(struct Token *token) {
     if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
         equal(token, "union") || equal(token, "typedef"))
         return true;
-    struct Type *ty = find_type(strndup(token->str, token->len));
+    struct Type *ty = find_type(strndup(token->loc, token->len));
     return ty != NULL;
 }
 
@@ -492,7 +492,7 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
             ty->is_typedef = is_typedef;
             return ty;
         } else if (equal_keyword(token, TK_IDENT)) {
-            struct Type *ty = find_type(strndup(token->str, token->len));
+            struct Type *ty = find_type(strndup(token->loc, token->len));
             *rest = token->next;
             return ty;
         } else {
@@ -538,7 +538,7 @@ struct_decl = "struct" "{" struct_union_members
 struct Type *struct_decl(struct Token **rest, struct Token *token) {
     char *name = NULL;
     if (token->kind == TK_IDENT) {
-        name = strndup(token->str, token->len);
+        name = strndup(token->loc, token->len);
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
@@ -576,7 +576,7 @@ struct union_decl = "union" "{" struct_union_members
 struct Type *union_decl(struct Token **rest, struct Token *token) {
     char *name = NULL;
     if (token->kind == TK_IDENT) {
-        name = strndup(token->str, token->len);
+        name = strndup(token->loc, token->len);
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
@@ -657,7 +657,7 @@ struct NameTag *declarator(struct Token **rest, struct Token *token,
 
     struct NameTag *tag = calloc(1, sizeof(struct NameTag));
     if (equal_keyword(token, TK_IDENT)) {
-        tag->name = strndup(token->str, token->len);
+        tag->name = strndup(token->loc, token->len);
         token = token->next;
     }
     tag->ty = type_suffix(rest, token, ty);
@@ -983,7 +983,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
         if (equal(token, ".")) {
             token = skip(token, ".");
             assert(token->kind == TK_IDENT);
-            node = struct_union_ref(node, strndup(token->str, token->len));
+            node = struct_union_ref(node, strndup(token->loc, token->len));
             token = skip_keyword(token, TK_IDENT);
             continue;
         }
@@ -992,7 +992,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
             token = skip(token, "->");
             assert(token->kind == TK_IDENT);
             node = new_node_unary(ND_DEREF, node);
-            node = struct_union_ref(node, strndup(token->str, token->len));
+            node = struct_union_ref(node, strndup(token->loc, token->len));
             token = skip_keyword(token, TK_IDENT);
         }
         break;
@@ -1006,7 +1006,7 @@ funcall = ident "(" (expr ("," expr)*)? ")"
 */
 struct Node *funcall(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_IDENT);
-    char *name = strndup(token->str, token->len);
+    char *name = strndup(token->loc, token->len);
     struct Node *node = new_node(ND_FUNCALL);
     struct Object *func = find_object(functions, name);
     if (func == NULL) {
@@ -1053,7 +1053,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
             node = funcall(&token, token);
             *rest = token;
         } else {
-            char *name = strndup(token->str, token->len);
+            char *name = strndup(token->loc, token->len);
             struct Object *var = find_variable(name);
             if (var == NULL) {
                 error("変数%sは定義されていません", name);
