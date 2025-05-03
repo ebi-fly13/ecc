@@ -37,12 +37,6 @@ struct Token {
     int len;             // トークンの長さ
 };
 
-struct TypeScope {
-    struct TypeScope *next;
-    struct Type *ty;
-    char *name;
-};
-
 struct VarScope {
     struct VarScope *next;
 
@@ -61,7 +55,6 @@ struct TagScope {
 
 struct Scope {
     struct Scope *next;
-    struct TypeScope *tydef;
     struct VarScope *vars;
     struct TagScope *tags;
 };

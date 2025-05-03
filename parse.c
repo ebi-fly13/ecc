@@ -112,11 +112,11 @@ void leave_scope() {
 }
 
 void push_typedef_scope(struct NameTag *tag) {
-    struct TypeScope *tydef = calloc(1, sizeof(struct TypeScope));
-    tydef->name = tag->name;
-    tydef->ty = tag->ty;
-    tydef->next = scope->tydef;
-    scope->tydef = tydef;
+    struct VarScope *vs = calloc(1, sizeof(struct VarScope));
+    vs->name = tag->name;
+    vs->type_def = tag->ty;
+    vs->next = scope->vars;
+    scope->vars = vs;
     return;
 }
 
@@ -155,23 +155,21 @@ struct Object *find_object(struct Object *map, char *name) {
     return NULL;
 }
 
-struct Type *find_type(char *name) {
+struct Type *find_typedef(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
-        for (struct TypeScope *tydef = scp->tydef; tydef != NULL;
-             tydef = tydef->next) {
-            if (!strcmp(tydef->name, name)) {
-                return tydef->ty;
+        for (struct VarScope *var = scp->vars; var != NULL; var = var->next) {
+            if (!strcmp(var->name, name)) {
+                return var->type_def;
             }
         }
     }
     return NULL;
 }
 
-struct Type *find_type_from_scope(char *name) {
-    for (struct TypeScope *tydef = scope->tydef; tydef != NULL;
-         tydef = tydef->next) {
-        if (!strcmp(tydef->name, name)) {
-            return tydef->ty;
+struct Type *find_typedef_from_scope(char *name) {
+    for (struct VarScope *var = scope->vars; var != NULL; var = var->next) {
+        if (!strcmp(var->name, name)) {
+            return var->type_def;
         }
     }
     return NULL;
@@ -330,7 +328,7 @@ bool is_typename(struct Token *token) {
     if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
         equal(token, "union") || equal(token, "typedef"))
         return true;
-    struct Type *ty = find_type(strndup(token->loc, token->len));
+    struct Type *ty = find_typedef(strndup(token->loc, token->len));
     return ty != NULL;
 }
 
@@ -506,7 +504,8 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
             ty->is_typedef = is_typedef;
             return ty;
         } else if (equal_keyword(token, TK_IDENT)) {
-            struct Type *ty = find_type(strndup(token->loc, token->len));
+            struct Type *ty = find_typedef(strndup(token->loc, token->len));
+            assert(ty != NULL);
             *rest = token->next;
             return ty;
         } else {
@@ -907,7 +906,7 @@ void typedef_decl(struct Token **rest, struct Token *token,
         }
         first = false;
         struct NameTag *tag = declarator(&token, token, base_ty);
-        if (find_type_from_scope(tag->name) != NULL) {
+        if (find_typedef_from_scope(tag->name) != NULL) {
             error("%sは既にtypedefされています", tag->name);
         }
         push_typedef_scope(tag);
