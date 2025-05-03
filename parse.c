@@ -811,22 +811,23 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, ")");
         node->then = stmt(&token, token);
     } else if (equal_keyword(token, TK_FOR)) {
+        enter_scope();
         token = skip_keyword(token, TK_FOR);
         node = new_node(ND_FOR);
         token = skip(token, "(");
-        if (!equal(token, ";")) {
-            node->init = expr(&token, token);
+        if (is_typename(token)) {
+            struct Type *type = declspec(&token, token);
+            node->init = declaration(&token, token, type);
+        } else {
+            node->init = expr_stmt(&token, token);
         }
-        token = skip(token, ";");
-        if (!equal(token, ";")) {
-            node->cond = expr(&token, token);
-        }
-        token = skip(token, ";");
+        node->cond = expr_stmt(&token, token);
         if (!equal(token, ")")) {
             node->inc = expr(&token, token);
         }
         token = skip(token, ")");
         node->then = stmt(&token, token);
+        leave_scope();
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {
@@ -867,7 +868,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-declaration = declspec (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
+declaration = (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
 */
 struct Node *declaration(struct Token **rest, struct Token *token,
                          struct Type *base_ty) {

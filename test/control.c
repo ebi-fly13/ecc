@@ -14,8 +14,11 @@ int main() {
   ASSERT(2, ({ int x; if (2-1) x=2; else x=3; x; }));
 
   ASSERT(55, ({ int i; int j; j = 0; for (i=0; i<=10; i=i+1) j=i+j; j; }));
+  ASSERT(55, ({ int j; j = 0; for (int i=0; i<=10; i=i+1) j=i+j; j; }));
+  ASSERT(4, ({ int i = 4; int j; j = 0; for (int i=0; i<=10; i=i+1) j=i+j; i; }));
 
   ASSERT(10, ({ int i; i = 0; while(i<10) i=i+1; i; }));
+  ASSERT(10, ({ int i; i = 0; int j; while(i<10) {int j; i=i+1;} i; }));
 
   ASSERT(3, ({ 1; {2;} 3; }));
   ASSERT(5, ({ ;;; 5; }));
