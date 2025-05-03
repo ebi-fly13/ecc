@@ -1075,7 +1075,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 /*
 funcall = ident "(" (expr ("," expr)*)? ")"
 */
-struct Node *funcall(struct Token **rest, struct Token *token) {
+struct Node *funccall(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_IDENT);
     char *name = strndup(token->loc, token->len);
     struct Node *node = new_node(ND_FUNCALL);
@@ -1121,7 +1121,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         *rest = token;
     } else if (token->kind == TK_IDENT) {
         if (equal(token->next, "(")) {
-            node = funcall(&token, token);
+            node = funccall(&token, token);
             *rest = token;
         } else {
             char *name = strndup(token->loc, token->len);
