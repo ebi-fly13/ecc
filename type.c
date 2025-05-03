@@ -63,6 +63,25 @@ struct Type *func_to(struct Type *return_ty, struct NameTag *params) {
     return func;
 }
 
+struct Type *new_type(TypeKind kind, int size) {
+    struct Type *ty = calloc(1, sizeof(struct Type));
+    ty->ty = kind;
+    ty->size = size;
+    return ty;
+}
+
+struct Type *struct_type() {
+    return new_type(TY_STRUCT, 0);
+}
+
+struct Type *union_type() {
+    return new_type(TY_UNION, 0);
+}
+
+struct Type *enum_type() {
+    return new_type(TY_ENUM, 4);
+}
+
 void add_type(struct Node *node) {
     if (node == NULL || node->ty) return;
     add_type(node->lhs);

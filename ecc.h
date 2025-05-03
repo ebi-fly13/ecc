@@ -45,7 +45,13 @@ struct TypeScope {
 
 struct VarScope {
     struct VarScope *next;
+
+    char *name;
+
     struct Object *var;
+    struct Type *type_def;
+    struct Type *enum_ty;
+    int enum_val;
 };
 
 struct TagScope {
@@ -179,6 +185,7 @@ typedef enum {
     TY_FUNC,    // 関数
     TY_STRUCT,  // 構造体
     TY_UNION,   // 共用体
+    TY_ENUM,    // 列挙型
 } TypeKind;
 
 struct Type {
@@ -207,6 +214,9 @@ extern struct Type *ty_void;
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, size_t);
 struct Type *func_to(struct Type *, struct NameTag *);
+struct Type *struct_type();
+struct Type *union_type();
+struct Type *enum_type();
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 bool is_void(struct Type *);

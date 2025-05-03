@@ -342,6 +342,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "enum") && !is_alnum(p[4])) {
+            cur = new_token(TK_MOLD, cur, p, 4);
+            p += 4;
+            continue;
+        }
+
         if (startswith(p, "typedef") && !is_alnum(p[7])) {
             cur = new_token(TK_RESERVED, cur, p, 7);
             p += 7;

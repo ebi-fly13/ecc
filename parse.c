@@ -122,10 +122,19 @@ void push_typedef_scope(struct NameTag *tag) {
 
 void push_var_scope(struct Object *var) {
     struct VarScope *vs = calloc(1, sizeof(struct VarScope));
+    vs->name = var->name;
     vs->var = var;
     vs->next = scope->vars;
     scope->vars = vs;
     return;
+}
+
+struct VarScope *push_scope(char *name) {
+    struct VarScope *sc = calloc(1, sizeof(struct VarScope));
+    sc->name = name;
+    sc->next = scope->vars;
+    scope->vars = sc;
+    return sc;
 }
 
 void push_tag_scope(struct Type *ty) {
@@ -168,21 +177,21 @@ struct Type *find_type_from_scope(char *name) {
     return NULL;
 }
 
-struct Object *find_variable(char *name) {
+struct VarScope *find_variable(char *name) {
     for (struct Scope *scp = scope; scp != NULL; scp = scp->next) {
         for (struct VarScope *var = scp->vars; var != NULL; var = var->next) {
-            if (!strcmp(var->var->name, name)) {
-                return var->var;
+            if (!strcmp(var->name, name)) {
+                return var;
             }
         }
     }
     return NULL;
 }
 
-struct Object *find_variable_from_scope(char *name) {
+struct VarScope *find_variable_from_scope(char *name) {
     for (struct VarScope *var = scope->vars; var != NULL; var = var->next) {
-        if (!strcmp(var->var->name, name)) {
-            return var->var;
+        if (!strcmp(var->name, name)) {
+            return var;
         }
     }
     return NULL;
@@ -224,13 +233,13 @@ struct Object *new_var(struct NameTag *tag) {
 }
 
 struct Object *new_local_var(struct NameTag *tag) {
-    struct Object *lvar = find_variable_from_scope(tag->name);
-    if (lvar) {
+    struct VarScope *sc = find_variable_from_scope(tag->name);
+    if (sc) {
         error("ローカル変数%sは既に定義されています", tag->name);
     } else if (is_void(tag->ty)) {
         error("%sはvoidで宣言されています", tag->name);
     } else {
-        lvar = new_var(tag);
+        struct Object *lvar = new_var(tag);
         lvar->next = locals;
         lvar->len = strlen(tag->name);
         if (locals == NULL) {
@@ -293,8 +302,7 @@ struct Node *expand_func_params(struct Type *ty) {
     struct Node head = {};
     struct Node *cur = &head;
     for (struct NameTag *p = ty->params; p != NULL; p = p->next) {
-        new_local_var(p);
-        cur = cur->next = new_node_var(find_variable_from_scope(p->name));
+        cur = cur->next = new_node_var(new_local_var(p));
     }
     return head.next;
 }
@@ -332,6 +340,7 @@ struct Token *global_variable(struct Token *);
 struct Type *declspec(struct Token **, struct Token *);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
+struct Type *enum_specifier(struct Token **, struct Token *);
 struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
@@ -434,7 +443,7 @@ struct Token *global_variable(struct Token *token) {
 
 /*
 declspec = ("long" | "int" | "short" | "char" | "typedef" | typedef_type )+ |
-struct_decl | union_decl
+struct_decl | union_decl | enum_specifier
 */
 struct Type *declspec(struct Token **rest, struct Token *token) {
     enum {
@@ -489,6 +498,11 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         } else if (equal(token, "union")) {
             assert(counter == 0);
             struct Type *ty = union_decl(rest, token->next);
+            ty->is_typedef = is_typedef;
+            return ty;
+        } else if (equal(token, "enum")) {
+            assert(counter == 0);
+            struct Type *ty = enum_specifier(rest, token->next);
             ty->is_typedef = is_typedef;
             return ty;
         } else if (equal_keyword(token, TK_IDENT)) {
@@ -550,8 +564,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         return ty;
     }
     token = skip(token, "{");
-    struct Type *ty = calloc(1, sizeof(struct Type));
-    ty->ty = TY_STRUCT;
+    struct Type *ty = struct_type();
     ty->member = struct_union_members(rest, token);
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
@@ -588,8 +601,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
         return ty;
     }
     token = skip(token, "{");
-    struct Type *ty = calloc(1, sizeof(struct Type));
-    ty->ty = TY_UNION;
+    struct Type *ty = union_type();
     ty->member = struct_union_members(rest, token);
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
@@ -632,6 +644,65 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
     }
     *rest = token->next;
     return head.next;
+}
+
+/*
+enum_specifier = ident? "{" enum_list "}" | ident ("{" enum_list "}")?
+*/
+struct Type *enum_specifier(struct Token **rest, struct Token *token) {
+    char *name = NULL;
+    if (token->kind == TK_IDENT) {
+        name = strndup(token->loc, token->len);
+        token = skip_keyword(token, TK_IDENT);
+    }
+
+    if (name != NULL && !equal(token, "{")) {
+        struct Type *ty = find_tag(name);
+        if (ty == NULL) {
+            error("enum %sは存在しません", name);
+        }
+        if (ty->ty != TY_ENUM) {
+            error("%s はenumではありません", name);
+        }
+        *rest = token;
+        return ty;
+    }
+
+    token = skip(token, "{");
+
+    struct Type *ty = enum_type();
+    ty->name = name;
+
+    int count = 0;
+    int val = 0;
+
+    while (!equal(token, "}")) {
+        if (count > 0) {
+            token = skip(token, ",");
+        }
+        count++;
+        assert(token->kind == TK_IDENT);
+        char *ident_name = strndup(token->loc, token->len);
+        token = skip_keyword(token, TK_IDENT);
+        if (equal(token, "=")) {
+            token = skip(token, "=");
+            val = get_number(token);
+            token = skip_keyword(token, TK_NUM);
+        }
+        struct VarScope *sc = push_scope(ident_name);
+        sc->enum_ty = ty;
+        sc->enum_val = val++;
+    }
+    token = skip(token, "}");
+    *rest = token;
+
+    if (name != NULL) {
+        if (find_tag_from_scope(name)) {
+            error("列挙型%sは既に定義されています", name);
+        }
+        push_tag_scope(ty);
+    }
+    return ty;
 }
 
 /*
@@ -1054,11 +1125,15 @@ struct Node *primary(struct Token **rest, struct Token *token) {
             *rest = token;
         } else {
             char *name = strndup(token->loc, token->len);
-            struct Object *var = find_variable(name);
-            if (var == NULL) {
+            struct VarScope *sc = find_variable(name);
+            if (sc == NULL || (sc->var == NULL && sc->enum_ty == NULL)) {
                 error("変数%sは定義されていません", name);
             }
-            node = new_node_var(var);
+            if (sc->var != NULL) {
+                node = new_node_var(sc->var);
+            } else {
+                node = new_node_num(sc->enum_val);
+            }
             *rest = token->next;
         }
     } else if (token->kind == TK_STR) {
