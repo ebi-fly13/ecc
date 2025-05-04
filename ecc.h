@@ -188,8 +188,6 @@ struct Type {
     struct Type *ptr_to;
     size_t array_size;
     size_t size;
-    bool is_typedef;
-    bool is_static;
 
     char *name;
 

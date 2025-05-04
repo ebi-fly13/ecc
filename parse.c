@@ -333,10 +333,15 @@ bool is_typename(struct Token *token) {
     return ty != NULL;
 }
 
+struct VarAttr {
+    bool is_typedef;
+    bool is_static;
+};
+
 struct Object *program(struct Token *);
-struct Token *function(struct Token *, struct Type *);
+struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
 struct Token *global_variable(struct Token *, struct Type *);
-struct Type *declspec(struct Token **, struct Token *);
+struct Type *declspec(struct Token **, struct Token *, struct VarAttr *attr);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
 struct Type *enum_specifier(struct Token **, struct Token *);
@@ -374,14 +379,15 @@ program = (function | global_variable)*
 struct Object *program(struct Token *token) {
     globals = NULL;
     while (token->kind != TK_EOF) {
-        struct Type *ty = declspec(&token, token);
-        if (ty->is_typedef) {
+        struct VarAttr attr = {};
+        struct Type *ty = declspec(&token, token, &attr);
+        if (attr.is_typedef) {
             typedef_decl(&token, token, ty);
             continue;
         }
 
         if (is_function(token)) {
-            token = function(token, ty);
+            token = function(token, ty, &attr);
         } else {
             token = global_variable(token, ty);
         }
@@ -392,7 +398,8 @@ struct Object *program(struct Token *token) {
 /*
 function = declarator "(" func_params "{" compound_stmt
 */
-struct Token *function(struct Token *token, struct Type *ty) {
+struct Token *function(struct Token *token, struct Type *ty,
+                       struct VarAttr *attr) {
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
     tag = func_params(&token, token, tag);
@@ -403,10 +410,12 @@ struct Token *function(struct Token *token, struct Type *ty) {
         assert(is_same_type(fn->ty, tag->ty));
     }
     locals = NULL;
+    fn->is_function = true;
+    fn->is_function_definition = !equal(token, ";");
+    fn->is_static = attr->is_static;
+
     if (equal(token, "{")) {
         assert(fn->is_function_definition);
-        fn->is_function = true;
-        fn->is_function_definition = false;
 
         enter_scope();
         fn->args = expand_func_params(tag->ty);
@@ -444,7 +453,8 @@ struct Token *global_variable(struct Token *token, struct Type *ty) {
 declspec = ("long" | "int" | "short" | "char" | "typedef" | typedef_type )+ |
 struct_decl | union_decl | enum_specifier
 */
-struct Type *declspec(struct Token **rest, struct Token *token) {
+struct Type *declspec(struct Token **rest, struct Token *token,
+                      struct VarAttr *attr) {
     enum {
         VOID = 1 << 0,
         CHAR = 1 << 2,
@@ -453,19 +463,21 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         LONG = 1 << 8,
         OTHER = 1 << 10,
     };
-    bool is_typedef = false;
-    bool is_static = false;
     int counter = 0;
     while (is_typename(token)) {
         if (equal(token, "typedef") || equal(token, "static")) {
+            if (attr == NULL) {
+                error("storage class specifier is not allowed in this context");
+            }
+
             if (equal(token, "typedef")) {
-                is_typedef = true;
+                attr->is_typedef = true;
                 token = skip(token, "typedef");
             } else {
-                is_static = true;
+                attr->is_static = true;
                 token = skip(token, "static");
             }
-            if (is_typedef && is_static) {
+            if (attr->is_typedef && attr->is_static) {
                 error("typedefとstaticは同時に使えません");
             }
             continue;
@@ -502,17 +514,14 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         } else if (equal(token, "struct")) {
             assert(counter == 0);
             struct Type *ty = struct_decl(rest, token->next);
-            ty->is_typedef = is_typedef;
             return ty;
         } else if (equal(token, "union")) {
             assert(counter == 0);
             struct Type *ty = union_decl(rest, token->next);
-            ty->is_typedef = is_typedef;
             return ty;
         } else if (equal(token, "enum")) {
             assert(counter == 0);
             struct Type *ty = enum_specifier(rest, token->next);
-            ty->is_typedef = is_typedef;
             return ty;
         } else if (equal_keyword(token, TK_IDENT)) {
             struct Type *ty = find_typedef(strndup(token->loc, token->len));
@@ -545,14 +554,12 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
             ty = ty_long;
             break;
         default:
-            if (is_typedef) {
+            if (attr != NULL && attr->is_typedef) {
                 ty = ty_int;
                 break;
             }
             error("invalid type");
     }
-    ty->is_typedef = is_typedef;
-    ty->is_static = is_static;
     *rest = token;
     return ty;
 }
@@ -640,7 +647,7 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
     struct Member head = {};
     struct Member *cur = &head;
     while (!equal(token, "}")) {
-        struct Type *base_ty = declspec(&token, token);
+        struct Type *base_ty = declspec(&token, token, NULL);
         bool is_first = true;
         while (!equal(token, ";")) {
             if (!is_first) token = skip(token, ",");
@@ -784,7 +791,7 @@ struct NameTag *func_params(struct Token **rest, struct Token *token,
 param = declspec declarator
 */
 struct NameTag *param(struct Token **rest, struct Token *token) {
-    struct Type *ty = declspec(&token, token);
+    struct Type *ty = declspec(&token, token, NULL);
     struct NameTag *tag = declarator(&token, token, ty);
     *rest = token;
     return tag;
@@ -828,7 +835,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         node = new_node(ND_FOR);
         token = skip(token, "(");
         if (is_typename(token)) {
-            struct Type *type = declspec(&token, token);
+            struct Type *type = declspec(&token, token, NULL);
             node->init = declaration(&token, token, type);
         } else {
             node->init = expr_stmt(&token, token);
@@ -860,8 +867,9 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     enter_scope();
     while (!equal(token, "}")) {
         if (is_typename(token)) {
-            struct Type *base_ty = declspec(&token, token);
-            if (base_ty->is_typedef) {
+            struct VarAttr attr = {};
+            struct Type *base_ty = declspec(&token, token, &attr);
+            if (attr.is_typedef) {
                 typedef_decl(&token, token, base_ty);
             } else {
                 cur->next = declaration(&token, token, base_ty);
@@ -910,8 +918,6 @@ typedef_decl = (declarator ("," declarator)* )? ";"
 */
 void typedef_decl(struct Token **rest, struct Token *token,
                   struct Type *base_ty) {
-    assert(base_ty->is_typedef);
-    base_ty->is_typedef = false;
     bool first = true;
     while (!equal(token, ";")) {
         if (!first) {
