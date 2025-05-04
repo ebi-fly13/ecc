@@ -128,6 +128,7 @@ typedef enum {
     ND_FUNCALL,    // function call
     ND_STMT_EXPR,  // statement expression
     ND_MEMBER,     // member of struct
+    ND_COMMA,      // ,
 } NodeKind;
 
 struct Node {

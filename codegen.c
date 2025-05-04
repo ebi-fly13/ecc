@@ -49,13 +49,13 @@ void load(struct Type *ty) {
 
 void store(struct Type *ty) {
     if (ty->size == 1)
-        printf("  mov [rax], dil\n");
+        printf("  mov [rdi], al\n");
     else if (ty->size == 2)
-        printf("  mov [rax], di\n");
+        printf("  mov [rdi], ax\n");
     else if (ty->size == 4)
-        printf("  mov [rax], edi\n");
+        printf("  mov [rdi], eax\n");
     else
-        printf("  mov [rax], rdi\n");
+        printf("  mov [rdi], rax\n");
     return;
 }
 
@@ -131,6 +131,12 @@ void gen(struct Node *node) {
         return;
     }
 
+    if(node->kind == ND_COMMA) {
+        gen(node->lhs);
+        gen(node->rhs);
+        return;
+    }
+
     if (node->kind == ND_BLOCK || node->kind == ND_STMT_EXPR) {
         for (struct Node *block = node->body; block; block = block->next) {
             gen(block);
@@ -187,10 +193,7 @@ void gen(struct Node *node) {
         gen_lval(node->lhs);
         push();
         gen(node->rhs);
-        push();
-
         pop("rdi");
-        pop("rax");
 
         store(node->ty);
         return;

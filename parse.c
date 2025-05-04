@@ -231,10 +231,7 @@ struct Object *new_var(struct NameTag *tag) {
 }
 
 struct Object *new_local_var(struct NameTag *tag) {
-    struct VarScope *sc = find_variable_from_scope(tag->name);
-    if (sc) {
-        error("ローカル変数%sは既に定義されています", tag->name);
-    } else if (is_void(tag->ty)) {
+    if (is_void(tag->ty)) {
         error("%sはvoidで宣言されています", tag->name);
     } else {
         struct Object *lvar = new_var(tag);
@@ -888,7 +885,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-declaration = (declarator ("=" expr) ("," declarator "=" expr)* )? ";"
+declaration = (declarator ("=" assign) ("," declarator "=" assign)* )? ";"
 */
 struct Node *declaration(struct Token **rest, struct Token *token,
                          struct Type *base_ty) {
@@ -902,8 +899,8 @@ struct Node *declaration(struct Token **rest, struct Token *token,
         struct Object *var = new_local_var(tag);
         if (!equal(token, "=")) continue;
         token = skip(token, "=");
-        cur->next =
-            new_node_binary(ND_ASSIGN, new_node_var(var), expr(&token, token));
+        cur->next = new_node_binary(ND_ASSIGN, new_node_var(var),
+                                    assign(&token, token));
         cur = cur->next;
         add_type(cur);
     }
@@ -947,19 +944,56 @@ struct Node *expr_stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-expr = assign
+expr = assign (, expr)?
 */
 struct Node *expr(struct Token **rest, struct Token *token) {
-    return assign(rest, token);
+    struct Node *node = assign(&token, token);
+    if (equal(token, ",")) {
+        token = skip(token, ",");
+        return new_node_binary(ND_COMMA, node, expr(rest, token));
+    }
+    *rest = token;
+    return node;
+}
+
+struct Node *to_assign(struct Node *binary) {
+    add_type(binary->lhs);
+    add_type(binary->rhs);
+
+    struct NameTag tag = {};
+    tag.name = "";
+    tag.ty = pointer_to(binary->lhs->ty);
+    struct Object *var = new_local_var(&tag);
+
+    struct Node *expr1 = new_node_binary(ND_ASSIGN, new_node_var(var),
+                                         new_node_unary(ND_ADDR, binary->lhs));
+    struct Node *expr2 = new_node_binary(
+        ND_ASSIGN, new_node_unary(ND_DEREF, new_node_var(var)),
+        new_node_binary(binary->kind,
+                        new_node_unary(ND_DEREF, new_node_var(var)),
+                        binary->rhs));
+
+    return new_node_binary(ND_COMMA, expr1, expr2);
 }
 
 /*
-assign = equality ("=" assign)?
+assign = equality (assign_op assign)?
+assign_op = "=" | "+=" | "-=" | "*=" | "/="
 */
 struct Node *assign(struct Token **rest, struct Token *token) {
     struct Node *node = equality(&token, token);
     if (equal(token, "=")) {
         node = new_node_binary(ND_ASSIGN, node, assign(&token, token->next));
+    } else if (equal(token, "+=")) {
+        node = to_assign(new_node_add(node, assign(&token, token->next)));
+    } else if (equal(token, "-=")) {
+        node = to_assign(new_node_sub(node, assign(&token, token->next)));
+    } else if (equal(token, "*=")) {
+        node = to_assign(
+            new_node_binary(ND_MUL, node, assign(&token, token->next)));
+    } else if (equal(token, "/=")) {
+        node = to_assign(
+            new_node_binary(ND_DIV, node, assign(&token, token->next)));
     }
     *rest = token;
     return node;
@@ -1091,7 +1125,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 }
 
 /*
-funcall = ident "(" (expr ("," expr)*)? ")"
+funcall = ident "(" (assign ("," assign)*)? ")"
 */
 struct Node *funccall(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_IDENT);
@@ -1110,7 +1144,7 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
     token = skip(token, "(");
     while (!equal(token, ")")) {
         if (cur != &head) token = skip(token, ",");
-        cur = cur->next = expr(&token, token);
+        cur = cur->next = assign(&token, token);
     }
     node->args = head.next;
     *rest = token->next;
