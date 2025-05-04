@@ -274,7 +274,11 @@ void codegen() {
         if (obj->body == NULL) continue;
         assert(obj->is_function);
         printf("  .text\n");
-        printf("  .globl %s\n", obj->name);
+        if (obj->is_static) {
+            printf("  .local %s\n", obj->name);
+        } else {
+            printf("  .globl %s\n", obj->name);
+        }
         printf("%s:\n", obj->name);
 
         prologue(obj->stack_size);

@@ -15,6 +15,10 @@ int add_struct(struct A a, struct A b) {
     return a.a + b.a;
 }
 
+static int static_f() {
+    return 3;
+}
+
 void f() {
     return;
 }
@@ -87,6 +91,8 @@ int main() {
     ASSERT(3, ({ struct A a,b; a.a = 2; b.a = 1; add_struct(a, b); }));
 
     ASSERT(3, ({ int a = 2, b = 3; swap(&a, &b); a; }));
+
+    ASSERT(3, static_f());
 
     f();
 

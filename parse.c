@@ -326,15 +326,16 @@ struct Node *struct_union_ref(struct Node *node, char *name) {
 
 bool is_typename(struct Token *token) {
     if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
-        equal(token, "union") || equal(token, "typedef"))
+        equal(token, "union") || equal(token, "typedef") ||
+        equal(token, "static"))
         return true;
     struct Type *ty = find_typedef(strndup(token->loc, token->len));
     return ty != NULL;
 }
 
 struct Object *program(struct Token *);
-struct Token *function(struct Token *);
-struct Token *global_variable(struct Token *);
+struct Token *function(struct Token *, struct Type *);
+struct Token *global_variable(struct Token *, struct Type *);
 struct Type *declspec(struct Token **, struct Token *);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
@@ -363,7 +364,7 @@ struct Node *primary(struct Token **, struct Token *);
 bool is_function(struct Token *token) {
     if (equal(token, ";")) return false;
     struct Type dummy = {};
-    declarator(&token, token->next, &dummy);
+    declarator(&token, token, &dummy);
     return equal(token, "(");
 }
 
@@ -373,20 +374,25 @@ program = (function | global_variable)*
 struct Object *program(struct Token *token) {
     globals = NULL;
     while (token->kind != TK_EOF) {
+        struct Type *ty = declspec(&token, token);
+        if (ty->is_typedef) {
+            typedef_decl(&token, token, ty);
+            continue;
+        }
+
         if (is_function(token)) {
-            token = function(token);
+            token = function(token, ty);
         } else {
-            token = global_variable(token);
+            token = global_variable(token, ty);
         }
     }
     return globals;
 }
 
 /*
-function = declspec declarator "(" func_params "{" compound_stmt
+function = declarator "(" func_params "{" compound_stmt
 */
-struct Token *function(struct Token *token) {
-    struct Type *ty = declspec(&token, token);
+struct Token *function(struct Token *token, struct Type *ty) {
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
     tag = func_params(&token, token, tag);
@@ -419,14 +425,9 @@ struct Token *function(struct Token *token) {
 }
 
 /*
-global_variable = declspec (declarator ("," declarator)* )? ";"
+global_variable = (declarator ("," declarator)* )? ";"
 */
-struct Token *global_variable(struct Token *token) {
-    struct Type *ty = declspec(&token, token);
-    if (ty->is_typedef) {
-        typedef_decl(&token, token, ty);
-        return token;
-    }
+struct Token *global_variable(struct Token *token, struct Type *ty) {
     bool is_first = true;
     while (!equal(token, ";")) {
         if (!is_first)
@@ -453,11 +454,21 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
         OTHER = 1 << 10,
     };
     bool is_typedef = false;
+    bool is_static = false;
     int counter = 0;
     while (is_typename(token)) {
-        if (equal(token, "typedef")) {
-            is_typedef = true;
-            token = skip(token, "typedef");
+        if (equal(token, "typedef") || equal(token, "static")) {
+            if (equal(token, "typedef")) {
+                is_typedef = true;
+                token = skip(token, "typedef");
+            } else {
+                is_static = true;
+                token = skip(token, "static");
+            }
+            if (is_typedef && is_static) {
+                error("typedefとstaticは同時に使えません");
+            }
+            continue;
         } else if (equal(token, "long")) {
             token = skip(token, "long");
             if ((counter & (LONG + LONG))) {
@@ -541,6 +552,7 @@ struct Type *declspec(struct Token **rest, struct Token *token) {
             error("invalid type");
     }
     ty->is_typedef = is_typedef;
+    ty->is_static = is_static;
     *rest = token;
     return ty;
 }

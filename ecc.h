@@ -26,6 +26,7 @@ typedef enum {
     TK_MOLD,      // 型識別子
     TK_SIZEOF,    // sizeof
     TK_STR,       // string
+    TK_STATIC,    // static
 } TokenKind;
 
 struct Token {
@@ -80,6 +81,7 @@ struct Object {
 
     bool is_function;
     bool is_function_definition;
+    bool is_static;
     struct Node *body;
     struct Node *args;
     int stack_size;
@@ -187,6 +189,7 @@ struct Type {
     size_t array_size;
     size_t size;
     bool is_typedef;
+    bool is_static;
 
     char *name;
 
