@@ -109,6 +109,9 @@ void add_type(struct Node *node) {
         case ND_ASSIGN:
             node->ty = node->lhs->ty;
             return;
+        case ND_COMMA:
+            node->ty = node->rhs->ty;
+            return;
         case ND_EQ:
         case ND_NE:
         case ND_LT:

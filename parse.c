@@ -972,7 +972,6 @@ struct Node *to_assign(struct Node *binary) {
         new_node_binary(binary->kind,
                         new_node_unary(ND_DEREF, new_node_var(var)),
                         binary->rhs));
-
     return new_node_binary(ND_COMMA, expr1, expr2);
 }
 
@@ -1096,8 +1095,15 @@ struct Node *unary(struct Token **rest, struct Token *token) {
     }
 }
 
+struct Node *new_node_inc_dec(struct Node *node, struct Token *token,
+                              int addend) {
+    add_type(node);
+    return new_node_sub(to_assign(new_node_add(node, new_node_num(addend))),
+                        new_node_num(addend));
+}
+
 /*
-postfix = primary ( "[" expr "]" | "." ident | "->" ident)*
+postfix = primary ( "[" expr "]" | "." ident | "->" ident | "++" | "--")*
 */
 struct Node *postfix(struct Token **rest, struct Token *token) {
     struct Node *node = primary(&token, token);
@@ -1123,6 +1129,19 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
             node = new_node_unary(ND_DEREF, node);
             node = struct_union_ref(node, strndup(token->loc, token->len));
             token = skip_keyword(token, TK_IDENT);
+            continue;
+        }
+
+        if (equal(token, "++")) {
+            node = new_node_inc_dec(node, token, 1);
+            token = skip(token, "++");
+            continue;
+        }
+
+        if (equal(token, "--")) {
+            node = new_node_inc_dec(node, token, -1);
+            token = skip(token, "--");
+            continue;
         }
         break;
     }
