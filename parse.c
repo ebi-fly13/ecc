@@ -1073,7 +1073,7 @@ struct Node *mul(struct Token **rest, struct Token *token) {
 }
 
 /*
-unary = ("+" | "-" | "*" | "&") unary | postfix
+unary = ("+" | "-" | "*" | "&" | "++" | "--") unary | postfix
 */
 struct Node *unary(struct Token **rest, struct Token *token) {
     if (equal(token, "+")) {
@@ -1085,6 +1085,12 @@ struct Node *unary(struct Token **rest, struct Token *token) {
         return new_node_unary(ND_DEREF, unary(rest, token->next));
     } else if (equal(token, "&")) {
         return new_node_unary(ND_ADDR, unary(rest, token->next));
+    } else if (equal(token, "++")) {
+        return to_assign(
+            new_node_binary(ND_ADD, unary(rest, token->next), new_node_num(1)));
+    } else if (equal(token, "--")) {
+        return to_assign(
+            new_node_binary(ND_SUB, unary(rest, token->next), new_node_num(1)));
     } else {
         return postfix(rest, token);
     }
