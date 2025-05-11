@@ -152,6 +152,30 @@ struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     return tok;
 }
 
+struct Token *read_int_literal(struct Token *cur, char *str) {
+    char *p = str;
+    long base = 10;
+    if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+        p += 2;
+        base = 16;
+    } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+        p += 2;
+        base = 2;
+    } else if (*p == '0') {
+        p += 1;
+        base = 8;
+    }
+    long val = strtol(p, &p, base);
+
+    if (isalnum(*p)) {
+        error_at(p, "invalid digit");
+    }
+
+    struct Token *tok = new_token(TK_NUM, cur, str, p - str);
+    tok->val = val;
+    return tok;
+}
+
 struct Token *read_char_literal(struct Token *cur, char *str) {
     assert(*str == '\'');
     char *p = str + 1;
@@ -363,10 +387,8 @@ struct Token *tokenize(char *p) {
         }
 
         if (isdigit(*p)) {
-            cur = new_token(TK_NUM, cur, p, 0);
-            char *q = p;
-            cur->val = strtol(p, &p, 10);
-            cur->len = p - q;
+            cur = read_int_literal(cur, p);
+            p += cur->len;
             continue;
         }
 
