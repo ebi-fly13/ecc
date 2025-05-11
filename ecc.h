@@ -117,6 +117,8 @@ typedef enum {
     ND_LE,         // <=
     ND_ADDR,       // &
     ND_DEREF,      // *
+    ND_NOT,        // !
+    ND_BITNOT,     // ~
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数
     ND_GVAR,       // グローバル変数

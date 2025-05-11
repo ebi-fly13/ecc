@@ -125,6 +125,12 @@ void add_type(struct Node *node) {
         case ND_DEREF:
             node->ty = node->lhs->ty->ptr_to;
             return;
+        case ND_NOT:
+            node->ty = ty_int;
+            return;
+        case ND_BITNOT:
+            node->ty = node->lhs->ty;
+            return;
         case ND_LVAR:
         case ND_GVAR:
             return;

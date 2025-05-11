@@ -131,7 +131,7 @@ void gen(struct Node *node) {
         return;
     }
 
-    if(node->kind == ND_COMMA) {
+    if (node->kind == ND_COMMA) {
         gen(node->lhs);
         gen(node->rhs);
         return;
@@ -208,6 +208,20 @@ void gen(struct Node *node) {
         add_type(node);
         gen(node->lhs);
         load(node->ty);
+        return;
+    }
+
+    if (node->kind == ND_NOT) {
+        gen(node->lhs);
+        printf("  cmp rax, 0\n");
+        printf("  sete al\n");
+        printf("  movzx rax, al\n");
+        return;
+    }
+
+    if (node->kind == ND_BITNOT) {
+        gen(node->lhs);
+        printf("  not rax\n");
         return;
     }
 
