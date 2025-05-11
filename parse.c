@@ -99,6 +99,13 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 }
 
+struct Node *new_node_cast(struct Node *cur, struct Type *ty) {
+    add_type(cur);
+    struct Node *node = new_node_unary(ND_CAST, cur);
+    node->ty = ty;
+    return node;
+}
+
 void enter_scope() {
     struct Scope *scp = calloc(1, sizeof(struct Scope));
     scp->next = scope;
@@ -359,6 +366,7 @@ struct Node *relation(struct Token **, struct Token *);
 struct Node *add(struct Token **, struct Token *);
 struct Node *mul(struct Token **, struct Token *);
 struct Node *unary(struct Token **, struct Token *);
+static struct Node *cast(struct Token **, struct Token *);
 struct Node *postfix(struct Token **, struct Token *);
 struct Node *funcall(struct Token **, struct Token *);
 struct Node *primary(struct Token **, struct Token *);
@@ -559,6 +567,27 @@ struct Type *declspec(struct Token **rest, struct Token *token,
     }
     *rest = token;
     return ty;
+}
+
+// abstract-declarator = "*"* ("(" abstract-declarator ")")?;
+struct Type *abstract_declarator(struct Token **rest, struct Token *token,
+                                 struct Type *ty) {
+    while (equal(token, "*")) {
+        ty = pointer_to(ty);
+        token = skip(token, "*");
+    }
+    if (equal(token, "(")) {
+        ty = abstract_declarator(&token, token->next, ty);
+        token = skip(token, ")");
+    }
+    *rest = token;
+    return ty;
+}
+
+// typename = declspec abstruct-declarator
+struct Type *typename(struct Token **rest, struct Token *token) {
+    struct Type *ty = declspec(&token, token, NULL);
+    return abstract_declarator(rest, token, ty);
 }
 
 /*
@@ -1055,15 +1084,15 @@ struct Node *add(struct Token **rest, struct Token *token) {
 }
 
 /*
-mul = unary ("*" unary | "/" unary)*
+mul = cast ("*" cast | "/" cast)*
 */
 struct Node *mul(struct Token **rest, struct Token *token) {
-    struct Node *node = unary(&token, token);
+    struct Node *node = cast(&token, token);
     for (;;) {
         if (equal(token, "*")) {
-            node = new_node_binary(ND_MUL, node, unary(&token, token->next));
+            node = new_node_binary(ND_MUL, node, cast(&token, token->next));
         } else if (equal(token, "/")) {
-            node = new_node_binary(ND_DIV, node, unary(&token, token->next));
+            node = new_node_binary(ND_DIV, node, cast(&token, token->next));
         } else {
             *rest = token;
             return node;
@@ -1072,18 +1101,36 @@ struct Node *mul(struct Token **rest, struct Token *token) {
 }
 
 /*
-unary = ("+" | "-" | "*" | "&" | "++" | "--" | "!" | "~") unary | postfix
+cast = "(" typename ")" cast | unary
+*/
+struct Node *cast(struct Token **rest, struct Token *token) {
+    if (equal(token, "(") && is_typename(token->next)) {
+        token = skip(token, "(");
+        struct Type *ty = typename(&token, token);
+        token = skip(token, ")");
+        struct Node *node = new_node_cast(cast(&token, token), ty);
+        *rest = token;
+        return node;
+    } else {
+        struct Node *node = unary(rest, token);
+        add_type(node);
+        return node;
+    }
+}
+
+/*
+unary = ("+" | "-" | "*" | "&" | "!" | "~") cast | ("++" | "--") unary | postfix
 */
 struct Node *unary(struct Token **rest, struct Token *token) {
     if (equal(token, "+")) {
-        return unary(rest, token->next);
+        return cast(rest, token->next);
     } else if (equal(token, "-")) {
         return new_node_binary(ND_SUB, new_node_num(0),
-                               unary(rest, token->next));
+                               cast(rest, token->next));
     } else if (equal(token, "*")) {
-        return new_node_unary(ND_DEREF, unary(rest, token->next));
+        return new_node_unary(ND_DEREF, cast(rest, token->next));
     } else if (equal(token, "&")) {
-        return new_node_unary(ND_ADDR, unary(rest, token->next));
+        return new_node_unary(ND_ADDR, cast(rest, token->next));
     } else if (equal(token, "++")) {
         return to_assign(
             new_node_binary(ND_ADD, unary(rest, token->next), new_node_num(1)));
@@ -1091,9 +1138,9 @@ struct Node *unary(struct Token **rest, struct Token *token) {
         return to_assign(
             new_node_binary(ND_SUB, unary(rest, token->next), new_node_num(1)));
     } else if (equal(token, "!")) {
-        return new_node_unary(ND_NOT, unary(rest, token->next));
+        return new_node_unary(ND_NOT, cast(rest, token->next));
     } else if (equal(token, "~")) {
-        return new_node_unary(ND_BITNOT, unary(rest, token->next));
+        return new_node_unary(ND_BITNOT, cast(rest, token->next));
     } else {
         return postfix(rest, token);
     }
@@ -1181,8 +1228,8 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
 }
 
 /*
-primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" unary | ident
-funccall? | string | num
+primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" "(" typename ")"
+| "sizeof" unary | ident funccall? | string | num
 */
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -1195,6 +1242,12 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         token = skip(token, "(");
         node = expr(&token, token);
         *rest = skip(token, ")");
+    } else if (equal(token, "sizeof") && equal(token->next, "(") &&
+               is_typename(token->next->next)) {
+        token = skip(token, "(");
+        node = new_node_num(typename(&token, token)->size);
+        token = skip(token, ")");
+        *rest = token;
     } else if (equal(token, "sizeof")) {
         node = unary(&token, token->next);
         add_type(node);

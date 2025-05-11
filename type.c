@@ -82,6 +82,29 @@ struct Type *enum_type() {
     return new_type(TY_ENUM, 4);
 }
 
+struct Type *get_common_type(struct Type *lhs, struct Type *rhs) {
+    if (lhs->ptr_to) {
+        return pointer_to(lhs->ptr_to);
+    }
+    if (lhs->size == 8 || rhs->size == 8) {
+        return ty_long;
+    } else if (lhs->size == 4 || rhs->size == 4) {
+        return ty_int;
+    } else if (lhs->size == 2 || rhs->size == 2) {
+        return ty_short;
+    } else if (lhs->size == 1 || rhs->size == 1) {
+        return ty_char;
+    } else {
+        assert(0);
+    }
+}
+
+void usual_arith_conv(struct Node **lhs, struct Node **rhs) {
+    struct Type *ty = get_common_type((*lhs)->ty, (*rhs)->ty);
+    *lhs = new_node_cast(*lhs, ty);
+    *rhs = new_node_cast(*rhs, ty);
+}
+
 void add_type(struct Node *node) {
     if (node == NULL || node->ty) return;
     add_type(node->lhs);
@@ -106,6 +129,9 @@ void add_type(struct Node *node) {
         case ND_SUB:
         case ND_MUL:
         case ND_DIV:
+            usual_arith_conv(&node->lhs, &node->rhs);
+            node->ty = node->lhs->ty;
+            return;
         case ND_ASSIGN:
             node->ty = node->lhs->ty;
             return;

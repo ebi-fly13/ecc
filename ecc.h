@@ -119,6 +119,7 @@ typedef enum {
     ND_DEREF,      // *
     ND_NOT,        // !
     ND_BITNOT,     // ~
+    ND_CAST,       // cast
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数
     ND_GVAR,       // グローバル変数
@@ -158,6 +159,8 @@ struct Node {
     struct Node *init;  // 初期化文
     struct Node *inc;   // increment文
 };
+
+struct Node *new_node_cast(struct Node *, struct Type *);
 
 struct Object *program();
 

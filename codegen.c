@@ -81,6 +81,43 @@ void gen_lval(struct Node *node) {
     error("代入の左辺値が変数でありません");
 }
 
+int get_type_id(struct Type *ty) {
+    switch (ty->ty) {
+        case TY_CHAR:
+            return 0;
+        case TY_SHORT:
+            return 1;
+        case TY_INT:
+            return 2;
+        case TY_LONG:
+            return 3;
+        default:
+            return 4;
+    }
+}
+
+static char i32i8[] = "movsbl eax, al";
+static char i32i16[] = "movswl eax, ax";
+static char i32i64[] = "movsxd rax, eax";
+
+static char *cast_table[][10] = {
+    {NULL, NULL, NULL, i32i64},     // i8
+    {i32i8, NULL, NULL, i32i64},    // i16
+    {i32i8, i32i16, NULL, i32i64},  // i32
+    {i32i8, i32i16, NULL, NULL},    // i64
+};
+
+static void cast(struct Type *from, struct Type *to) {
+    if (to->ty == TY_VOID) {
+        return;
+    }
+    int from_id = get_type_id(from);
+    int to_id = get_type_id(to);
+    if (cast_table[from_id][to_id]) {
+        printf("  %s\n", cast_table[from_id][to_id]);
+    }
+}
+
 void gen(struct Node *node) {
     if (node == NULL) {
         return;
@@ -222,6 +259,12 @@ void gen(struct Node *node) {
     if (node->kind == ND_BITNOT) {
         gen(node->lhs);
         printf("  not rax\n");
+        return;
+    }
+
+    if (node->kind == ND_CAST) {
+        gen(node->lhs);
+        cast(node->lhs->ty, node->ty);
         return;
     }
 
