@@ -128,7 +128,11 @@ void add_type(struct Node *node) {
         case ND_ADD:
         case ND_SUB:
         case ND_MUL:
-        case ND_DIV:
+        case ND_DIV: 
+        case ND_MOD:
+        case ND_BITOR:
+        case ND_BITXOR:
+        case ND_BITAND:
             usual_arith_conv(&node->lhs, &node->rhs);
             node->ty = node->lhs->ty;
             return;
