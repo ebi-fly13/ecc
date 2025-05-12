@@ -264,7 +264,8 @@ struct Token *tokenize(char *p) {
         if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
             startswith(p, ">=") || startswith(p, "->") || startswith(p, "+=") ||
             startswith(p, "-=") || startswith(p, "*=") || startswith(p, "/=") ||
-            startswith(p, "++") || startswith(p, "--") || startswith(p, "%=")) {
+            startswith(p, "++") || startswith(p, "--") || startswith(p, "%=") ||
+            startswith(p, "|=") || startswith(p, "^=") || startswith(p, "&=")) {
             cur = new_token(TK_RESERVED, cur, p, 2);
             p += 2;
             continue;
@@ -273,7 +274,8 @@ struct Token *tokenize(char *p) {
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
             *p == ')' || *p == '<' || *p == '>' || *p == ';' || *p == '=' ||
             *p == '{' || *p == '}' || *p == ',' || *p == '&' || *p == '[' ||
-            *p == ']' || *p == '.' || *p == '!' || *p == '~' || *p == '%') {
+            *p == ']' || *p == '.' || *p == '!' || *p == '~' || *p == '%' ||
+            *p == '|' || *p == '^') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
