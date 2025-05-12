@@ -25,5 +25,14 @@ int main() {
 
   ASSERT(55, ({ int i; i = 0; int j; j = 0; while(i<=10) {j=i+j; i=i+1;} j; }));
 
+  ASSERT(1, 0||1);
+  ASSERT(1, 0||(2-2)||5);
+  ASSERT(0, 0||0);
+  ASSERT(0, 0||(2-2));
+
+  ASSERT(0, 0&&1);
+  ASSERT(0, (2-2)&&5);
+  ASSERT(1, 1&&5);
+
   return 0;
 }

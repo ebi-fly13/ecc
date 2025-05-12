@@ -123,6 +123,8 @@ typedef enum {
     ND_BITOR,      // |
     ND_BITXOR,     // ^
     ND_BITAND,     // &
+    ND_LOGOR,      // ||
+    ND_LOGAND,     // &&
     ND_CAST,       // cast
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数

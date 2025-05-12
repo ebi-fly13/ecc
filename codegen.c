@@ -329,6 +329,36 @@ void gen(struct Node *node) {
         case ND_BITAND:
             printf("  and rax, rdi\n");
             break;
+        case ND_LOGOR: {
+            int number = label++;
+            gen(node->lhs);
+            printf("  cmp rax, 0\n");
+            printf("  jne .L.true.%d\n", number);
+            gen(node->rhs);
+            printf("  cmp rax, 0\n");
+            printf("  jne .L.true.%d\n", number);
+            printf("  mov rax, 0\n");
+            printf("  jmp .L.end.%d\n", number);
+            printf(".L.true.%d:\n", number);
+            printf("  mov rax, 1\n");
+            printf(".L.end.%d:\n", number);
+            break;
+        }
+        case ND_LOGAND: {
+            int number = label++;
+            gen(node->lhs);
+            printf("  cmp rax, 0\n");
+            printf("  je .L.false.%d\n", number);
+            gen(node->rhs);
+            printf("  cmp rax, 0\n");
+            printf("  je .L.false.%d\n", number);
+            printf("  mov rax, 1\n");
+            printf("  jmp .L.end.%d\n", number);
+            printf(".L.false.%d:\n", number);
+            printf("  mov rax, 0\n");
+            printf(".L.end.%d:\n", number);
+            break;
+        }
     }
 }
 

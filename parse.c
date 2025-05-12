@@ -361,6 +361,8 @@ struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
 struct Node *expr_stmt(struct Token **, struct Token *);
 struct Node *expr(struct Token **, struct Token *);
 struct Node *assign(struct Token **, struct Token *);
+struct Node *logor(struct Token **, struct Token *);
+struct Node *logand(struct Token **, struct Token *);
 struct Node * bitor (struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
@@ -1008,11 +1010,11 @@ struct Node *to_assign(struct Node *binary) {
 }
 
 /*
-assign = bitor (assign_op assign)?
+assign = logor (assign_op assign)?
 assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
 */
 struct Node *assign(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = logor(&token, token);
     if (equal(token, "=")) {
         node = new_node_binary(ND_ASSIGN, node, assign(&token, token->next));
     } else if (equal(token, "+=")) {
@@ -1037,6 +1039,30 @@ struct Node *assign(struct Token **rest, struct Token *token) {
     } else if (equal(token, "&=")) {
         node = to_assign(
             new_node_binary(ND_BITAND, node, assign(&token, token->next)));
+    }
+    *rest = token;
+    return node;
+}
+
+/*
+logor = logand ("||" logand)*
+*/
+struct Node *logor(struct Token **rest, struct Token *token) {
+    struct Node *node = logand(&token, token);
+    while (equal(token, "||")) {
+        node = new_node_binary(ND_LOGOR, node, logand(&token, token->next));
+    }
+    *rest = token;
+    return node;
+}
+
+/*
+logand = bitor ("&&" bitor)*
+*/
+struct Node *logand(struct Token **rest, struct Token *token) {
+    struct Node *node = bitor (&token, token);
+    while (equal(token, "&&")) {
+        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
     }
     *rest = token;
     return node;
