@@ -1006,7 +1006,7 @@ struct Node *to_assign(struct Node *binary) {
 
 /*
 assign = equality (assign_op assign)?
-assign_op = "=" | "+=" | "-=" | "*=" | "/="
+assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 */
 struct Node *assign(struct Token **rest, struct Token *token) {
     struct Node *node = equality(&token, token);
@@ -1022,6 +1022,9 @@ struct Node *assign(struct Token **rest, struct Token *token) {
     } else if (equal(token, "/=")) {
         node = to_assign(
             new_node_binary(ND_DIV, node, assign(&token, token->next)));
+    } else if (equal(token, "%=")) {
+        node = to_assign(
+            new_node_binary(ND_MOD, node, assign(&token, token->next)));
     }
     *rest = token;
     return node;
@@ -1084,7 +1087,7 @@ struct Node *add(struct Token **rest, struct Token *token) {
 }
 
 /*
-mul = cast ("*" cast | "/" cast)*
+mul = cast ("*" cast | "/" cast | "%" cast)*
 */
 struct Node *mul(struct Token **rest, struct Token *token) {
     struct Node *node = cast(&token, token);
@@ -1093,6 +1096,8 @@ struct Node *mul(struct Token **rest, struct Token *token) {
             node = new_node_binary(ND_MUL, node, cast(&token, token->next));
         } else if (equal(token, "/")) {
             node = new_node_binary(ND_DIV, node, cast(&token, token->next));
+        } else if (equal(token, "%")) {
+            node = new_node_binary(ND_MOD, node, cast(&token, token->next));
         } else {
             *rest = token;
             return node;

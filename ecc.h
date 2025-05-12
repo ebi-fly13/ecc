@@ -119,6 +119,7 @@ typedef enum {
     ND_DEREF,      // *
     ND_NOT,        // !
     ND_BITNOT,     // ~
+    ND_MOD,        // %
     ND_CAST,       // cast
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数

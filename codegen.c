@@ -287,8 +287,18 @@ void gen(struct Node *node) {
             printf("  imul rax, rdi\n");
             break;
         case ND_DIV:
+        case ND_MOD:
+            if (node->lhs->ty->size == 8) {
+                printf("  cqo\n");
+            } else {
+                printf("  cdq\n");
+            }
             printf("  cqo\n");
             printf("  idiv rdi\n");
+
+            if (node->kind == ND_MOD) {
+                printf("  mov rax, rdx\n");
+            }
             break;
         case ND_EQ:
             printf("  cmp rax, rdi\n");
