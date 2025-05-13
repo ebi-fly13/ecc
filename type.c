@@ -46,11 +46,14 @@ struct Type *pointer_to(struct Type *ty) {
     return pointer;
 }
 
-struct Type *array_to(struct Type *ty, size_t array_size) {
+struct Type *array_to(struct Type *ty, int array_size) {
     struct Type *array = calloc(1, sizeof(struct Type));
     array->ty = TY_ARRAY;
     array->ptr_to = ty;
     array->array_size = array_size;
+
+    if (array_size < 0) return array;
+
     array->size = ty->size * array_size;
     return array;
 }

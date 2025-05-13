@@ -375,7 +375,7 @@ void codegen() {
                 printf("  .byte %d\n", obj->init_data[i]);
             }
         } else {
-            printf("  .zero %ld\n", obj->ty->size);
+            printf("  .zero %d\n", obj->ty->size);
         }
     }
 

@@ -351,6 +351,7 @@ struct Type *union_decl(struct Token **, struct Token *);
 struct Type *enum_specifier(struct Token **, struct Token *);
 struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
+struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
 struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
 struct Member *struct_union_members(struct Token **, struct Token *);
 struct NameTag *param(struct Token **, struct Token *);
@@ -574,7 +575,7 @@ struct Type *declspec(struct Token **rest, struct Token *token,
     return ty;
 }
 
-// abstract-declarator = "*"* ("(" abstract-declarator ")")?;
+// abstract-declarator = "*"* ("(" abstract-declarator ")")? type_suffix
 struct Type *abstract_declarator(struct Token **rest, struct Token *token,
                                  struct Type *ty) {
     while (equal(token, "*")) {
@@ -582,11 +583,14 @@ struct Type *abstract_declarator(struct Token **rest, struct Token *token,
         token = skip(token, "*");
     }
     if (equal(token, "(")) {
-        ty = abstract_declarator(&token, token->next, ty);
+        struct Token *start = skip(token, "(");
+        struct Type dummy;
+        abstract_declarator(&token, start, &dummy);
         token = skip(token, ")");
+        ty = type_suffix(rest, token, ty);
+        return abstract_declarator(&token, start, ty);
     }
-    *rest = token;
-    return ty;
+    return type_suffix(rest, token, ty);
 }
 
 // typename = declspec abstruct-declarator
@@ -784,16 +788,29 @@ struct NameTag *declarator(struct Token **rest, struct Token *token,
     return tag;
 }
 
+/*
+type_suffix = "[" array_dimensions | ""
+*/
 struct Type *type_suffix(struct Token **rest, struct Token *token,
                          struct Type *ty) {
     if (equal(token, "[")) {
-        int sz = get_number(token->next);
-        token = skip(token->next->next, "]");
-        ty = type_suffix(rest, token, ty);
-        return array_to(ty, sz);
+        return array_dimensions(rest, token->next, ty);
     }
     *rest = token;
     return ty;
+}
+
+/*
+array_dimensions = num? "]" type_suffix
+*/
+struct Type *array_dimensions(struct Token **rest, struct Token *token,
+                              struct Type *ty) {
+    if (equal(token, "]")) {
+        return array_to(type_suffix(rest, token->next, ty), -1);
+    }
+    int sz = get_number(token);
+    token = skip(token->next, "]");
+    return array_to(type_suffix(rest, token, ty), sz);
 }
 
 /*
@@ -811,7 +828,7 @@ struct NameTag *func_params(struct Token **rest, struct Token *token,
         cur->next = tag;
         cur = tag;
     }
-    *rest = token->next;
+    *rest = skip(token, ")");
     struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
     fn->ty = func_to(return_tag->ty, head.next);
     fn->name = return_tag->name;
@@ -1228,8 +1245,11 @@ struct Node *unary(struct Token **rest, struct Token *token) {
 struct Node *new_node_inc_dec(struct Node *node, struct Token *token,
                               int addend) {
     add_type(node);
-    return new_node_sub(to_assign(new_node_add(node, new_node_num(addend))),
-                        new_node_num(addend));
+    struct Node *node2 =
+        new_node_sub(to_assign(new_node_add(node, new_node_num(addend))),
+                     new_node_num(addend));
+    node2->ty = node->ty;
+    return node2;
 }
 
 /*
@@ -1323,6 +1343,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         *rest = skip(token, ")");
     } else if (equal(token, "sizeof") && equal(token->next, "(") &&
                is_typename(token->next->next)) {
+        token = skip_keyword(token, TK_SIZEOF);
         token = skip(token, "(");
         node = new_node_num(typename(&token, token)->size);
         token = skip(token, ")");

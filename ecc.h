@@ -199,9 +199,8 @@ typedef enum {
 struct Type {
     TypeKind ty;
     struct Type *ptr_to;
-    size_t array_size;
-    size_t size;
-
+    int array_size;
+    int size;
     char *name;
 
     // for function type
@@ -219,7 +218,7 @@ extern struct Type *ty_char;
 extern struct Type *ty_void;
 
 struct Type *pointer_to(struct Type *);
-struct Type *array_to(struct Type *, size_t);
+struct Type *array_to(struct Type *, int);
 struct Type *func_to(struct Type *, struct NameTag *);
 struct Type *struct_type();
 struct Type *union_type();
