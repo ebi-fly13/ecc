@@ -842,6 +842,10 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
     struct Type *ty = declspec(&token, token, NULL);
     struct NameTag *tag = declarator(&token, token, ty);
     *rest = token;
+
+    if (tag->ty->ty == TY_ARRAY) {
+        tag->ty = pointer_to(tag->ty->ptr_to);
+    }
     return tag;
 }
 

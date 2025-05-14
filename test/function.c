@@ -15,6 +15,10 @@ int add_struct(struct A a, struct A b) {
     return a.a + b.a;
 }
 
+int param_decay(int x[]) { 
+    return x[0];
+}
+
 static int static_f() {
     return 3;
 }
@@ -94,7 +98,9 @@ int main() {
 
     ASSERT(3, static_f());
 
-    f();
+    ASSERT(3, ({ int x[2]; x[0] = 3; param_decay(x); }));
+
+    f(); 
 
     printf("OK\n");
     return 0;
