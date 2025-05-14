@@ -213,10 +213,10 @@ struct Type *find_tag(char *name) {
     return NULL;
 }
 
-struct Type *find_tag_from_scope(char *name) {
+struct TagScope *find_tag_from_scope(char *name) {
     for (struct TagScope *tag = scope->tags; tag != NULL; tag = tag->next) {
         if (!strcmp(tag->ty->name, name)) {
-            return tag->ty;
+            return tag;
         }
     }
     return NULL;
@@ -314,7 +314,7 @@ struct Member *get_struct_member(struct Type *ty, char *name) {
          member = member->next) {
         if (strcmp(member->name, name) == 0) return member;
     }
-    error("struct%sにメンバ変数%sは存在しません", ty->name, name);
+    error("struct %sにメンバ変数%sは存在しません", ty->name, name);
     return NULL;
 }
 
@@ -609,11 +609,16 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
     }
     if (name != NULL && !equal(token, "{")) {
-        struct Type *ty = find_tag(name);
-        if (ty == NULL) {
-            error("構造体%sは存在しません", name);
-        }
         *rest = token;
+
+        struct Type *ty = find_tag(name);
+        if (ty) {
+            return ty;
+        }
+        ty = struct_type();
+        ty->name = name;
+        ty->size = -1;
+        push_tag_scope(ty);
         return ty;
     }
     token = skip(token, "{");
@@ -628,8 +633,10 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     ty->size = offset;
     ty->name = name;
     if (name != NULL) {
-        if (find_tag_from_scope(ty->name)) {
-            error("構造体%sは既に定義されています", ty->name);
+        struct TagScope *tag = find_tag_from_scope(ty->name);
+        if (tag != NULL) {
+            *tag->ty = *ty;
+            return tag->ty;
         }
         push_tag_scope(ty);
     }
