@@ -224,13 +224,6 @@ struct TagScope *find_tag_from_scope(char *name) {
     return NULL;
 }
 
-char *new_unique_label() {
-    static int id = 0;
-    char *buf = calloc(1, 20);
-    sprintf(buf, ".L.goto.%d", id++);
-    return buf;
-}
-
 char *new_unique_name() {
     static int id = 0;
     char *buf = calloc(1, 20);
@@ -945,7 +938,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
     } else if (equal_keyword(token, TK_IDENT) && equal(token->next, ":")) {
         node = new_node(ND_LABEL);
         node->label = strndup(token->loc, token->len);
-        node->unique_label = new_unique_label();
+        node->unique_label = new_unique_name();
         node->goto_next = labels;
         labels = node;
         token = skip_keyword(token, TK_IDENT);
