@@ -147,10 +147,10 @@ void gen(struct Node *node) {
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
         printf("  cmp rax, 0\n");
-        printf("  je  .Lend%d\n", number);
+        printf("  je  %s\n", node->label);
         gen(node->then);
         printf("  jmp  .Lbegin%d\n", number);
-        printf(".Lend%d:\n", number);
+        printf("%s:\n", node->label);
         return;
     }
 
@@ -160,11 +160,11 @@ void gen(struct Node *node) {
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
         printf("  cmp rax, 0\n");
-        printf("  je  .Lend%d\n", number);
+        printf("  je  %s\n", node->label);
         gen(node->then);
         gen(node->inc);
         printf("  jmp  .Lbegin%d\n", number);
-        printf(".Lend%d:\n", number);
+        printf("%s:\n", node->label);
         return;
     }
 
@@ -176,6 +176,11 @@ void gen(struct Node *node) {
     if (node->kind == ND_LABEL) {
         printf("%s:\n", node->unique_label);
         gen(node->body);
+        return;
+    }
+
+    if (node->kind == ND_BREAK) {
+        printf("  jmp %s\n", node->label);
         return;
     }
 

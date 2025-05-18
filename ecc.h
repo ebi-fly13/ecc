@@ -29,6 +29,7 @@ typedef enum {
     TK_STR,       // string
     TK_STATIC,    // static
     TK_GOTO,      // goto
+    TK_BREAK,     // break
 } TokenKind;
 
 struct Token {
@@ -136,6 +137,7 @@ typedef enum {
     ND_IF,         // if
     ND_WHILE,      // while
     ND_FOR,        // for
+    ND_BREAK,      // break
     ND_DUMMY,      // ダミー
     ND_BLOCK,      // block
     ND_FUNCALL,    // function call

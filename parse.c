@@ -7,6 +7,7 @@ struct Object *functions = NULL;
 struct Scope *scope = &(struct Scope){};
 struct Node *gotos = NULL;
 struct Node *labels = NULL;
+char *break_label = NULL;
 
 int align_to(int n, int align) {
     return (n + align - 1) / align * align;
@@ -880,7 +881,7 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 /*
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
-"goto" ident ";"  | ident ":" stmt | expr-stmt
+"goto" ident ";"  | ident ":" stmt | "break" ";" | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -908,7 +909,10 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, "(");
         node->cond = expr(&token, token);
         token = skip(token, ")");
+        char *curren_break_label = break_label;
+        break_label = node->label = new_unique_name();
         node->then = stmt(&token, token);
+        break_label = curren_break_label;
     } else if (equal_keyword(token, TK_FOR)) {
         enter_scope();
         token = skip_keyword(token, TK_FOR);
@@ -925,7 +929,10 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
             node->inc = expr(&token, token);
         }
         token = skip(token, ")");
+        char *current_break_label = break_label;
+        break_label = node->label = new_unique_name();
         node->then = stmt(&token, token);
+        break_label = current_break_label;
         leave_scope();
     } else if (equal_keyword(token, TK_GOTO)) {
         token = skip_keyword(token, TK_GOTO);
@@ -944,6 +951,10 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
         token = skip(token, ":");
         node->body = stmt(&token, token);
+    } else if (equal(token, "break")) {
+        node = new_node(ND_BREAK);
+        node->label = break_label;
+        token = skip_keyword(token, TK_BREAK);
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {

@@ -395,6 +395,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "break") && !is_alnum(p[5])) {
+            cur = new_token(TK_BREAK, cur, p, 5);
+            p += 5;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = read_int_literal(cur, p);
             p += cur->len;
