@@ -401,6 +401,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "continue") && !is_alnum(p[8])) {
+            cur = new_token(TK_CONTINUE, cur, p, 8);
+            p += 8;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = read_int_literal(cur, p);
             p += cur->len;

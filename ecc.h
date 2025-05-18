@@ -30,6 +30,7 @@ typedef enum {
     TK_STATIC,    // static
     TK_GOTO,      // goto
     TK_BREAK,     // break
+    TK_CONTINUE,  // continue
 } TokenKind;
 
 struct Token {
@@ -138,6 +139,7 @@ typedef enum {
     ND_WHILE,      // while
     ND_FOR,        // for
     ND_BREAK,      // break
+    ND_CONTINUE,   // continue
     ND_DUMMY,      // ダミー
     ND_BLOCK,      // block
     ND_FUNCALL,    // function call
@@ -166,6 +168,9 @@ struct Node {
 
     char *label;
     char *unique_label;
+
+    char *continue_label;
+    char *break_label;
 
     struct Node *cond;  // 条件文
     struct Node *then;  // trueのとき実行するもの

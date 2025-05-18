@@ -143,14 +143,13 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_WHILE) {
-        int number = label++;
-        printf(".Lbegin%d:\n", number);
+        printf("%s:\n", node->continue_label);
         gen(node->cond);
         printf("  cmp rax, 0\n");
-        printf("  je  %s\n", node->label);
+        printf("  je  %s\n", node->break_label);
         gen(node->then);
-        printf("  jmp  .Lbegin%d\n", number);
-        printf("%s:\n", node->label);
+        printf("  jmp %s\n", node->continue_label);
+        printf("%s:\n", node->break_label);
         return;
     }
 
@@ -160,11 +159,12 @@ void gen(struct Node *node) {
         printf(".Lbegin%d:\n", number);
         gen(node->cond);
         printf("  cmp rax, 0\n");
-        printf("  je  %s\n", node->label);
+        printf("  je  %s\n", node->break_label);
         gen(node->then);
+        printf("%s:\n", node->continue_label);
         gen(node->inc);
         printf("  jmp  .Lbegin%d\n", number);
-        printf("%s:\n", node->label);
+        printf("%s:\n", node->break_label);
         return;
     }
 
@@ -180,8 +180,12 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_BREAK) {
-        printf("  jmp %s\n", node->label);
+        printf("  jmp %s\n", node->break_label);
         return;
+    }
+
+    if (node->kind == ND_CONTINUE) {
+        printf("  jmp %s\n", node->continue_label);
     }
 
     if (node->kind == ND_COMMA) {

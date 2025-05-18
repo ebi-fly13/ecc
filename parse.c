@@ -7,6 +7,7 @@ struct Object *functions = NULL;
 struct Scope *scope = &(struct Scope){};
 struct Node *gotos = NULL;
 struct Node *labels = NULL;
+char *continue_label = NULL;
 char *break_label = NULL;
 
 int align_to(int n, int align) {
@@ -909,9 +910,14 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, "(");
         node->cond = expr(&token, token);
         token = skip(token, ")");
+
+        char *current_continue_label = continue_label;
+        continue_label = node->continue_label = new_unique_name();
         char *curren_break_label = break_label;
-        break_label = node->label = new_unique_name();
+        break_label = node->break_label = new_unique_name();
+
         node->then = stmt(&token, token);
+        continue_label = current_continue_label;
         break_label = curren_break_label;
     } else if (equal_keyword(token, TK_FOR)) {
         enter_scope();
@@ -929,9 +935,14 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
             node->inc = expr(&token, token);
         }
         token = skip(token, ")");
+
+        char *current_continue_label = continue_label;
+        continue_label = node->continue_label = new_unique_name();
         char *current_break_label = break_label;
-        break_label = node->label = new_unique_name();
+        break_label = node->break_label = new_unique_name();
+
         node->then = stmt(&token, token);
+        continue_label = current_continue_label;
         break_label = current_break_label;
         leave_scope();
     } else if (equal_keyword(token, TK_GOTO)) {
@@ -951,10 +962,16 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
         token = skip(token, ":");
         node->body = stmt(&token, token);
-    } else if (equal(token, "break")) {
+    } else if (equal_keyword(token, TK_BREAK)) {
         node = new_node(ND_BREAK);
-        node->label = break_label;
+        node->break_label = break_label;
         token = skip_keyword(token, TK_BREAK);
+        token = skip(token, ";");
+    } else if (equal_keyword(token, TK_CONTINUE)) {
+        node = new_node(ND_CONTINUE);
+        node->continue_label = continue_label;
+        token = skip_keyword(token, TK_CONTINUE);
+        token = skip(token, ";");
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {
