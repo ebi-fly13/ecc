@@ -28,6 +28,7 @@ typedef enum {
     TK_SIZEOF,    // sizeof
     TK_STR,       // string
     TK_STATIC,    // static
+    TK_GOTO,      // goto
 } TokenKind;
 
 struct Token {
@@ -129,6 +130,8 @@ typedef enum {
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数
     ND_GVAR,       // グローバル変数
+    ND_GOTO,       // goto
+    ND_LABEL,      // label
     ND_RETURN,     // return
     ND_IF,         // if
     ND_WHILE,      // while
@@ -159,11 +162,16 @@ struct Node {
     long val;         // kindがND_NUMの場合のみ使用
     struct Type *ty;  // 変数の型
 
+    char *label;
+    char *unique_label;
+
     struct Node *cond;  // 条件文
     struct Node *then;  // trueのとき実行するもの
     struct Node *els;   // elseのとき実行するもの
     struct Node *init;  // 初期化文
     struct Node *inc;   // increment文
+
+    struct Node *goto_next;
 };
 
 struct Node *new_node_cast(struct Node *, struct Type *);

@@ -168,6 +168,17 @@ void gen(struct Node *node) {
         return;
     }
 
+    if (node->kind == ND_GOTO) {
+        printf("  jmp %s\n", node->unique_label);
+        return;
+    }
+
+    if (node->kind == ND_LABEL) {
+        printf("%s:\n", node->unique_label);
+        gen(node->body);
+        return;
+    }
+
     if (node->kind == ND_COMMA) {
         gen(node->lhs);
         gen(node->rhs);

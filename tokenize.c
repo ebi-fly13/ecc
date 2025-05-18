@@ -276,7 +276,7 @@ struct Token *tokenize(char *p) {
             *p == ')' || *p == '<' || *p == '>' || *p == ';' || *p == '=' ||
             *p == '{' || *p == '}' || *p == ',' || *p == '&' || *p == '[' ||
             *p == ']' || *p == '.' || *p == '!' || *p == '~' || *p == '%' ||
-            *p == '|' || *p == '^') {
+            *p == '|' || *p == '^' || *p == ':') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
@@ -386,6 +386,12 @@ struct Token *tokenize(char *p) {
         if (startswith(p, "static") && !is_alnum(p[6])) {
             cur = new_token(TK_STATIC, cur, p, 6);
             p += 6;
+            continue;
+        }
+
+        if (startswith(p, "goto") && !is_alnum(p[4])) {
+            cur = new_token(TK_GOTO, cur, p, 4);
+            p += 4;
             continue;
         }
 

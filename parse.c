@@ -5,6 +5,8 @@ struct Object *globals = NULL;
 struct Object *functions = NULL;
 
 struct Scope *scope = &(struct Scope){};
+struct Node *gotos = NULL;
+struct Node *labels = NULL;
 
 int align_to(int n, int align) {
     return (n + align - 1) / align * align;
@@ -222,6 +224,13 @@ struct TagScope *find_tag_from_scope(char *name) {
     return NULL;
 }
 
+char *new_unique_label() {
+    static int id = 0;
+    char *buf = calloc(1, 20);
+    sprintf(buf, ".L.goto.%d", id++);
+    return buf;
+}
+
 char *new_unique_name() {
     static int id = 0;
     char *buf = calloc(1, 20);
@@ -384,6 +393,24 @@ bool is_function(struct Token *token) {
     return equal(token, "(");
 }
 
+void resolve_goto_labels() {
+    for (struct Node *goto_node = gotos; goto_node != NULL;
+         goto_node = goto_node->goto_next) {
+        for (struct Node *label = labels; label != NULL;
+             label = label = label->goto_next) {
+            if (!strcmp(goto_node->label, label->label)) {
+                goto_node->unique_label = label->unique_label;
+                break;
+            }
+        }
+        if (goto_node->unique_label == NULL) {
+            error("定義されていないラベルを使用しています");
+        }
+    }
+    gotos = NULL;
+    labels = NULL;
+}
+
 /*
 program = (function | global_variable)*
 */
@@ -438,6 +465,7 @@ struct Token *function(struct Token *token, struct Type *ty,
             fn->stack_size = 0;
         fn->stack_size = align_to(fn->stack_size + 8, 16);
         leave_scope();
+        resolve_goto_labels();
     } else {
         token = skip(token, ";");
     }
@@ -859,7 +887,7 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 /*
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
-expr-stmt
+"goto" ident ";"  | ident ":" stmt | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -906,6 +934,23 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, ")");
         node->then = stmt(&token, token);
         leave_scope();
+    } else if (equal_keyword(token, TK_GOTO)) {
+        token = skip_keyword(token, TK_GOTO);
+        node = new_node(ND_GOTO);
+        node->label = strndup(token->loc, token->len);
+        node->goto_next = gotos;
+        gotos = node;
+        token = skip_keyword(token, TK_IDENT);
+        token = skip(token, ";");
+    } else if (equal_keyword(token, TK_IDENT) && equal(token->next, ":")) {
+        node = new_node(ND_LABEL);
+        node->label = strndup(token->loc, token->len);
+        node->unique_label = new_unique_label();
+        node->goto_next = labels;
+        labels = node;
+        token = skip_keyword(token, TK_IDENT);
+        token = skip(token, ":");
+        node->body = stmt(&token, token);
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {
@@ -925,7 +970,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 
     enter_scope();
     while (!equal(token, "}")) {
-        if (is_typename(token)) {
+        if (is_typename(token) && !equal(token->next, ":")) {
             struct VarAttr attr = {};
             struct Type *base_ty = declspec(&token, token, &attr);
             if (attr.is_typedef) {
