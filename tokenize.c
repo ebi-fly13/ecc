@@ -407,6 +407,24 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "switch") && !is_alnum(p[6])) {
+            cur = new_token(TK_SWITCH, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
+        if (startswith(p, "case") && !is_alnum(p[4])) {
+            cur = new_token(TK_CASE, cur, p, 4);
+            p += 4;
+            continue;
+        }
+
+        if (startswith(p, "default") && !is_alnum(p[7])) {
+            cur = new_token(TK_DEFAULT, cur, p, 7);
+            p += 7;
+            continue;
+        }
+
         if (isdigit(*p)) {
             cur = read_int_literal(cur, p);
             p += cur->len;

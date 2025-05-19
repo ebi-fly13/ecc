@@ -7,6 +7,7 @@ struct Object *functions = NULL;
 struct Scope *scope = &(struct Scope){};
 struct Node *gotos = NULL;
 struct Node *labels = NULL;
+struct Node *switch_node = NULL;
 char *continue_label = NULL;
 char *break_label = NULL;
 
@@ -882,7 +883,8 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 /*
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
-"goto" ident ";"  | ident ":" stmt | "break" ";" | expr-stmt
+"goto" ident ";"  | ident ":" stmt | "break" ";" | "switch" "(" expr ")" stmt |
+"case" number ":" stmt | "default" ":" stmt | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -972,6 +974,50 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         node->continue_label = continue_label;
         token = skip_keyword(token, TK_CONTINUE);
         token = skip(token, ";");
+    } else if (equal_keyword(token, TK_SWITCH)) {
+        struct Node *current_switch_node = switch_node;
+
+        switch_node = new_node(ND_SWITCH);
+        token = skip_keyword(token, TK_SWITCH);
+        token = skip(token, "(");
+        switch_node->cond = expr(&token, token);
+        token = skip(token, ")");
+
+        char *current_break_label = break_label;
+        break_label = switch_node->break_label = new_unique_name();
+
+        switch_node->then = stmt(&token, token);
+
+        node = switch_node;
+
+        switch_node = current_switch_node;
+        break_label = current_break_label;
+    } else if (equal_keyword(token, TK_CASE)) {
+        if (switch_node == NULL) {
+            error("switch文ではないのにcaseがあります");
+        }
+        node = new_node(ND_CASE);
+        token = skip_keyword(token, TK_CASE);
+
+        node->val = get_number(token);
+        token = skip_keyword(token, TK_NUM);
+        token = skip(token, ":");
+        node->label = new_unique_name();
+        node->lhs = stmt(&token, token);
+
+        node->next_case = switch_node->next_case;
+        switch_node->next_case = node;
+    } else if (equal_keyword(token, TK_DEFAULT)) {
+        if (switch_node == NULL) {
+            error("switch文ではないのにdefaultがあります");
+        }
+        node = new_node(ND_CASE);
+        token = skip_keyword(token, TK_DEFAULT);
+        token = skip(token, ":");
+        node->label = new_unique_name();
+        node->lhs = stmt(&token, token);
+
+        switch_node->default_case = node;
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {

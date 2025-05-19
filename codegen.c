@@ -186,6 +186,31 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_CONTINUE) {
         printf("  jmp %s\n", node->continue_label);
+        return;
+    }
+
+    if (node->kind == ND_SWITCH) {
+        gen(node->cond);
+        for (struct Node *case_node = node->next_case; case_node != NULL;
+             case_node = case_node->next_case) {
+            char *reg = (node->cond->ty->size == 8) ? "rax" : "eax";
+            printf("  cmp %s, %ld\n", reg, case_node->val);
+            printf("  je %s\n", case_node->label);
+        }
+        if (node->default_case != NULL) {
+            printf("  jmp %s\n", node->default_case->label);
+        }
+        printf("  jmp %s\n", node->break_label);
+
+        gen(node->then);
+        printf("%s:\n", node->break_label);
+        return;
+    }
+
+    if (node->kind == ND_CASE) {
+        printf("%s:\n", node->label);
+        gen(node->lhs);
+        return;
     }
 
     if (node->kind == ND_COMMA) {

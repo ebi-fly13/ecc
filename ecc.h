@@ -31,6 +31,9 @@ typedef enum {
     TK_GOTO,      // goto
     TK_BREAK,     // break
     TK_CONTINUE,  // continue
+    TK_SWITCH,    // switch
+    TK_CASE,      // case
+    TK_DEFAULT,   // default
 } TokenKind;
 
 struct Token {
@@ -140,6 +143,8 @@ typedef enum {
     ND_FOR,        // for
     ND_BREAK,      // break
     ND_CONTINUE,   // continue
+    ND_SWITCH,     // switch
+    ND_CASE,       // case
     ND_DUMMY,      // ダミー
     ND_BLOCK,      // block
     ND_FUNCALL,    // function call
@@ -171,12 +176,15 @@ struct Node {
 
     char *continue_label;
     char *break_label;
+    char *switch_label;
 
-    struct Node *cond;  // 条件文
-    struct Node *then;  // trueのとき実行するもの
-    struct Node *els;   // elseのとき実行するもの
-    struct Node *init;  // 初期化文
-    struct Node *inc;   // increment文
+    struct Node *cond;          // 条件文
+    struct Node *then;          // trueのとき実行するもの
+    struct Node *els;           // elseのとき実行するもの
+    struct Node *init;          // 初期化文
+    struct Node *inc;           // increment文
+    struct Node *next_case;     // case
+    struct Node *default_case;  // default
 
     struct Node *goto_next;
 };
