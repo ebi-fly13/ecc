@@ -131,6 +131,8 @@ typedef enum {
     ND_BITAND,     // &
     ND_LOGOR,      // ||
     ND_LOGAND,     // &&
+    ND_SHL,        // <<
+    ND_SHR,        // >>
     ND_CAST,       // cast
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数

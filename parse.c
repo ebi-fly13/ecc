@@ -374,6 +374,7 @@ struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
 struct Node *relation(struct Token **, struct Token *);
+struct Node *shift(struct Token **, struct Token *);
 struct Node *add(struct Token **, struct Token *);
 struct Node *mul(struct Token **, struct Token *);
 struct Node *unary(struct Token **, struct Token *);
@@ -1151,7 +1152,8 @@ struct Node *to_assign(struct Node *binary) {
 
 /*
 assign = logor (assign_op assign)?
-assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
+assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&=" | "<<="
+| ">>="
 */
 struct Node *assign(struct Token **rest, struct Token *token) {
     struct Node *node = logor(&token, token);
@@ -1179,6 +1181,12 @@ struct Node *assign(struct Token **rest, struct Token *token) {
     } else if (equal(token, "&=")) {
         node = to_assign(
             new_node_binary(ND_BITAND, node, assign(&token, token->next)));
+    } else if (equal(token, "<<=")) {
+        node = to_assign(
+            new_node_binary(ND_SHL, node, assign(&token, token->next)));
+    } else if (equal(token, ">>=")) {
+        node = to_assign(
+            new_node_binary(ND_SHR, node, assign(&token, token->next)));
     }
     *rest = token;
     return node;
@@ -1262,20 +1270,38 @@ struct Node *equality(struct Token **rest, struct Token *token) {
 }
 
 /*
-relation = add ("<" add | "<=" add | ">" add | ">=" add)*
+relation = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 */
 struct Node *relation(struct Token **rest, struct Token *token) {
-    struct Node *node = add(&token, token);
+    struct Node *node = shift(&token, token);
 
     for (;;) {
         if (equal(token, "<")) {
-            node = new_node_binary(ND_LT, node, add(&token, token->next));
+            node = new_node_binary(ND_LT, node, shift(&token, token->next));
         } else if (equal(token, "<=")) {
-            node = new_node_binary(ND_LE, node, add(&token, token->next));
+            node = new_node_binary(ND_LE, node, shift(&token, token->next));
         } else if (equal(token, ">")) {
-            node = new_node_binary(ND_LT, add(&token, token->next), node);
+            node = new_node_binary(ND_LT, shift(&token, token->next), node);
         } else if (equal(token, ">=")) {
-            node = new_node_binary(ND_LE, add(&token, token->next), node);
+            node = new_node_binary(ND_LE, shift(&token, token->next), node);
+        } else {
+            *rest = token;
+            return node;
+        }
+    }
+}
+
+/*
+shift = add ("<<" add | ">>" add)*
+*/
+struct Node *shift(struct Token **rest, struct Token *token) {
+    struct Node *node = add(&token, token);
+
+    for (;;) {
+        if (equal(token, "<<")) {
+            node = new_node_binary(ND_SHL, node, add(&token, token->next));
+        } else if (equal(token, ">>")) {
+            node = new_node_binary(ND_SHR, node, add(&token, token->next));
         } else {
             *rest = token;
             return node;
