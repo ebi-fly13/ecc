@@ -162,7 +162,6 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
         p += 2;
         base = 2;
     } else if (*p == '0') {
-        p += 1;
         base = 8;
     }
     long val = strtol(p, &p, base);

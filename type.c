@@ -8,7 +8,7 @@ struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0};
 
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
-           ty->ty == TY_CHAR;
+           ty->ty == TY_CHAR || ty->ty == TY_ENUM;
 }
 
 bool is_void(struct Type *ty) {

@@ -365,6 +365,7 @@ struct Node *compound_stmt(struct Token **, struct Token *);
 void typedef_decl(struct Token **, struct Token *, struct Type *);
 struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
 struct Node *expr_stmt(struct Token **, struct Token *);
+long const_expr(struct Token **, struct Token *);
 struct Node *expr(struct Token **, struct Token *);
 struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
@@ -407,6 +408,69 @@ void resolve_goto_labels() {
     }
     gotos = NULL;
     labels = NULL;
+}
+
+long eval(struct Node *node) {
+    add_type(node);
+    switch (node->kind) {
+        case ND_ADD:
+            return eval(node->lhs) + eval(node->rhs);
+        case ND_SUB:
+            return eval(node->lhs) - eval(node->rhs);
+        case ND_MUL:
+            return eval(node->lhs) * eval(node->rhs);
+        case ND_DIV:
+            return eval(node->lhs) / eval(node->rhs);
+        case ND_BITAND:
+            return eval(node->lhs) & eval(node->rhs);
+        case ND_BITOR:
+            return eval(node->lhs) | eval(node->rhs);
+        case ND_BITXOR:
+            return eval(node->lhs) ^ eval(node->rhs);
+        case ND_SHL:
+            return eval(node->lhs) << eval(node->rhs);
+        case ND_SHR:
+            return eval(node->lhs) >> eval(node->rhs);
+        case ND_EQ:
+            return eval(node->lhs) == eval(node->rhs);
+        case ND_LT:
+            return eval(node->lhs) < eval(node->rhs);
+        case ND_LE:
+            return eval(node->lhs) <= eval(node->rhs);
+        case ND_NE:
+            return eval(node->lhs) != eval(node->rhs);
+        case ND_MOD:
+            return eval(node->lhs) % eval(node->rhs);
+        case ND_LOGAND:
+            return eval(node->lhs) && eval(node->rhs);
+        case ND_LOGOR:
+            return eval(node->lhs) || eval(node->rhs);
+        case ND_COND:
+            return eval(node->cond) ? eval(node->then) : eval(node->els);
+        case ND_BITNOT:
+            return ~eval(node->lhs);
+        case ND_COMMA:
+            return eval(node->rhs);
+        case ND_NOT:
+            return !eval(node->lhs);
+        case ND_NUM:
+            return node->val;
+        case ND_CAST:
+            if (is_integer(node->ty)) {
+                switch (node->ty->size) {
+                    case 1:
+                        return (__uint8_t)eval(node->lhs);
+                    case 2:
+                        return (__uint16_t)eval(node->lhs);
+                    case 4:
+                        return (__uint32_t)eval(node->lhs);
+                    case 8:
+                        return eval(node->lhs);
+                }
+            }
+            return eval(node->lhs);
+    }
+    error("コンパイル時定数ではありません");
 }
 
 /*
@@ -772,8 +836,7 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_IDENT);
         if (equal(token, "=")) {
             token = skip(token, "=");
-            val = get_number(token);
-            token = skip_keyword(token, TK_NUM);
+            val = const_expr(&token, token);
         }
         struct VarScope *sc = push_scope(ident_name);
         sc->enum_ty = ty;
@@ -834,15 +897,15 @@ struct Type *type_suffix(struct Token **rest, struct Token *token,
 }
 
 /*
-array_dimensions = num? "]" type_suffix
+array_dimensions = const_expr? "]" type_suffix
 */
 struct Type *array_dimensions(struct Token **rest, struct Token *token,
                               struct Type *ty) {
     if (equal(token, "]")) {
         return array_to(type_suffix(rest, token->next, ty), -1);
     }
-    int sz = get_number(token);
-    token = skip(token->next, "]");
+    int sz = const_expr(&token, token);
+    token = skip(token, "]");
     return array_to(type_suffix(rest, token, ty), sz);
 }
 
@@ -886,7 +949,7 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
 "goto" ident ";"  | ident ":" stmt | "break" ";" | "switch" "(" expr ")" stmt |
-"case" number ":" stmt | "default" ":" stmt | expr-stmt
+"case" const_expr ":" stmt | "default" ":" stmt | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -1001,8 +1064,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         node = new_node(ND_CASE);
         token = skip_keyword(token, TK_CASE);
 
-        node->val = get_number(token);
-        token = skip_keyword(token, TK_NUM);
+        node->val = const_expr(&token, token);
         token = skip(token, ":");
         node->label = new_unique_name();
         node->lhs = stmt(&token, token);
@@ -1117,6 +1179,13 @@ struct Node *expr_stmt(struct Token **rest, struct Token *token) {
     }
     *rest = skip(token, ";");
     return node;
+}
+
+/*
+const_expr = conditional
+*/
+long const_expr(struct Token **rest, struct Token *token) {
+    return eval(conditional(rest, token));
 }
 
 /*
