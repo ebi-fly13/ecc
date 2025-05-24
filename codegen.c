@@ -344,6 +344,19 @@ void gen(struct Node *node) {
         return;
     }
 
+    if (node->kind == ND_COND) {
+        int number = label++;
+        gen(node->cond);
+        printf("  cmp rax, 0\n");
+        printf("  je .L.false.%d\n", number);
+        gen(node->then);
+        printf("  jmp .L.end.%d\n", number);
+        printf(".L.false.%d:\n", number);
+        gen(node->els);
+        printf(".L.end.%d:\n", number);
+        return;
+    }
+
     gen(node->lhs);
     push();
     gen(node->rhs);

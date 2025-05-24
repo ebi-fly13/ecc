@@ -136,6 +136,8 @@ void add_type(struct Node *node) {
         case ND_BITOR:
         case ND_BITXOR:
         case ND_BITAND:
+        case ND_SHL:
+        case ND_SHR:
             usual_arith_conv(&node->lhs, &node->rhs);
             node->ty = node->lhs->ty;
             return;
@@ -174,5 +176,14 @@ void add_type(struct Node *node) {
             return;
         case ND_MEMBER:
             node->ty = node->member->ty;
+            return;
+        case ND_COND:
+            if (node->then->ty->ty == TY_VOID || node->els->ty->ty == TY_VOID) {
+                node->ty = ty_void;
+            } else {
+                usual_arith_conv(&node->then, &node->els);
+                node->ty = node->then->ty;
+            }
+            return;
     }
 }

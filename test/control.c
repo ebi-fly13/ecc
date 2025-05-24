@@ -61,6 +61,16 @@ int main() {
   ASSERT(0, ({ int i=0; switch(3) { case 0: 0; case 1: 0; case 2: 0; i=2; } i; }));
   ASSERT(3, ({ int i=0; switch(-1) { case 0xffffffff: i=3; break; } i; }));
 
+  ASSERT(2, 0?1:2);
+  ASSERT(1, 1?1:2);
+  ASSERT(-1, 0?-2:-1);
+  ASSERT(-2, 1?-2:-1);
+  ASSERT(4, sizeof(0?1:2));
+  ASSERT(8, sizeof(0?(long)1:(long)2));
+  ASSERT(-1, 0?(long)-2:-1);
+  ASSERT(-1, 0?-2:(long)-1);
+  ASSERT(-2, 1?(long)-2:-1);
+  ASSERT(-2, 1?-2:(long)-1);
 
   return 0;
 }

@@ -133,6 +133,7 @@ typedef enum {
     ND_LOGAND,     // &&
     ND_SHL,        // <<
     ND_SHR,        // >>
+    ND_COND,       // 三項演算子
     ND_CAST,       // cast
     ND_NUM,        // 整数
     ND_LVAR,       // ローカル変数

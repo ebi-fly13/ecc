@@ -367,6 +367,7 @@ struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
 struct Node *expr_stmt(struct Token **, struct Token *);
 struct Node *expr(struct Token **, struct Token *);
 struct Node *assign(struct Token **, struct Token *);
+struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
 struct Node * bitor (struct Token **, struct Token *);
@@ -1151,12 +1152,12 @@ struct Node *to_assign(struct Node *binary) {
 }
 
 /*
-assign = logor (assign_op assign)?
+assign = conditional (assign_op assign)?
 assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&=" | "<<="
 | ">>="
 */
 struct Node *assign(struct Token **rest, struct Token *token) {
-    struct Node *node = logor(&token, token);
+    struct Node *node = conditional(&token, token);
     if (equal(token, "=")) {
         node = new_node_binary(ND_ASSIGN, node, assign(&token, token->next));
     } else if (equal(token, "+=")) {
@@ -1187,6 +1188,24 @@ struct Node *assign(struct Token **rest, struct Token *token) {
     } else if (equal(token, ">>=")) {
         node = to_assign(
             new_node_binary(ND_SHR, node, assign(&token, token->next)));
+    }
+    *rest = token;
+    return node;
+}
+
+/*
+conditional = logor ("?" expr : conditional)?
+*/
+struct Node *conditional(struct Token **rest, struct Token *token) {
+    struct Node *node = logor(&token, token);
+    if (equal(token, "?")) {
+        struct Node *cond = new_node(ND_COND);
+        cond->cond = node;
+        token = skip(token, "?");
+        cond->then = expr(&token, token);
+        token = skip(token, ":");
+        cond->els = conditional(&token, token);
+        node = cond;
     }
     *rest = token;
     return node;
