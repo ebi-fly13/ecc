@@ -1,5 +1,20 @@
 #include "ecc.h"
 
+struct Initializer {
+    struct Initializer *next;
+    struct Type *ty;
+
+    struct Node *expr;
+
+    struct Initializer **children;
+};
+
+struct InitDesg {
+    struct InitDesg *next;
+    int index;
+    struct Object *var;
+};
+
 struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
@@ -364,6 +379,7 @@ struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
 void typedef_decl(struct Token **, struct Token *, struct Type *);
 struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
+struct Node *lvar_initializer(struct Token **, struct Token *, struct Object *);
 struct Node *expr_stmt(struct Token **, struct Token *);
 long const_expr(struct Token **, struct Token *);
 struct Node *expr(struct Token **, struct Token *);
@@ -1135,17 +1151,94 @@ struct Node *declaration(struct Token **rest, struct Token *token,
         is_first = false;
         struct NameTag *tag = declarator(&token, token, base_ty);
         struct Object *var = new_local_var(tag);
-        if (!equal(token, "=")) continue;
-        token = skip(token, "=");
-        cur->next = new_node_binary(ND_ASSIGN, new_node_var(var),
-                                    assign(&token, token));
-        cur = cur->next;
-        add_type(cur);
+
+        if (equal(token, "=")) {
+            token = skip(token, "=");
+            struct Node *exp = lvar_initializer(&token, token, var);
+            cur = cur->next = new_node_unary(ND_ASSIGN_EXPR, exp);
+            add_type(exp);
+        }
     }
     *rest = skip(token, ";");
     struct Node *node = new_node(ND_BLOCK);
     node->body = head.next;
     return node;
+}
+
+struct Initializer *new_initializer(struct Type *ty) {
+    struct Initializer *init = calloc(1, sizeof(struct Initializer));
+    init->ty = ty;
+
+    if (ty->ty == TY_ARRAY) {
+        init->children = calloc(ty->array_size, sizeof(struct Initializer));
+        for (int i = 0; i < ty->array_size; i++) {
+            init->children[i] = new_initializer(ty->ptr_to);
+        }
+    }
+
+    return init;
+}
+
+/*
+initializer = "{" initializer ("," initializer)* "}" | assign
+*/
+
+void internal_initializer(struct Token **rest, struct Token *token,
+                          struct Initializer *init) {
+    if (init->ty->ty == TY_ARRAY) {
+        token = skip(token, "{");
+
+        for (int i = 0; i < init->ty->array_size; i++) {
+            if (i > 0) {
+                token = skip(token, ",");
+            }
+            internal_initializer(&token, token, init->children[i]);
+        }
+        token = skip(token, "}");
+    } else {
+        init->expr = assign(&token, token);
+    }
+    *rest = token;
+}
+
+struct Initializer *initializer(struct Token **rest, struct Token *token,
+                                struct Type *ty) {
+    struct Initializer *init = new_initializer(ty);
+    internal_initializer(rest, token, init);
+    return init;
+}
+
+struct Node *init_desg_expr(struct InitDesg *desg) {
+    if (desg->var) {
+        return new_node_var(desg->var);
+    }
+    struct Node *lhs = init_desg_expr(desg->next);
+    struct Node *rhs = new_node_num(desg->index);
+    return new_node_unary(ND_DEREF, new_node_add(lhs, rhs));
+}
+
+struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
+                              struct InitDesg *desg) {
+    if (ty->ty == TY_ARRAY) {
+        struct Node *node = NULL;
+        for (int i = 0; i < ty->array_size; i++) {
+            struct InitDesg desg2 = {desg, i};
+            struct Node *rhs =
+                create_lvar_init(init->children[i], ty->ptr_to, &desg2);
+            node = new_node_binary(ND_COMMA, node, rhs);
+        }
+        return node;
+    }
+    struct Node *lhs = init_desg_expr(desg);
+    struct Node *rhs = init->expr;
+    return new_node_binary(ND_ASSIGN, lhs, rhs);
+}
+
+struct Node *lvar_initializer(struct Token **rest, struct Token *token,
+                              struct Object *var) {
+    struct Initializer *init = initializer(rest, token, var->ty);
+    struct InitDesg desg = {NULL, 0, var};
+    return create_lvar_init(init, var->ty, &desg);
 }
 
 /*

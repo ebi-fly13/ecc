@@ -112,48 +112,49 @@ struct Token *tokenize(char *);
 
 // parse.c
 typedef enum {
-    ND_ADD,        // +
-    ND_SUB,        // -
-    ND_MUL,        // *
-    ND_DIV,        // /
-    ND_ASSIGN,     // =
-    ND_EQ,         // ==
-    ND_NE,         // !=
-    ND_LT,         // <
-    ND_LE,         // <=
-    ND_ADDR,       // &
-    ND_DEREF,      // *
-    ND_NOT,        // !
-    ND_BITNOT,     // ~
-    ND_MOD,        // %
-    ND_BITOR,      // |
-    ND_BITXOR,     // ^
-    ND_BITAND,     // &
-    ND_LOGOR,      // ||
-    ND_LOGAND,     // &&
-    ND_SHL,        // <<
-    ND_SHR,        // >>
-    ND_COND,       // 三項演算子
-    ND_CAST,       // cast
-    ND_NUM,        // 整数
-    ND_LVAR,       // ローカル変数
-    ND_GVAR,       // グローバル変数
-    ND_GOTO,       // goto
-    ND_LABEL,      // label
-    ND_RETURN,     // return
-    ND_IF,         // if
-    ND_WHILE,      // while
-    ND_FOR,        // for
-    ND_BREAK,      // break
-    ND_CONTINUE,   // continue
-    ND_SWITCH,     // switch
-    ND_CASE,       // case
-    ND_DUMMY,      // ダミー
-    ND_BLOCK,      // block
-    ND_FUNCALL,    // function call
-    ND_STMT_EXPR,  // statement expression
-    ND_MEMBER,     // member of struct
-    ND_COMMA,      // ,
+    ND_ADD,          // +
+    ND_SUB,          // -
+    ND_MUL,          // *
+    ND_DIV,          // /
+    ND_ASSIGN,       // =
+    ND_EQ,           // ==
+    ND_NE,           // !=
+    ND_LT,           // <
+    ND_LE,           // <=
+    ND_ADDR,         // &
+    ND_DEREF,        // *
+    ND_NOT,          // !
+    ND_BITNOT,       // ~
+    ND_MOD,          // %
+    ND_BITOR,        // |
+    ND_BITXOR,       // ^
+    ND_BITAND,       // &
+    ND_LOGOR,        // ||
+    ND_LOGAND,       // &&
+    ND_SHL,          // <<
+    ND_SHR,          // >>
+    ND_COND,         // 三項演算子
+    ND_CAST,         // cast
+    ND_NUM,          // 整数
+    ND_LVAR,         // ローカル変数
+    ND_GVAR,         // グローバル変数
+    ND_GOTO,         // goto
+    ND_LABEL,        // label
+    ND_RETURN,       // return
+    ND_IF,           // if
+    ND_WHILE,        // while
+    ND_FOR,          // for
+    ND_BREAK,        // break
+    ND_CONTINUE,     // continue
+    ND_SWITCH,       // switch
+    ND_CASE,         // case
+    ND_DUMMY,        // ダミー
+    ND_BLOCK,        // block
+    ND_FUNCALL,      // function call
+    ND_STMT_EXPR,    // statement expression
+    ND_MEMBER,       // member of struct
+    ND_COMMA,        // ,
+    ND_ASSIGN_EXPR,  // 初期化付き変数定義
 } NodeKind;
 
 struct Node {

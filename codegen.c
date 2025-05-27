@@ -129,6 +129,11 @@ void gen(struct Node *node) {
         return;
     }
 
+    if (node->kind == ND_ASSIGN_EXPR) {
+        gen(node->lhs);
+        return;
+    }
+
     if (node->kind == ND_IF) {
         int number = label++;
         gen(node->cond);
