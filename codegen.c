@@ -123,6 +123,18 @@ void gen(struct Node *node) {
         return;
     }
 
+    if (node->kind == ND_DUMMY) {
+        return;
+    }
+
+    if (node->kind == ND_MEMZERO) {
+        printf("  mov rcx, %d\n", node->obj->ty->size);
+        printf("  lea rdi, [rbp - %d]\n", node->obj->offset);
+        printf("  mov al, 0\n");
+        printf("  rep stosb\n");
+        return;
+    }
+
     if (node->kind == ND_RETURN) {
         gen(node->lhs);
         epilogue();

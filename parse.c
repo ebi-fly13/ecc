@@ -1188,7 +1188,7 @@ void internal_initializer(struct Token **rest, struct Token *token,
     if (init->ty->ty == TY_ARRAY) {
         token = skip(token, "{");
 
-        for (int i = 0; i < init->ty->array_size; i++) {
+        for (int i = 0; i < init->ty->array_size && !equal(token, "}"); i++) {
             if (i > 0) {
                 token = skip(token, ",");
             }
@@ -1229,16 +1229,23 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
         }
         return node;
     }
+
+    if (init->expr == NULL) {
+        return new_node(ND_DUMMY);
+    }
+
     struct Node *lhs = init_desg_expr(desg);
-    struct Node *rhs = init->expr;
-    return new_node_binary(ND_ASSIGN, lhs, rhs);
+    return new_node_binary(ND_ASSIGN, lhs, init->expr);
 }
 
 struct Node *lvar_initializer(struct Token **rest, struct Token *token,
                               struct Object *var) {
     struct Initializer *init = initializer(rest, token, var->ty);
     struct InitDesg desg = {NULL, 0, var};
-    return create_lvar_init(init, var->ty, &desg);
+    struct Node *lhs = new_node(ND_MEMZERO);
+    lhs->obj = var;
+    struct Node *rhs = create_lvar_init(init, var->ty, &desg);
+    return new_node_binary(ND_COMMA, lhs, rhs);
 }
 
 /*

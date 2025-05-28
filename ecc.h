@@ -155,6 +155,7 @@ typedef enum {
     ND_MEMBER,       // member of struct
     ND_COMMA,        // ,
     ND_ASSIGN_EXPR,  // 初期化付き変数定義
+    ND_MEMZERO,      // ゼロ埋め
 } NodeKind;
 
 struct Node {
