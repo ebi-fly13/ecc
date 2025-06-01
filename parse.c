@@ -1179,6 +1179,23 @@ struct Initializer *new_initializer(struct Type *ty) {
     return init;
 }
 
+struct Token *skip_excess_elements(struct Token *token) {
+    if(equal(token, "{")) {
+        token = skip(token, "{");
+        for(int i = 0; !equal(token, "}"); i++) {
+            if(i > 0) {
+                token = skip(token, ",");
+            }
+            token = skip_excess_elements(token);
+        }
+        token = skip(token, "}");
+    }
+    else {
+        assign(&token, token);
+    }
+    return token;
+}
+
 /*
 initializer = "{" initializer ("," initializer)* "}" | assign
 */
@@ -1188,11 +1205,16 @@ void internal_initializer(struct Token **rest, struct Token *token,
     if (init->ty->ty == TY_ARRAY) {
         token = skip(token, "{");
 
-        for (int i = 0; i < init->ty->array_size && !equal(token, "}"); i++) {
+        for (int i = 0; !equal(token, "}"); i++) {
             if (i > 0) {
                 token = skip(token, ",");
             }
-            internal_initializer(&token, token, init->children[i]);
+            if(i < init->ty->array_size) {
+                internal_initializer(&token, token, init->children[i]);
+            }
+            else {
+                token = skip_excess_elements(token);
+            }
         }
         token = skip(token, "}");
     } else {
