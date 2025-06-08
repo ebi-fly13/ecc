@@ -205,6 +205,7 @@ struct Member {
     char *name;
     struct Type *ty;
     int offset;
+    int index;
 
     struct Member *next;
 };

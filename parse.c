@@ -18,6 +18,7 @@ struct InitDesg {
     struct InitDesg *next;
     int index;
     struct Object *var;
+    struct Member *member;
 };
 
 struct Object *locals = NULL;
@@ -799,6 +800,7 @@ struct_union_members = (declspec declarator (","  declarator)* ";")* "}"
 struct Member *struct_union_members(struct Token **rest, struct Token *token) {
     struct Member head = {};
     struct Member *cur = &head;
+    int index = 0;
     while (!equal(token, "}")) {
         struct Type *base_ty = declspec(&token, token, NULL);
         bool is_first = true;
@@ -809,6 +811,7 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
             struct Member *member = calloc(1, sizeof(struct Member));
             member->name = tag->name;
             member->ty = tag->ty;
+            member->index = index++;
             cur = cur->next = member;
         }
         token = skip(token, ";");
@@ -1198,6 +1201,20 @@ struct Initializer *new_initializer(struct Type *ty, bool is_flexible) {
         }
     }
 
+    if (ty->ty == TY_STRUCT) {
+        int len = 0;
+        for (struct Member *member = init->ty->member; member != NULL;
+             member = member->next) {
+            len++;
+        }
+
+        init->children = calloc(len, sizeof(struct Initializer));
+        for (struct Member *member = ty->member; member != NULL;
+             member = member->next) {
+            init->children[member->index] = new_initializer(member->ty, false);
+        }
+    }
+
     return init;
 }
 
@@ -1228,11 +1245,29 @@ struct Token *string_initializer(struct Token *token,
     for (int i = 0; i < len; i++) {
         init->children[i]->expr = new_node_num(token->str[i]);
     }
-    return token->next;
+    return skip_keyword(token, TK_STR);
 }
 
 void internal_initializer(struct Token **, struct Token *,
                           struct Initializer *);
+
+struct Token *struct_initializer(struct Token *token,
+                                 struct Initializer *init) {
+    token = skip(token, "{");
+    struct Member *member = init->ty->member;
+    while (!equal(token, "}")) {
+        if (member != init->ty->member) {
+            token = skip(token, ",");
+        }
+        if (member != NULL) {
+            internal_initializer(&token, token, init->children[member->index]);
+            member = member->next;
+        } else {
+            token = skip_excess_elements(token);
+        }
+    }
+    return skip(token, "}");
+}
 
 static int count_array_elements(struct Token *token, struct Type *ty) {
     struct Initializer *dummy = new_initializer(ty->ptr_to, false);
@@ -1268,13 +1303,15 @@ struct Token *array_initializer(struct Token *token, struct Initializer *init) {
 }
 
 /*
-initializer = string_initializer | "{" initializer ("," initializer)* "}" |
+initializer = string_initializer | struct_initializer | array_initializer |
 assign
 */
 
 void internal_initializer(struct Token **rest, struct Token *token,
                           struct Initializer *init) {
-    if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
+    if (init->ty->ty == TY_STRUCT) {
+        token = struct_initializer(token, init);
+    } else if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
         token = string_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY) {
         token = array_initializer(token, init);
@@ -1296,6 +1333,14 @@ struct Node *init_desg_expr(struct InitDesg *desg) {
     if (desg->var) {
         return new_node_var(desg->var);
     }
+
+    if (desg->member) {
+        struct Node *node =
+            new_node_unary(ND_MEMBER, init_desg_expr(desg->next));
+        node->member = desg->member;
+        return node;
+    }
+
     struct Node *lhs = init_desg_expr(desg->next);
     struct Node *rhs = new_node_num(desg->index);
     return new_node_unary(ND_DEREF, new_node_add(lhs, rhs));
@@ -1314,6 +1359,19 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
         return node;
     }
 
+    if (ty->ty == TY_STRUCT) {
+        struct Node *node = new_node(ND_DUMMY);
+
+        for (struct Member *member = ty->member; member != NULL;
+             member = member->next) {
+            struct InitDesg desg2 = {desg, 0, NULL, member};
+            struct Node *rhs = create_lvar_init(init->children[member->index],
+                                                member->ty, &desg2);
+            node = new_node_binary(ND_COMMA, node, rhs);
+        }
+        return node;
+    }
+
     if (init->expr == NULL) {
         return new_node(ND_DUMMY);
     }
@@ -1325,7 +1383,7 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
 struct Node *lvar_initializer(struct Token **rest, struct Token *token,
                               struct Object *var) {
     struct Initializer *init = initializer(rest, token, var->ty, &var->ty);
-    struct InitDesg desg = {NULL, 0, var};
+    struct InitDesg desg = {NULL, 0, var, NULL};
     struct Node *lhs = new_node(ND_MEMZERO);
     lhs->obj = var;
     struct Node *rhs = create_lvar_init(init, var->ty, &desg);
