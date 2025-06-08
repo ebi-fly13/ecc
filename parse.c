@@ -1,5 +1,8 @@
 #include "ecc.h"
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 struct Initializer {
     struct Initializer *next;
     struct Type *ty;
@@ -1139,7 +1142,8 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-declaration = (declarator ("=" assign) ("," declarator "=" assign)* )? ";"
+declaration = (declarator ("=" lvar_initializer) ("," declarator "="
+lvar_initializer)* )? ";"
 */
 struct Node *declaration(struct Token **rest, struct Token *token,
                          struct Type *base_ty) {
@@ -1180,43 +1184,62 @@ struct Initializer *new_initializer(struct Type *ty) {
 }
 
 struct Token *skip_excess_elements(struct Token *token) {
-    if(equal(token, "{")) {
+    if (equal(token, "{")) {
         token = skip(token, "{");
-        for(int i = 0; !equal(token, "}"); i++) {
-            if(i > 0) {
+        for (int i = 0; !equal(token, "}"); i++) {
+            if (i > 0) {
                 token = skip(token, ",");
             }
             token = skip_excess_elements(token);
         }
         token = skip(token, "}");
-    }
-    else {
+    } else {
         assign(&token, token);
     }
     return token;
 }
 
+struct Token *string_initializer(struct Token *token,
+                                 struct Initializer *init) {
+    assert(equal_keyword(token, TK_STR));
+    int len = MIN(init->ty->array_size, token->len);
+    for (int i = 0; i < len; i++) {
+        init->children[i]->expr = new_node_num(token->str[i]);
+    }
+    return token->next;
+}
+
+void internal_initializer(struct Token **, struct Token *,
+                          struct Initializer *);
+
+struct Token *array_initializer(struct Token *token, struct Initializer *init) {
+    token = skip(token, "{");
+
+    for (int i = 0; !equal(token, "}"); i++) {
+        if (i > 0) {
+            token = skip(token, ",");
+        }
+        if (i < init->ty->array_size) {
+            internal_initializer(&token, token, init->children[i]);
+        } else {
+            token = skip_excess_elements(token);
+        }
+    }
+
+    return skip(token, "}");
+}
+
 /*
-initializer = "{" initializer ("," initializer)* "}" | assign
+initializer = string_initializer | "{" initializer ("," initializer)* "}" |
+assign
 */
 
 void internal_initializer(struct Token **rest, struct Token *token,
                           struct Initializer *init) {
-    if (init->ty->ty == TY_ARRAY) {
-        token = skip(token, "{");
-
-        for (int i = 0; !equal(token, "}"); i++) {
-            if (i > 0) {
-                token = skip(token, ",");
-            }
-            if(i < init->ty->array_size) {
-                internal_initializer(&token, token, init->children[i]);
-            }
-            else {
-                token = skip_excess_elements(token);
-            }
-        }
-        token = skip(token, "}");
+    if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
+        token = string_initializer(token, init);
+    } else if (init->ty->ty == TY_ARRAY) {
+        token = array_initializer(token, init);
     } else {
         init->expr = assign(&token, token);
     }
