@@ -9,6 +9,8 @@ struct Initializer {
 
     struct Node *expr;
 
+    bool is_flexible;
+
     struct Initializer **children;
 };
 
@@ -1162,6 +1164,13 @@ struct Node *declaration(struct Token **rest, struct Token *token,
             cur = cur->next = new_node_unary(ND_ASSIGN_EXPR, exp);
             add_type(exp);
         }
+
+        if (var->ty->size < 0) {
+            error("変数が不完全な型です");
+        }
+        if (var->ty->ty == TY_VOID) {
+            error("void 型の変数が宣言されています");
+        }
     }
     *rest = skip(token, ";");
     struct Node *node = new_node(ND_BLOCK);
@@ -1169,14 +1178,23 @@ struct Node *declaration(struct Token **rest, struct Token *token,
     return node;
 }
 
-struct Initializer *new_initializer(struct Type *ty) {
+struct Initializer *new_initializer(struct Type *ty, bool is_flexible) {
     struct Initializer *init = calloc(1, sizeof(struct Initializer));
     init->ty = ty;
 
     if (ty->ty == TY_ARRAY) {
+        if (is_flexible && ty->array_size < 0) {
+            init->is_flexible = true;
+            return init;
+        }
+
+        if (ty->array_size < 0) {
+            error("配列サイズが必要です");
+        }
+
         init->children = calloc(ty->array_size, sizeof(struct Initializer));
         for (int i = 0; i < ty->array_size; i++) {
-            init->children[i] = new_initializer(ty->ptr_to);
+            init->children[i] = new_initializer(ty->ptr_to, false);
         }
     }
 
@@ -1202,7 +1220,11 @@ struct Token *skip_excess_elements(struct Token *token) {
 struct Token *string_initializer(struct Token *token,
                                  struct Initializer *init) {
     assert(equal_keyword(token, TK_STR));
-    int len = MIN(init->ty->array_size, token->len);
+    if (init->is_flexible) {
+        *init =
+            *new_initializer(array_to(init->ty->ptr_to, token->len - 1), false);
+    }
+    int len = MIN(init->ty->array_size, token->len - 1);
     for (int i = 0; i < len; i++) {
         init->children[i]->expr = new_node_num(token->str[i]);
     }
@@ -1212,8 +1234,25 @@ struct Token *string_initializer(struct Token *token,
 void internal_initializer(struct Token **, struct Token *,
                           struct Initializer *);
 
+static int count_array_elements(struct Token *token, struct Type *ty) {
+    struct Initializer *dummy = new_initializer(ty->ptr_to, false);
+    int i = 0;
+    for (; !equal(token, "}"); i++) {
+        if (i > 0) {
+            token = skip(token, ",");
+        }
+        internal_initializer(&token, token, dummy);
+    }
+    return i;
+}
+
 struct Token *array_initializer(struct Token *token, struct Initializer *init) {
     token = skip(token, "{");
+
+    if (init->is_flexible) {
+        int len = count_array_elements(token, init->ty);
+        *init = *new_initializer(array_to(init->ty->ptr_to, len), false);
+    }
 
     for (int i = 0; !equal(token, "}"); i++) {
         if (i > 0) {
@@ -1225,7 +1264,6 @@ struct Token *array_initializer(struct Token *token, struct Initializer *init) {
             token = skip_excess_elements(token);
         }
     }
-
     return skip(token, "}");
 }
 
@@ -1247,9 +1285,10 @@ void internal_initializer(struct Token **rest, struct Token *token,
 }
 
 struct Initializer *initializer(struct Token **rest, struct Token *token,
-                                struct Type *ty) {
-    struct Initializer *init = new_initializer(ty);
+                                struct Type *ty, struct Type **new_type) {
+    struct Initializer *init = new_initializer(ty, true);
     internal_initializer(rest, token, init);
+    *new_type = init->ty;
     return init;
 }
 
@@ -1285,7 +1324,7 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
 
 struct Node *lvar_initializer(struct Token **rest, struct Token *token,
                               struct Object *var) {
-    struct Initializer *init = initializer(rest, token, var->ty);
+    struct Initializer *init = initializer(rest, token, var->ty, &var->ty);
     struct InitDesg desg = {NULL, 0, var};
     struct Node *lhs = new_node(ND_MEMZERO);
     lhs->obj = var;
