@@ -363,76 +363,7 @@ bool is_typename(struct Token *token) {
     return ty != NULL;
 }
 
-struct VarAttr {
-    bool is_typedef;
-    bool is_static;
-};
-
-struct Object *program(struct Token *);
-struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
-struct Token *global_variable(struct Token *, struct Type *);
-struct Type *declspec(struct Token **, struct Token *, struct VarAttr *attr);
-struct Type *struct_decl(struct Token **, struct Token *);
-struct Type *union_decl(struct Token **, struct Token *);
-struct Type *enum_specifier(struct Token **, struct Token *);
-struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
-struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
-struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
-struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
-struct Member *struct_union_members(struct Token **, struct Token *);
-struct NameTag *param(struct Token **, struct Token *);
-struct Node *stmt(struct Token **, struct Token *);
-struct Node *compound_stmt(struct Token **, struct Token *);
-void typedef_decl(struct Token **, struct Token *, struct Type *);
-struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
-struct Node *lvar_initializer(struct Token **, struct Token *, struct Object *);
-struct Node *expr_stmt(struct Token **, struct Token *);
-long const_expr(struct Token **, struct Token *);
-struct Node *expr(struct Token **, struct Token *);
-struct Node *assign(struct Token **, struct Token *);
-struct Node *conditional(struct Token **, struct Token *);
-struct Node *logor(struct Token **, struct Token *);
-struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
-struct Node *bitxor(struct Token **, struct Token *);
-struct Node *bitand(struct Token **, struct Token *);
-struct Node *equality(struct Token **, struct Token *);
-struct Node *relation(struct Token **, struct Token *);
-struct Node *shift(struct Token **, struct Token *);
-struct Node *add(struct Token **, struct Token *);
-struct Node *mul(struct Token **, struct Token *);
-struct Node *unary(struct Token **, struct Token *);
-static struct Node *cast(struct Token **, struct Token *);
-struct Node *postfix(struct Token **, struct Token *);
-struct Node *funcall(struct Token **, struct Token *);
-struct Node *primary(struct Token **, struct Token *);
-
-bool is_function(struct Token *token) {
-    if (equal(token, ";")) return false;
-    struct Type dummy = {};
-    declarator(&token, token, &dummy);
-    return equal(token, "(");
-}
-
-void resolve_goto_labels() {
-    for (struct Node *goto_node = gotos; goto_node != NULL;
-         goto_node = goto_node->goto_next) {
-        for (struct Node *label = labels; label != NULL;
-             label = label = label->goto_next) {
-            if (!strcmp(goto_node->label, label->label)) {
-                goto_node->unique_label = label->unique_label;
-                break;
-            }
-        }
-        if (goto_node->unique_label == NULL) {
-            error("定義されていないラベルを使用しています");
-        }
-    }
-    gotos = NULL;
-    labels = NULL;
-}
-
-long eval(struct Node *node) {
+static long eval(struct Node *node) {
     add_type(node);
     switch (node->kind) {
         case ND_ADD:
@@ -493,6 +424,106 @@ long eval(struct Node *node) {
             return eval(node->lhs);
     }
     error("コンパイル時定数ではありません");
+}
+
+static void write_buffer(char *buf, uint64_t val, int sz) {
+    if (sz == 1) {
+        *buf = val;
+    } else if (sz == 2) {
+        *(uint16_t *)buf = val;
+    } else if (sz == 4) {
+        *(uint32_t *)buf = val;
+    } else if (sz == 8) {
+        *(uint64_t *)buf = val;
+    } else {
+        error("バッファに書き込めないサイズです");
+    }
+}
+
+static void write_gvar_data(struct Initializer *init, struct Type *ty,
+                            char *buf, int offset) {
+    if (ty->ty == TY_ARRAY) {
+        int sz = ty->ptr_to->size;
+        for (int i = 0; i < ty->array_size; i++) {
+            write_gvar_data(init->children[i], ty->ptr_to, buf,
+                            offset + sz * i);
+        }
+        return;
+    }
+
+    if (init->expr) {
+        write_buffer(buf + offset, eval(init->expr), ty->size);
+    }
+}
+
+struct VarAttr {
+    bool is_typedef;
+    bool is_static;
+};
+
+struct Object *program(struct Token *);
+struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
+struct Token *global_variable(struct Token *, struct Type *);
+struct Type *declspec(struct Token **, struct Token *, struct VarAttr *attr);
+struct Type *struct_decl(struct Token **, struct Token *);
+struct Type *union_decl(struct Token **, struct Token *);
+struct Type *enum_specifier(struct Token **, struct Token *);
+struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
+struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
+struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
+struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
+struct Member *struct_union_members(struct Token **, struct Token *);
+struct NameTag *param(struct Token **, struct Token *);
+struct Node *stmt(struct Token **, struct Token *);
+struct Node *compound_stmt(struct Token **, struct Token *);
+void typedef_decl(struct Token **, struct Token *, struct Type *);
+struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
+struct Node *lvar_initializer(struct Token **, struct Token *, struct Object *);
+static void gvar_initializer(struct Token **, struct Token *, struct Object *);
+struct Node *expr_stmt(struct Token **, struct Token *);
+long const_expr(struct Token **, struct Token *);
+struct Node *expr(struct Token **, struct Token *);
+struct Node *assign(struct Token **, struct Token *);
+struct Node *conditional(struct Token **, struct Token *);
+struct Node *logor(struct Token **, struct Token *);
+struct Node *logand(struct Token **, struct Token *);
+struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitxor(struct Token **, struct Token *);
+struct Node *bitand(struct Token **, struct Token *);
+struct Node *equality(struct Token **, struct Token *);
+struct Node *relation(struct Token **, struct Token *);
+struct Node *shift(struct Token **, struct Token *);
+struct Node *add(struct Token **, struct Token *);
+struct Node *mul(struct Token **, struct Token *);
+struct Node *unary(struct Token **, struct Token *);
+static struct Node *cast(struct Token **, struct Token *);
+struct Node *postfix(struct Token **, struct Token *);
+struct Node *funcall(struct Token **, struct Token *);
+struct Node *primary(struct Token **, struct Token *);
+
+bool is_function(struct Token *token) {
+    if (equal(token, ";")) return false;
+    struct Type dummy = {};
+    declarator(&token, token, &dummy);
+    return equal(token, "(");
+}
+
+void resolve_goto_labels() {
+    for (struct Node *goto_node = gotos; goto_node != NULL;
+         goto_node = goto_node->goto_next) {
+        for (struct Node *label = labels; label != NULL;
+             label = label = label->goto_next) {
+            if (!strcmp(goto_node->label, label->label)) {
+                goto_node->unique_label = label->unique_label;
+                break;
+            }
+        }
+        if (goto_node->unique_label == NULL) {
+            error("定義されていないラベルを使用しています");
+        }
+    }
+    gotos = NULL;
+    labels = NULL;
 }
 
 /*
@@ -566,8 +597,13 @@ struct Token *global_variable(struct Token *token, struct Type *ty) {
             token = skip(token, ",");
         else
             is_first = false;
-        struct NameTag *gvar = declarator(&token, token, ty);
-        new_global_var(gvar);
+        struct NameTag *gvar_nametag = declarator(&token, token, ty);
+        struct Object *gvar = new_global_var(gvar_nametag);
+
+        if (equal(token, "=")) {
+            token = skip(token, "=");
+            gvar_initializer(&token, token, gvar);
+        }
     }
     return token->next;
 }
@@ -1413,6 +1449,15 @@ struct Node *lvar_initializer(struct Token **rest, struct Token *token,
     lhs->obj = var;
     struct Node *rhs = create_lvar_init(init, var->ty, &desg);
     return new_node_binary(ND_COMMA, lhs, rhs);
+}
+
+static void gvar_initializer(struct Token **rest, struct Token *token,
+                             struct Object *gvar) {
+    struct Initializer *init = initializer(rest, token, gvar->ty, &gvar->ty);
+
+    char *buf = calloc(1, gvar->ty->size);
+    write_gvar_data(init, init->ty, buf, 0);
+    gvar->init_data = buf;
 }
 
 /*
