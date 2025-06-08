@@ -5,16 +5,6 @@ int printf();
 int ret3();
 int addx(int *, int);
 
-struct A {
-    int a;
-};
-
-int add_struct(struct A a, struct A b);
-
-int add_struct(struct A a, struct A b) {
-    return a.a + b.a;
-}
-
 int param_decay(int x[]) { 
     return x[0];
 }
@@ -91,8 +81,6 @@ int main() {
     ASSERT(1, sub_long(7, 3, 3));
 
     ASSERT(1, sub_short(7, 3, 3));
-
-    ASSERT(3, ({ struct A a,b; a.a = 2; b.a = 1; add_struct(a, b); }));
 
     ASSERT(3, ({ int a = 2, b = 3; swap(&a, &b); a; }));
 

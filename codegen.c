@@ -33,7 +33,7 @@ void pop(char *reg) {
 }
 
 void load(struct Type *ty) {
-    if (ty->ty == TY_ARRAY) {
+    if (ty->ty == TY_ARRAY || ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
         return;
     }
     if (ty->size == 1)
@@ -48,6 +48,16 @@ void load(struct Type *ty) {
 }
 
 void store(struct Type *ty) {
+    pop("rdi");
+
+    if (ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
+        for (int i = 0; i < ty->size; i++) {
+            printf("  mov r8b, [rax + %d]\n", i);
+            printf("  mov [rdi + %d], r8b\n", i);
+        }
+        return;
+    }
+
     if (ty->size == 1)
         printf("  mov [rdi], al\n");
     else if (ty->size == 2)
@@ -292,7 +302,6 @@ void gen(struct Node *node) {
         gen_lval(node->lhs);
         push();
         gen(node->rhs);
-        pop("rdi");
 
         store(node->ty);
         return;
