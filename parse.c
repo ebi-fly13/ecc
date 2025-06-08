@@ -1303,14 +1303,25 @@ struct Token *array_initializer(struct Token *token, struct Initializer *init) {
 }
 
 /*
-initializer = string_initializer | struct_initializer | array_initializer |
+initializer = struct_initializer | string_initializer | array_initializer |
 assign
 */
 
 void internal_initializer(struct Token **rest, struct Token *token,
                           struct Initializer *init) {
     if (init->ty->ty == TY_STRUCT) {
-        token = struct_initializer(token, init);
+        if (!equal(token, "{")) {
+            struct Node *node = assign(&token, token);
+            add_type(node);
+            if(node->ty->ty == TY_STRUCT) {
+                init->expr = node;
+            }
+            else {
+                error("構造体ではありません");
+            }
+        } else {
+            token = struct_initializer(token, init);
+        }
     } else if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
         token = string_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY) {
@@ -1359,7 +1370,7 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
         return node;
     }
 
-    if (ty->ty == TY_STRUCT) {
+    if (ty->ty == TY_STRUCT  && !init->expr) {
         struct Node *node = new_node(ND_DUMMY);
 
         for (struct Member *member = ty->member; member != NULL;
