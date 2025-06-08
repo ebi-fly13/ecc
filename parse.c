@@ -1201,7 +1201,7 @@ struct Initializer *new_initializer(struct Type *ty, bool is_flexible) {
         }
     }
 
-    if (ty->ty == TY_STRUCT) {
+    if (ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
         int len = 0;
         for (struct Member *member = init->ty->member; member != NULL;
              member = member->next) {
@@ -1269,6 +1269,14 @@ struct Token *struct_initializer(struct Token *token,
     return skip(token, "}");
 }
 
+struct Token *union_initializer(struct Token *token, struct Initializer *init) {
+    token = skip(token, "{");
+
+    internal_initializer(&token, token, init->children[0]);
+
+    return skip(token, "}");
+}
+
 static int count_array_elements(struct Token *token, struct Type *ty) {
     struct Initializer *dummy = new_initializer(ty->ptr_to, false);
     int i = 0;
@@ -1313,15 +1321,16 @@ void internal_initializer(struct Token **rest, struct Token *token,
         if (!equal(token, "{")) {
             struct Node *node = assign(&token, token);
             add_type(node);
-            if(node->ty->ty == TY_STRUCT) {
+            if (node->ty->ty == TY_STRUCT) {
                 init->expr = node;
-            }
-            else {
+            } else {
                 error("構造体ではありません");
             }
         } else {
             token = struct_initializer(token, init);
         }
+    } else if (init->ty->ty == TY_UNION) {
+        token = union_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
         token = string_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY) {
@@ -1370,7 +1379,7 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
         return node;
     }
 
-    if (ty->ty == TY_STRUCT  && !init->expr) {
+    if (ty->ty == TY_STRUCT && !init->expr) {
         struct Node *node = new_node(ND_DUMMY);
 
         for (struct Member *member = ty->member; member != NULL;
@@ -1381,6 +1390,11 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
             node = new_node_binary(ND_COMMA, node, rhs);
         }
         return node;
+    }
+
+    if (ty->ty == TY_UNION) {
+        struct InitDesg desg2 = {desg, 0, NULL, ty->member};
+        return create_lvar_init(init->children[0], ty->member->ty, &desg2);
     }
 
     if (init->expr == NULL) {
