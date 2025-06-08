@@ -451,6 +451,15 @@ static void write_gvar_data(struct Initializer *init, struct Type *ty,
         return;
     }
 
+    if (ty->ty == TY_STRUCT) {
+        for (struct Member *member = ty->member; member != NULL;
+             member = member->next) {
+            write_gvar_data(init->children[member->index], member->ty, buf,
+                            offset + member->offset);
+        }
+        return;
+    }
+
     if (init->expr) {
         write_buffer(buf + offset, eval(init->expr), ty->size);
     }
