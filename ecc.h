@@ -44,6 +44,7 @@ struct Token {
     char *loc;           // Tokenの開始位置
     char *str;           // トークンの文字列
     int len;             // トークンの長さ
+    struct Type *ty;     // 型
 };
 
 struct VarScope {
@@ -74,6 +75,13 @@ struct NameTag {
     struct Type *ty;
 };
 
+struct Relocation {
+    struct Relocation *next;
+    int offset;
+    char *label;
+    long addend;
+};
+
 struct Object {
     struct Object *next;  // 次の変数かNULL
     char *name;           // 変数名
@@ -86,6 +94,7 @@ struct Object {
     bool is_global_variable;
 
     char *init_data;
+    struct Relocation *rel;
 
     bool is_function;
     bool is_function_definition;
@@ -104,7 +113,6 @@ extern char *user_input;
 void error(char *, ...);
 
 long get_number(struct Token *);
-char *get_string(struct Token *);
 struct Token *skip(struct Token *, char *);
 struct Token *skip_keyword(struct Token *, TokenKind);
 bool equal(struct Token *, char *);

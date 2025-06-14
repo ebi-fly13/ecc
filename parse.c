@@ -303,11 +303,11 @@ struct Object *new_anon_gvar(struct Type *ty) {
     return new_global_var(tag);
 }
 
-struct Object *new_string_literal(char *p) {
-    struct Object *obj = new_anon_gvar(array_to(ty_char, strlen(p) + 1));
+struct Object *new_string_literal(struct Token *token) {
+    struct Object *obj = new_anon_gvar(token->ty);
     obj->len = strlen(obj->name);
     obj->is_global_variable = true;
-    obj->init_data = p;
+    obj->init_data = token->str;
     return obj;
 }
 
@@ -363,13 +363,30 @@ bool is_typename(struct Token *token) {
     return ty != NULL;
 }
 
-static long eval(struct Node *node) {
+static long eval(struct Node *);
+static long internal_eval(struct Node *, char **);
+
+static long eval_rval(struct Node *node, char **label) {
+    switch (node->kind) {
+        case ND_GVAR:
+            *label = node->obj->name;
+            return 0;
+        case ND_DEREF:
+            return internal_eval(node->lhs, label);
+        case ND_MEMBER:
+            return eval_rval(node->lhs, label) + node->member->offset;
+        default:
+            error("invalid initializer");
+    }
+}
+
+static long internal_eval(struct Node *node, char **label) {
     add_type(node);
     switch (node->kind) {
         case ND_ADD:
-            return eval(node->lhs) + eval(node->rhs);
+            return internal_eval(node->lhs, label) + eval(node->rhs);
         case ND_SUB:
-            return eval(node->lhs) - eval(node->rhs);
+            return internal_eval(node->lhs, label) - eval(node->rhs);
         case ND_MUL:
             return eval(node->lhs) * eval(node->rhs);
         case ND_DIV:
@@ -399,31 +416,56 @@ static long eval(struct Node *node) {
         case ND_LOGOR:
             return eval(node->lhs) || eval(node->rhs);
         case ND_COND:
-            return eval(node->cond) ? eval(node->then) : eval(node->els);
+            return eval(node->cond) ? internal_eval(node->then, label)
+                                    : internal_eval(node->els, label);
         case ND_BITNOT:
             return ~eval(node->lhs);
         case ND_COMMA:
-            return eval(node->rhs);
+            return internal_eval(node->rhs, label);
         case ND_NOT:
             return !eval(node->lhs);
         case ND_NUM:
             return node->val;
         case ND_CAST:
+            long val = internal_eval(node->lhs, label);
             if (is_integer(node->ty)) {
                 switch (node->ty->size) {
                     case 1:
-                        return (__uint8_t)eval(node->lhs);
+                        return (__uint8_t)val;
                     case 2:
-                        return (__uint16_t)eval(node->lhs);
+                        return (__uint16_t)val;
                     case 4:
-                        return (__uint32_t)eval(node->lhs);
+                        return (__uint32_t)val;
                     case 8:
-                        return eval(node->lhs);
+                        return val;
                 }
             }
-            return eval(node->lhs);
+            return val;
+        case ND_ADDR:
+            return eval_rval(node->lhs, label);
+        case ND_MEMBER:
+            if (!label) {
+                error("not a compile-time constant");
+            }
+            if (node->ty->ty != TY_ARRAY) {
+                error("invalid initializer");
+            }
+            return eval_rval(node->lhs, label) + node->member->offset;
+        case ND_GVAR:
+            if (!label) {
+                error("not a compile-time constant");
+            }
+            if (node->obj->ty->ty != TY_ARRAY && node->obj->ty->ty != TY_FUNC) {
+                error("invalid initializer");
+            }
+            *label = node->obj->name;
+            return 0;
     }
     error("コンパイル時定数ではありません");
+}
+
+static long eval(struct Node *node) {
+    return internal_eval(node, NULL);
 }
 
 static void write_buffer(char *buf, uint64_t val, int sz) {
@@ -440,29 +482,51 @@ static void write_buffer(char *buf, uint64_t val, int sz) {
     }
 }
 
-static void write_gvar_data(struct Initializer *init, struct Type *ty,
-                            char *buf, int offset) {
+static struct Relocation *write_gvar_data(struct Relocation *cur,
+                                          struct Initializer *init,
+                                          struct Type *ty, char *buf,
+                                          int offset) {
     if (ty->ty == TY_ARRAY) {
         int sz = ty->ptr_to->size;
         for (int i = 0; i < ty->array_size; i++) {
-            write_gvar_data(init->children[i], ty->ptr_to, buf,
-                            offset + sz * i);
+            cur = write_gvar_data(cur, init->children[i], ty->ptr_to, buf,
+                                  offset + sz * i);
         }
-        return;
+        return cur;
     }
 
     if (ty->ty == TY_STRUCT) {
         for (struct Member *member = ty->member; member != NULL;
              member = member->next) {
-            write_gvar_data(init->children[member->index], member->ty, buf,
-                            offset + member->offset);
+            cur = write_gvar_data(cur, init->children[member->index],
+                                  member->ty, buf, offset + member->offset);
         }
-        return;
+        return cur;
     }
 
-    if (init->expr) {
-        write_buffer(buf + offset, eval(init->expr), ty->size);
+    if (ty->ty == TY_UNION) {
+        return write_gvar_data(cur, init->children[0], ty->member->ty, buf,
+                               offset);
     }
+
+    if (init->expr == NULL) {
+        return cur;
+    }
+
+    char *label = NULL;
+    long val = internal_eval(init->expr, &label);
+
+    if (!label) {
+        write_buffer(buf + offset, val, ty->size);
+        return cur;
+    }
+
+    struct Relocation *rel = calloc(1, sizeof(struct Relocation));
+    rel->offset = offset;
+    rel->label = label;
+    rel->addend = val;
+    cur->next = rel;
+    return cur->next;
 }
 
 struct VarAttr {
@@ -1282,11 +1346,13 @@ struct Token *skip_excess_elements(struct Token *token) {
 struct Token *string_initializer(struct Token *token,
                                  struct Initializer *init) {
     assert(equal_keyword(token, TK_STR));
+    assert(token != NULL && token->ty->ty == TY_ARRAY &&
+           token->ty->ptr_to == ty_char);
     if (init->is_flexible) {
         *init =
             *new_initializer(array_to(init->ty->ptr_to, token->len - 1), false);
     }
-    int len = MIN(init->ty->array_size, token->len - 1);
+    int len = MIN(init->ty->array_size, token->ty->array_size);
     for (int i = 0; i < len; i++) {
         init->children[i]->expr = new_node_num(token->str[i]);
     }
@@ -1464,9 +1530,11 @@ static void gvar_initializer(struct Token **rest, struct Token *token,
                              struct Object *gvar) {
     struct Initializer *init = initializer(rest, token, gvar->ty, &gvar->ty);
 
+    struct Relocation head = {};
     char *buf = calloc(1, gvar->ty->size);
-    write_gvar_data(init, init->ty, buf, 0);
+    write_gvar_data(&head, init, init->ty, buf, 0);
     gvar->init_data = buf;
+    gvar->rel = head.next;
 }
 
 /*
@@ -1929,7 +1997,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
             *rest = token->next;
         }
     } else if (token->kind == TK_STR) {
-        node = new_node_var(new_string_literal(get_string(token)));
+        node = new_node_var(new_string_literal(token));
         *rest = token->next;
     } else if (token->kind == TK_NUM) {
         node = new_node_num(get_number(token));

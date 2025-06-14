@@ -466,8 +466,16 @@ void codegen() {
         printf("  .globl %s\n", obj->name);
         printf("%s:\n", obj->name);
         if (obj->init_data) {
-            for (int i = 0; i < obj->ty->size; i++) {
-                printf("  .byte %d\n", obj->init_data[i]);
+            struct Relocation *rel = obj->rel;
+            int pos = 0;
+            while (pos < obj->ty->size) {
+                if (rel != NULL && rel->offset == pos) {
+                    printf("  .quad %s%+ld\n", rel->label, rel->addend);
+                    pos += 8;
+                    rel = rel->next;
+                } else {
+                    printf("  .byte %d\n", obj->init_data[pos++]);
+                }
             }
         } else {
             printf("  .zero %d\n", obj->ty->size);

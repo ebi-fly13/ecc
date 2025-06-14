@@ -62,11 +62,6 @@ long get_number(struct Token *token) {
     return token->val;
 }
 
-char *get_string(struct Token *token) {
-    if (token->kind != TK_STR) error_at(token->loc, "文字列ではありません");
-    return token->str;
-}
-
 bool equal(struct Token *tok, char *name) {
     if (strlen(name) != tok->len || memcmp(name, tok->loc, tok->len))
         return false;
@@ -214,7 +209,7 @@ char *string_literal_end(char *p) {
 struct Token *read_string_literal(struct Token *cur, char *str) {
     assert(*str == '"');
     char *end = string_literal_end(str + 1);
-    char *buf = calloc(1, end - str);
+    char *buf = calloc(1, end - str + 1);
     int len = 0;
     for (char *p = str + 1; p < end;) {
         if (*p == '\\') {
@@ -226,6 +221,7 @@ struct Token *read_string_literal(struct Token *cur, char *str) {
     }
     struct Token *tok = new_token(TK_STR, cur, str, end - str + 1);
     tok->str = buf;
+    tok->ty = array_to(ty_char, len + 1);
     return tok;
 }
 
