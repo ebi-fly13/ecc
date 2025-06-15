@@ -135,7 +135,6 @@ int main() {
 
   ASSERT(0, strcmp(g20, "foobar"));
   ASSERT(0, strcmp(g21, "bar"));
-  // ASSERT(0, strcmp(g22+3, "foobar"));
 
   ASSERT(0, strcmp(g23[0], "foobar"));
   ASSERT(0, strcmp(g23[1], "bar"));
