@@ -1362,30 +1362,48 @@ struct Token *string_initializer(struct Token *token,
 void internal_initializer(struct Token **, struct Token *,
                           struct Initializer *);
 
+void internal_initializer2(struct Token **, struct Token *,
+                           struct Initializer *);
+
 struct Token *struct_initializer(struct Token *token,
                                  struct Initializer *init) {
-    token = skip(token, "{");
     struct Member *member = init->ty->member;
     while (!equal(token, "}")) {
         if (member != init->ty->member) {
             token = skip(token, ",");
         }
         if (member != NULL) {
-            internal_initializer(&token, token, init->children[member->index]);
+            internal_initializer2(&token, token, init->children[member->index]);
             member = member->next;
         } else {
             token = skip_excess_elements(token);
         }
     }
-    return skip(token, "}");
+    return token;
+}
+
+struct Token *struct_initializer2(struct Token *token,
+                                  struct Initializer *init) {
+    struct Member *member = init->ty->member;
+    while (member != NULL && !equal(token, "}")) {
+        if (member != init->ty->member) {
+            token = skip(token, ",");
+        }
+        internal_initializer2(&token, token, init->children[member->index]);
+        member = member->next;
+    }
+    return token;
 }
 
 struct Token *union_initializer(struct Token *token, struct Initializer *init) {
-    token = skip(token, "{");
-
-    internal_initializer(&token, token, init->children[0]);
-
-    return skip(token, "}");
+    if (equal(token, "{")) {
+        token = skip(token, "{");
+        internal_initializer2(&token, token, init->children[0]);
+        token = skip(token, "}");
+    } else {
+        internal_initializer(&token, token, init->children[0]);
+    }
+    return token;
 }
 
 static int count_array_elements(struct Token *token, struct Type *ty) {
@@ -1395,14 +1413,12 @@ static int count_array_elements(struct Token *token, struct Type *ty) {
         if (i > 0) {
             token = skip(token, ",");
         }
-        internal_initializer(&token, token, dummy);
+        internal_initializer2(&token, token, dummy);
     }
     return i;
 }
 
 struct Token *array_initializer(struct Token *token, struct Initializer *init) {
-    token = skip(token, "{");
-
     if (init->is_flexible) {
         int len = count_array_elements(token, init->ty);
         *init = *new_initializer(array_to(init->ty->ptr_to, len), false);
@@ -1413,19 +1429,34 @@ struct Token *array_initializer(struct Token *token, struct Initializer *init) {
             token = skip(token, ",");
         }
         if (i < init->ty->array_size) {
-            internal_initializer(&token, token, init->children[i]);
+            internal_initializer2(&token, token, init->children[i]);
         } else {
             token = skip_excess_elements(token);
         }
     }
-    return skip(token, "}");
+    return token;
+}
+
+struct Token *array_initializer2(struct Token *token,
+                                 struct Initializer *init) {
+    if (init->is_flexible) {
+        int len = count_array_elements(token, init->ty);
+        *init = *new_initializer(array_to(init->ty->ptr_to, len), false);
+    }
+
+    for (int i = 0; i < init->ty->array_size && !equal(token, "}"); i++) {
+        if (i > 0) {
+            token = skip(token, ",");
+        }
+        internal_initializer2(&token, token, init->children[i]);
+    }
+    return token;
 }
 
 /*
 initializer = struct_initializer | string_initializer | array_initializer |
 assign
 */
-
 void internal_initializer(struct Token **rest, struct Token *token,
                           struct Initializer *init) {
     if (init->ty->ty == TY_STRUCT) {
@@ -1438,14 +1469,52 @@ void internal_initializer(struct Token **rest, struct Token *token,
                 error("構造体ではありません");
             }
         } else {
+            token = skip(token, "{");
             token = struct_initializer(token, init);
+            token = skip(token, "}");
         }
     } else if (init->ty->ty == TY_UNION) {
         token = union_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
         token = string_initializer(token, init);
     } else if (init->ty->ty == TY_ARRAY) {
+        token = skip(token, "{");
         token = array_initializer(token, init);
+        token = skip(token, "}");
+    } else {
+        init->expr = assign(&token, token);
+    }
+    *rest = token;
+}
+
+void internal_initializer2(struct Token **rest, struct Token *token,
+                           struct Initializer *init) {
+    if (init->ty->ty == TY_STRUCT) {
+        if (equal(token, "{")) {
+            token = skip(token, "{");
+            token = struct_initializer(token, init);
+            token = skip(token, "}");
+        } else {
+            struct Node *node = assign(rest, token);
+            add_type(node);
+            if (node->ty->ty == TY_STRUCT) {
+                init->expr = node;
+                return;
+            }
+            token = struct_initializer2(token, init);
+        }
+    } else if (init->ty->ty == TY_UNION) {
+        token = union_initializer(token, init);
+    } else if (init->ty->ty == TY_ARRAY && equal_keyword(token, TK_STR)) {
+        token = string_initializer(token, init);
+    } else if (init->ty->ty == TY_ARRAY) {
+        if (equal(token, "{")) {
+            token = skip(token, "{");
+            token = array_initializer(token, init);
+            token = skip(token, "}");
+        } else {
+            token = array_initializer2(token, init);
+        }
     } else {
         init->expr = assign(&token, token);
     }
