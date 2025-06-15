@@ -1481,6 +1481,10 @@ void internal_initializer(struct Token **rest, struct Token *token,
         token = skip(token, "{");
         token = array_initializer(token, init);
         token = skip(token, "}");
+    } else if (equal(token, "{")) {
+        token = skip(token, "{");
+        init->expr = assign(&token, token);
+        token = skip(token, "}");
     } else {
         init->expr = assign(&token, token);
     }
@@ -1515,6 +1519,10 @@ void internal_initializer2(struct Token **rest, struct Token *token,
         } else {
             token = array_initializer2(token, init);
         }
+    } else if (equal(token, "{")) {
+        token = skip(token, "{");
+        init->expr = assign(&token, token);
+        token = skip(token, "}");
     } else {
         init->expr = assign(&token, token);
     }
