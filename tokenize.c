@@ -80,6 +80,19 @@ bool is_ident_head(char c) {
     return isalpha(c) || c == '_';
 }
 
+bool is_end(struct Token *token) {
+    return equal(token, "}") || equal(token, ",") && equal(token->next, "}");
+}
+
+struct Token *skip_end(struct Token *token) {
+    assert(is_end(token));
+    if (equal(token, "}")) {
+        return skip(token, "}");
+    }
+    token = skip(token, ",");
+    return skip(token, "}");
+}
+
 int from_hex(char c) {
     assert(isxdigit(c));
     if ('0' <= c && c <= '9') {

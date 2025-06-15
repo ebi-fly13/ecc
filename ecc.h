@@ -115,8 +115,10 @@ void error(char *, ...);
 long get_number(struct Token *);
 struct Token *skip(struct Token *, char *);
 struct Token *skip_keyword(struct Token *, TokenKind);
+struct Token *skip_end(struct Token *);
 bool equal(struct Token *, char *);
-bool equal_keyword(struct Token *, TokenKind);
+bool equal_keyword(struct Token *, TokenKind);bool is_end(struct Token *);
+bool is_end(struct Token *);
 struct Token *tokenize(char *);
 
 // parse.c

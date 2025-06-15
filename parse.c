@@ -959,7 +959,7 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
     int count = 0;
     int val = 0;
 
-    while (!equal(token, "}")) {
+    while (!is_end(token)) {
         if (count > 0) {
             token = skip(token, ",");
         }
@@ -975,7 +975,7 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
         sc->enum_ty = ty;
         sc->enum_val = val++;
     }
-    token = skip(token, "}");
+    token = skip_end(token);
     *rest = token;
 
     if (name != NULL) {
@@ -1368,7 +1368,7 @@ void internal_initializer2(struct Token **, struct Token *,
 struct Token *struct_initializer(struct Token *token,
                                  struct Initializer *init) {
     struct Member *member = init->ty->member;
-    while (!equal(token, "}")) {
+    while (!is_end(token)) {
         if (member != init->ty->member) {
             token = skip(token, ",");
         }
@@ -1385,7 +1385,7 @@ struct Token *struct_initializer(struct Token *token,
 struct Token *struct_initializer2(struct Token *token,
                                   struct Initializer *init) {
     struct Member *member = init->ty->member;
-    while (member != NULL && !equal(token, "}")) {
+    while (member != NULL && !is_end(token)) {
         if (member != init->ty->member) {
             token = skip(token, ",");
         }
@@ -1399,7 +1399,7 @@ struct Token *union_initializer(struct Token *token, struct Initializer *init) {
     if (equal(token, "{")) {
         token = skip(token, "{");
         internal_initializer2(&token, token, init->children[0]);
-        token = skip(token, "}");
+        token = skip_end(token);
     } else {
         internal_initializer(&token, token, init->children[0]);
     }
@@ -1409,7 +1409,7 @@ struct Token *union_initializer(struct Token *token, struct Initializer *init) {
 static int count_array_elements(struct Token *token, struct Type *ty) {
     struct Initializer *dummy = new_initializer(ty->ptr_to, false);
     int i = 0;
-    for (; !equal(token, "}"); i++) {
+    for (; !is_end(token); i++) {
         if (i > 0) {
             token = skip(token, ",");
         }
@@ -1424,7 +1424,7 @@ struct Token *array_initializer(struct Token *token, struct Initializer *init) {
         *init = *new_initializer(array_to(init->ty->ptr_to, len), false);
     }
 
-    for (int i = 0; !equal(token, "}"); i++) {
+    for (int i = 0; !is_end(token); i++) {
         if (i > 0) {
             token = skip(token, ",");
         }
@@ -1444,7 +1444,7 @@ struct Token *array_initializer2(struct Token *token,
         *init = *new_initializer(array_to(init->ty->ptr_to, len), false);
     }
 
-    for (int i = 0; i < init->ty->array_size && !equal(token, "}"); i++) {
+    for (int i = 0; i < init->ty->array_size && !is_end(token); i++) {
         if (i > 0) {
             token = skip(token, ",");
         }
@@ -1471,7 +1471,7 @@ void internal_initializer(struct Token **rest, struct Token *token,
         } else {
             token = skip(token, "{");
             token = struct_initializer(token, init);
-            token = skip(token, "}");
+            token = skip_end(token);
         }
     } else if (init->ty->ty == TY_UNION) {
         token = union_initializer(token, init);
@@ -1480,11 +1480,11 @@ void internal_initializer(struct Token **rest, struct Token *token,
     } else if (init->ty->ty == TY_ARRAY) {
         token = skip(token, "{");
         token = array_initializer(token, init);
-        token = skip(token, "}");
+        token = skip_end(token);
     } else if (equal(token, "{")) {
         token = skip(token, "{");
         init->expr = assign(&token, token);
-        token = skip(token, "}");
+        token = skip_end(token);
     } else {
         init->expr = assign(&token, token);
     }
@@ -1497,7 +1497,7 @@ void internal_initializer2(struct Token **rest, struct Token *token,
         if (equal(token, "{")) {
             token = skip(token, "{");
             token = struct_initializer(token, init);
-            token = skip(token, "}");
+            token = skip_end(token);
         } else {
             struct Node *node = assign(rest, token);
             add_type(node);
@@ -1515,14 +1515,14 @@ void internal_initializer2(struct Token **rest, struct Token *token,
         if (equal(token, "{")) {
             token = skip(token, "{");
             token = array_initializer(token, init);
-            token = skip(token, "}");
+            token = skip_end(token);
         } else {
             token = array_initializer2(token, init);
         }
     } else if (equal(token, "{")) {
         token = skip(token, "{");
         init->expr = assign(&token, token);
-        token = skip(token, "}");
+        token = skip_end(token);
     } else {
         init->expr = assign(&token, token);
     }
