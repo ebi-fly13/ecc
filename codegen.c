@@ -462,10 +462,10 @@ void codegen() {
 
     for (struct Object *obj = globals; obj; obj = obj->next) {
         assert(obj->is_global_variable);
-        printf("  .data\n");
         printf("  .globl %s\n", obj->name);
-        printf("%s:\n", obj->name);
         if (obj->init_data) {
+            printf("  .data\n");
+            printf("%s:\n", obj->name);
             struct Relocation *rel = obj->rel;
             int pos = 0;
             while (pos < obj->ty->size) {
@@ -478,6 +478,8 @@ void codegen() {
                 }
             }
         } else {
+            printf("  .bss\n");
+            printf("%s:\n", obj->name);
             printf("  .zero %d\n", obj->ty->size);
         }
     }
