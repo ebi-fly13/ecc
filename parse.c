@@ -925,6 +925,10 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
         }
         token = skip(token, ";");
     }
+    if(cur != head.next && cur->ty->ty == TY_ARRAY && cur->ty->array_size < 0) {
+        cur->ty = array_to(cur->ty->ptr_to, 0);
+    }
+
     *rest = token->next;
     return head.next;
 }
