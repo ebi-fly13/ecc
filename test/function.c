@@ -9,11 +9,11 @@ int param_decay(int x[]) {
     return x[0];
 }
 
-static int static_f() {
+static int static_f(void) {
     return 3;
 }
 
-void f() {
+void f(void) {
     return;
 }
 

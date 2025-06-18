@@ -1050,19 +1050,24 @@ struct Type *array_dimensions(struct Token **rest, struct Token *token,
 }
 
 /*
-func_params = (param ("," param )? )? ")"
+func_params = ("void" | param ("," param )? )? ")"
 */
 struct NameTag *func_params(struct Token **rest, struct Token *token,
                             struct NameTag *return_tag) {
     struct NameTag head = {};
     struct NameTag *cur = &head;
-    while (!equal(token, ")")) {
-        if (cur != &head) {
-            token = skip(token, ",");
+
+    if (equal(token, "void") && equal(token->next, ")")) {
+        token = skip(token, "void");
+    } else {
+        while (!equal(token, ")")) {
+            if (cur != &head) {
+                token = skip(token, ",");
+            }
+            struct NameTag *tag = param(&token, token);
+            cur->next = tag;
+            cur = tag;
         }
-        struct NameTag *tag = param(&token, token);
-        cur->next = tag;
-        cur = tag;
     }
     *rest = skip(token, ")");
     struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
