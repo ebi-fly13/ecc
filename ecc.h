@@ -243,6 +243,8 @@ struct Type {
     int size;
     char *name;
 
+    bool is_flexible;
+
     // for function type
     struct Type *return_ty;
     struct NameTag *params;
@@ -263,6 +265,7 @@ struct Type *func_to(struct Type *, struct NameTag *);
 struct Type *struct_type();
 struct Type *union_type();
 struct Type *enum_type();
+struct Type *copy_type(struct Type *);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 bool is_void(struct Type *);

@@ -102,6 +102,12 @@ struct Type *get_common_type(struct Type *lhs, struct Type *rhs) {
     }
 }
 
+struct Type *copy_type(struct Type *ty) {
+    struct Type *copy_ty = calloc(1, sizeof(struct Type));
+    *copy_ty = *ty;
+    return copy_ty;
+}
+
 void usual_arith_conv(struct Node **lhs, struct Node **rhs) {
     struct Type *ty = get_common_type((*lhs)->ty, (*rhs)->ty);
     *lhs = new_node_cast(*lhs, ty);

@@ -545,7 +545,7 @@ struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
 struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
-struct Member *struct_union_members(struct Token **, struct Token *);
+void struct_union_members(struct Token **, struct Token *, struct Type *);
 struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
@@ -844,7 +844,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     }
     token = skip(token, "{");
     struct Type *ty = struct_type();
-    ty->member = struct_union_members(rest, token);
+    struct_union_members(rest, token, ty);
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
@@ -883,7 +883,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     }
     token = skip(token, "{");
     struct Type *ty = union_type();
-    ty->member = struct_union_members(rest, token);
+    struct_union_members(rest, token, ty);
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
@@ -906,7 +906,8 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
 /*
 struct_union_members = (declspec declarator (","  declarator)* ";")* "}"
 */
-struct Member *struct_union_members(struct Token **rest, struct Token *token) {
+void struct_union_members(struct Token **rest, struct Token *token,
+                          struct Type *ty) {
     struct Member head = {};
     struct Member *cur = &head;
     int index = 0;
@@ -925,12 +926,14 @@ struct Member *struct_union_members(struct Token **rest, struct Token *token) {
         }
         token = skip(token, ";");
     }
-    if(cur != head.next && cur->ty->ty == TY_ARRAY && cur->ty->array_size < 0) {
+    if (cur != head.next && cur->ty->ty == TY_ARRAY &&
+        cur->ty->array_size < 0) {
         cur->ty = array_to(cur->ty->ptr_to, 0);
+        ty->is_flexible = true;
     }
+    ty->member = head.next;
 
     *rest = token->next;
-    return head.next;
 }
 
 /*
@@ -1321,10 +1324,19 @@ struct Initializer *new_initializer(struct Type *ty, bool is_flexible) {
             len++;
         }
 
-        init->children = calloc(len, sizeof(struct Initializer));
+        init->children = calloc(len, sizeof(struct Initializer *));
         for (struct Member *member = ty->member; member != NULL;
              member = member->next) {
-            init->children[member->index] = new_initializer(member->ty, false);
+            if (is_flexible && ty->is_flexible && member->next == NULL) {
+                struct Initializer *child =
+                    calloc(1, sizeof(struct Initializer));
+                child->ty = member->ty;
+                child->is_flexible = true;
+                init->children[member->index] = child;
+            } else {
+                init->children[member->index] =
+                    new_initializer(member->ty, false);
+            }
         }
     }
 
@@ -1457,6 +1469,22 @@ struct Token *array_initializer2(struct Token *token,
     return token;
 }
 
+struct Type *copy_struct_type(struct Type *ty) {
+    ty = copy_type(ty);
+
+    struct Member head = {};
+    struct Member *cur = &head;
+
+    for (struct Member *member = ty->member; member != NULL;
+         member = member->next) {
+        struct Member *mem = calloc(1, sizeof(struct Member));
+        *mem = *member;
+        cur = cur->next = mem;
+    }
+    ty->member = head.next;
+    return ty;
+}
+
 /*
 initializer = struct_initializer | string_initializer | array_initializer |
 assign
@@ -1537,6 +1565,19 @@ struct Initializer *initializer(struct Token **rest, struct Token *token,
                                 struct Type *ty, struct Type **new_type) {
     struct Initializer *init = new_initializer(ty, true);
     internal_initializer(rest, token, init);
+
+    if ((ty->ty == TY_STRUCT || ty->ty == TY_UNION) && ty->is_flexible) {
+        ty = copy_struct_type(ty);
+
+        struct Member *member = ty->member;
+        while (member->next) {
+            member = member->next;
+        }
+        member->ty = init->children[member->index]->ty;
+        ty->size += member->ty->size;
+        init->ty = ty;
+    }
+
     *new_type = init->ty;
     return init;
 }
