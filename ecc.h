@@ -241,6 +241,7 @@ struct Type {
     struct Type *ptr_to;
     int array_size;
     int size;
+    int align;
     char *name;
 
     bool is_flexible;

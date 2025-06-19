@@ -463,6 +463,7 @@ void codegen() {
     for (struct Object *obj = globals; obj; obj = obj->next) {
         assert(obj->is_global_variable);
         printf("  .globl %s\n", obj->name);
+        printf("  .align %d\n", obj->ty->align);
         if (obj->init_data) {
             printf("  .data\n");
             printf("%s:\n", obj->name);

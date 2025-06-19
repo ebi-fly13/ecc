@@ -1,10 +1,10 @@
 #include "ecc.h"
 
-struct Type *ty_long = &(struct Type){TY_LONG, NULL, 0, 8};
-struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 4};
-struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2};
-struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1};
-struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0};
+struct Type *ty_long = &(struct Type){TY_LONG, NULL, 0, 8, 8};
+struct Type *ty_int = &(struct Type){TY_INT, NULL, 0, 4, 4};
+struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2, 2};
+struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1, 1};
+struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0, 1};
 
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
@@ -43,6 +43,7 @@ struct Type *pointer_to(struct Type *ty) {
     pointer->ty = TY_PTR;
     pointer->ptr_to = ty;
     pointer->size = 8;
+    pointer->align = 8;
     return pointer;
 }
 
@@ -51,6 +52,7 @@ struct Type *array_to(struct Type *ty, int array_size) {
     array->ty = TY_ARRAY;
     array->ptr_to = ty;
     array->array_size = array_size;
+    array->align = ty->align;
 
     if (array_size < 0) return array;
 
@@ -66,23 +68,24 @@ struct Type *func_to(struct Type *return_ty, struct NameTag *params) {
     return func;
 }
 
-struct Type *new_type(TypeKind kind, int size) {
+struct Type *new_type(TypeKind kind, int size, int align) {
     struct Type *ty = calloc(1, sizeof(struct Type));
     ty->ty = kind;
     ty->size = size;
+    ty->align = align;
     return ty;
 }
 
 struct Type *struct_type() {
-    return new_type(TY_STRUCT, 0);
+    return new_type(TY_STRUCT, 0, 1);
 }
 
 struct Type *union_type() {
-    return new_type(TY_UNION, 0);
+    return new_type(TY_UNION, 0, 1);
 }
 
 struct Type *enum_type() {
-    return new_type(TY_ENUM, 4);
+    return new_type(TY_ENUM, 4, 4);
 }
 
 struct Type *get_common_type(struct Type *lhs, struct Type *rhs) {

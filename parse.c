@@ -848,10 +848,14 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
+        offset = align_to(offset, member->ty->align);
         member->offset = offset;
         offset += member->ty->size;
+        if (ty->align < member->ty->align) {
+            ty->align = member->ty->align;
+        }
     }
-    ty->size = offset;
+    ty->size = align_to(offset, ty->align);
     ty->name = name;
     if (name != NULL) {
         struct TagScope *tag = find_tag_from_scope(ty->name);
@@ -884,15 +888,17 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     token = skip(token, "{");
     struct Type *ty = union_type();
     struct_union_members(rest, token, ty);
-    int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
         member->offset = 0;
-        if (offset < member->ty->size) {
-            offset = member->ty->size;
+        if (ty->size < member->ty->size) {
+            ty->size = member->ty->size;
+        }
+        if (ty->align < member->ty->align) {
+            ty->align = member->ty->align;
         }
     }
-    ty->size = offset;
+    ty->size = align_to(ty->size, ty->align);
     ty->name = name;
     if (name != NULL) {
         if (find_tag_from_scope(ty->name)) {
