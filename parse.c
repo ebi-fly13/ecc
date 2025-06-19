@@ -291,6 +291,7 @@ struct Object *new_global_var(struct NameTag *tag) {
         gvar->next = globals;
         gvar->len = strlen(tag->name);
         gvar->is_global_variable = true;
+        gvar->is_definition = true;
         globals = gvar;
         return gvar;
     }
@@ -319,7 +320,7 @@ struct Object *new_func(struct NameTag *tag) {
         fn = new_var(tag);
         fn->next = globals;
         fn->len = strlen(tag->name);
-        fn->is_function_definition = true;
+        fn->is_definition = true;
         fn->next = functions;
         functions = fn;
     }
@@ -357,7 +358,7 @@ struct Node *struct_union_ref(struct Node *node, char *name) {
 bool is_typename(struct Token *token) {
     if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
         equal(token, "union") || equal(token, "typedef") ||
-        equal(token, "static"))
+        equal(token, "static") || equal(token, "extern"))
         return true;
     struct Type *ty = find_typedef(strndup(token->loc, token->len));
     return ty != NULL;
@@ -532,11 +533,13 @@ static struct Relocation *write_gvar_data(struct Relocation *cur,
 struct VarAttr {
     bool is_typedef;
     bool is_static;
+    bool is_extern;
 };
 
 struct Object *program(struct Token *);
 struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
-struct Token *global_variable(struct Token *, struct Type *);
+struct Token *global_variable(struct Token *, struct Type *,
+                              struct VarAttr *attr);
 struct Type *declspec(struct Token **, struct Token *, struct VarAttr *attr);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
@@ -615,7 +618,7 @@ struct Object *program(struct Token *token) {
         if (is_function(token)) {
             token = function(token, ty, &attr);
         } else {
-            token = global_variable(token, ty);
+            token = global_variable(token, ty, &attr);
         }
     }
     return globals;
@@ -637,11 +640,11 @@ struct Token *function(struct Token *token, struct Type *ty,
     }
     locals = NULL;
     fn->is_function = true;
-    fn->is_function_definition = !equal(token, ";");
+    fn->is_definition = !equal(token, ";");
     fn->is_static = attr->is_static;
 
     if (equal(token, "{")) {
-        assert(fn->is_function_definition);
+        assert(fn->is_definition);
 
         enter_scope();
         fn->args = expand_func_params(tag->ty);
@@ -663,7 +666,8 @@ struct Token *function(struct Token *token, struct Type *ty,
 /*
 global_variable = (declarator ("," declarator)* )? ";"
 */
-struct Token *global_variable(struct Token *token, struct Type *ty) {
+struct Token *global_variable(struct Token *token, struct Type *ty,
+                              struct VarAttr *attr) {
     bool is_first = true;
     while (!equal(token, ";")) {
         if (!is_first)
@@ -672,6 +676,7 @@ struct Token *global_variable(struct Token *token, struct Type *ty) {
             is_first = false;
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
         struct Object *gvar = new_global_var(gvar_nametag);
+        gvar->is_definition = !attr->is_extern;
 
         if (equal(token, "=")) {
             token = skip(token, "=");
@@ -697,7 +702,7 @@ struct Type *declspec(struct Token **rest, struct Token *token,
     };
     int counter = 0;
     while (is_typename(token)) {
-        if (equal(token, "typedef") || equal(token, "static")) {
+        if (equal(token, "typedef") || equal(token, "static") || equal(token, "extern")) {
             if (attr == NULL) {
                 error("storage class specifier is not allowed in this context");
             }
@@ -705,12 +710,15 @@ struct Type *declspec(struct Token **rest, struct Token *token,
             if (equal(token, "typedef")) {
                 attr->is_typedef = true;
                 token = skip(token, "typedef");
-            } else {
+            } else if (equal(token, "static")) {
                 attr->is_static = true;
                 token = skip(token, "static");
+            } else if (equal(token, "extern")) {
+                attr->is_extern = true;
+                token = skip(token, "extern");
             }
-            if (attr->is_typedef && attr->is_static) {
-                error("typedefとstaticは同時に使えません");
+            if (attr->is_typedef && (attr->is_static || attr->is_extern)) {
+                error("typedefはstaticやexternと同時に使えません");
             }
             continue;
         } else if (equal(token, "long")) {

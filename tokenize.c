@@ -404,6 +404,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "extern") && !is_alnum(p[6])) {
+            cur = new_token(TK_EXTERN, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         if (startswith(p, "goto") && !is_alnum(p[4])) {
             cur = new_token(TK_GOTO, cur, p, 4);
             p += 4;

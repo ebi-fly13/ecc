@@ -29,6 +29,7 @@ typedef enum {
     TK_SIZEOF,    // sizeof
     TK_STR,       // string
     TK_STATIC,    // static
+    TK_EXTERN,    // extern
     TK_GOTO,      // goto
     TK_BREAK,     // break
     TK_CONTINUE,  // continue
@@ -97,7 +98,7 @@ struct Object {
     struct Relocation *rel;
 
     bool is_function;
-    bool is_function_definition;
+    bool is_definition;
     bool is_static;
     struct Node *body;
     struct Node *args;
