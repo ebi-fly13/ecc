@@ -106,9 +106,9 @@ int get_type_id(struct Type *ty) {
     }
 }
 
-static char i32i8[] = "movsbl eax, al";
-static char i32i16[] = "movswl eax, ax";
-static char i32i64[] = "movsxd rax, eax";
+static char i32i8[] = "movsx eax, al";
+static char i32i16[] = "movsx eax, ax";
+static char i32i64[] = "movsx rax, eax";
 
 static char *cast_table[][10] = {
     {NULL, NULL, NULL, i32i64},     // i8
@@ -522,5 +522,6 @@ void codegen() {
         printf("%d\n", depth);
     }
     assert(depth == 0);
+    printf(".section .note.GNU-stack,\"\",@progbits\n");
     return;
 }
