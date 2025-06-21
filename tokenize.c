@@ -19,15 +19,18 @@ void error_at(char *loc, char *fmt, ...) {
 
     // locが含まれている行の開始地点と終了地点を取得
     char *line = loc;
-    while (user_input < line && line[-1] != '\n') line--;
+    while (user_input < line && line[-1] != '\n')
+        line--;
 
     char *end = loc;
-    while (*end != '\n') end++;
+    while (*end != '\n')
+        end++;
 
     // 見つかった行が全体の何行目なのかを調べる
     int line_num = 1;
     for (char *p = user_input; p < line; p++)
-        if (*p == '\n') line_num++;
+        if (*p == '\n')
+            line_num++;
 
     // 見つかった行を、ファイル名と行番号と一緒に表示
     int indent = fprintf(stderr, "%s:%d: ", filename, line_num);
@@ -58,7 +61,8 @@ struct Token *skip_keyword(struct Token *token, TokenKind kind) {
 }
 
 long get_number(struct Token *token) {
-    if (token->kind != TK_NUM) error_at(token->loc, "数ではありません");
+    if (token->kind != TK_NUM)
+        error_at(token->loc, "数ではありません");
     return token->val;
 }
 
@@ -72,13 +76,9 @@ bool equal_keyword(struct Token *tok, TokenKind kind) {
     return tok->kind == kind;
 }
 
-bool is_alnum(char c) {
-    return isdigit(c) || isalpha(c) || c == '_';
-}
+bool is_alnum(char c) { return isdigit(c) || isalpha(c) || c == '_'; }
 
-bool is_ident_head(char c) {
-    return isalpha(c) || c == '_';
-}
+bool is_ident_head(char c) { return isalpha(c) || c == '_'; }
 
 bool is_end(struct Token *token) {
     return equal(token, "}") || equal(token, ",") && equal(token->next, "}");
@@ -130,24 +130,24 @@ int read_escaped_char(char **new_pos, char *p) {
 
     *new_pos = p + 1;
     switch (*p) {
-        case 'a':
-            return '\a';
-        case 'b':
-            return '\b';
-        case 't':
-            return '\t';
-        case 'n':
-            return '\n';
-        case 'v':
-            return '\v';
-        case 'f':
-            return '\f';
-        case 'r':
-            return '\r';
-        case 'e':
-            return '\e';
-        default:
-            return *p;
+    case 'a':
+        return '\a';
+    case 'b':
+        return '\b';
+    case 't':
+        return '\t';
+    case 'n':
+        return '\n';
+    case 'v':
+        return '\v';
+    case 'f':
+        return '\f';
+    case 'r':
+        return '\r';
+    case 'e':
+        return '\e';
+    default:
+        return *p;
     }
 }
 
@@ -238,9 +238,7 @@ struct Token *read_string_literal(struct Token *cur, char *str) {
     return tok;
 }
 
-bool startswith(char *p, char *q) {
-    return memcmp(p, q, strlen(q)) == 0;
-}
+bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 struct Token *tokenize(char *p) {
     struct Token head;

@@ -32,9 +32,7 @@ struct Node *switch_node = NULL;
 char *continue_label = NULL;
 char *break_label = NULL;
 
-int align_to(int n, int align) {
-    return (n + align - 1) / align * align;
-}
+int align_to(int n, int align) { return (n + align - 1) / align * align; }
 
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
@@ -42,8 +40,8 @@ struct Node *new_node(NodeKind kind) {
     return node;
 }
 
-struct Node *new_node_binary(NodeKind kind, struct Node *lhs,
-                             struct Node *rhs) {
+struct Node *
+new_node_binary(NodeKind kind, struct Node *lhs, struct Node *rhs) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
     node->lhs = lhs;
@@ -339,7 +337,8 @@ struct Node *expand_func_params(struct Type *ty) {
 struct Member *get_struct_member(struct Type *ty, char *name) {
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
-        if (strcmp(member->name, name) == 0) return member;
+        if (strcmp(member->name, name) == 0)
+            return member;
     }
     error("struct %sにメンバ変数%sは存在しません", ty->name, name);
     return NULL;
@@ -369,105 +368,103 @@ static long internal_eval(struct Node *, char **);
 
 static long eval_rval(struct Node *node, char **label) {
     switch (node->kind) {
-        case ND_GVAR:
-            *label = node->obj->name;
-            return 0;
-        case ND_DEREF:
-            return internal_eval(node->lhs, label);
-        case ND_MEMBER:
-            return eval_rval(node->lhs, label) + node->member->offset;
-        default:
-            error("invalid initializer");
+    case ND_GVAR:
+        *label = node->obj->name;
+        return 0;
+    case ND_DEREF:
+        return internal_eval(node->lhs, label);
+    case ND_MEMBER:
+        return eval_rval(node->lhs, label) + node->member->offset;
+    default:
+        error("invalid initializer");
     }
 }
 
 static long internal_eval(struct Node *node, char **label) {
     add_type(node);
     switch (node->kind) {
-        case ND_ADD:
-            return internal_eval(node->lhs, label) + eval(node->rhs);
-        case ND_SUB:
-            return internal_eval(node->lhs, label) - eval(node->rhs);
-        case ND_MUL:
-            return eval(node->lhs) * eval(node->rhs);
-        case ND_DIV:
-            return eval(node->lhs) / eval(node->rhs);
-        case ND_BITAND:
-            return eval(node->lhs) & eval(node->rhs);
-        case ND_BITOR:
-            return eval(node->lhs) | eval(node->rhs);
-        case ND_BITXOR:
-            return eval(node->lhs) ^ eval(node->rhs);
-        case ND_SHL:
-            return eval(node->lhs) << eval(node->rhs);
-        case ND_SHR:
-            return eval(node->lhs) >> eval(node->rhs);
-        case ND_EQ:
-            return eval(node->lhs) == eval(node->rhs);
-        case ND_LT:
-            return eval(node->lhs) < eval(node->rhs);
-        case ND_LE:
-            return eval(node->lhs) <= eval(node->rhs);
-        case ND_NE:
-            return eval(node->lhs) != eval(node->rhs);
-        case ND_MOD:
-            return eval(node->lhs) % eval(node->rhs);
-        case ND_LOGAND:
-            return eval(node->lhs) && eval(node->rhs);
-        case ND_LOGOR:
-            return eval(node->lhs) || eval(node->rhs);
-        case ND_COND:
-            return eval(node->cond) ? internal_eval(node->then, label)
-                                    : internal_eval(node->els, label);
-        case ND_BITNOT:
-            return ~eval(node->lhs);
-        case ND_COMMA:
-            return internal_eval(node->rhs, label);
-        case ND_NOT:
-            return !eval(node->lhs);
-        case ND_NUM:
-            return node->val;
-        case ND_CAST:
-            long val = internal_eval(node->lhs, label);
-            if (is_integer(node->ty)) {
-                switch (node->ty->size) {
-                    case 1:
-                        return (__uint8_t)val;
-                    case 2:
-                        return (__uint16_t)val;
-                    case 4:
-                        return (__uint32_t)val;
-                    case 8:
-                        return val;
-                }
+    case ND_ADD:
+        return internal_eval(node->lhs, label) + eval(node->rhs);
+    case ND_SUB:
+        return internal_eval(node->lhs, label) - eval(node->rhs);
+    case ND_MUL:
+        return eval(node->lhs) * eval(node->rhs);
+    case ND_DIV:
+        return eval(node->lhs) / eval(node->rhs);
+    case ND_BITAND:
+        return eval(node->lhs) & eval(node->rhs);
+    case ND_BITOR:
+        return eval(node->lhs) | eval(node->rhs);
+    case ND_BITXOR:
+        return eval(node->lhs) ^ eval(node->rhs);
+    case ND_SHL:
+        return eval(node->lhs) << eval(node->rhs);
+    case ND_SHR:
+        return eval(node->lhs) >> eval(node->rhs);
+    case ND_EQ:
+        return eval(node->lhs) == eval(node->rhs);
+    case ND_LT:
+        return eval(node->lhs) < eval(node->rhs);
+    case ND_LE:
+        return eval(node->lhs) <= eval(node->rhs);
+    case ND_NE:
+        return eval(node->lhs) != eval(node->rhs);
+    case ND_MOD:
+        return eval(node->lhs) % eval(node->rhs);
+    case ND_LOGAND:
+        return eval(node->lhs) && eval(node->rhs);
+    case ND_LOGOR:
+        return eval(node->lhs) || eval(node->rhs);
+    case ND_COND:
+        return eval(node->cond) ? internal_eval(node->then, label)
+                                : internal_eval(node->els, label);
+    case ND_BITNOT:
+        return ~eval(node->lhs);
+    case ND_COMMA:
+        return internal_eval(node->rhs, label);
+    case ND_NOT:
+        return !eval(node->lhs);
+    case ND_NUM:
+        return node->val;
+    case ND_CAST:
+        long val = internal_eval(node->lhs, label);
+        if (is_integer(node->ty)) {
+            switch (node->ty->size) {
+            case 1:
+                return (__uint8_t)val;
+            case 2:
+                return (__uint16_t)val;
+            case 4:
+                return (__uint32_t)val;
+            case 8:
+                return val;
             }
-            return val;
-        case ND_ADDR:
-            return eval_rval(node->lhs, label);
-        case ND_MEMBER:
-            if (!label) {
-                error("not a compile-time constant");
-            }
-            if (node->ty->ty != TY_ARRAY) {
-                error("invalid initializer");
-            }
-            return eval_rval(node->lhs, label) + node->member->offset;
-        case ND_GVAR:
-            if (!label) {
-                error("not a compile-time constant");
-            }
-            if (node->obj->ty->ty != TY_ARRAY && node->obj->ty->ty != TY_FUNC) {
-                error("invalid initializer");
-            }
-            *label = node->obj->name;
-            return 0;
+        }
+        return val;
+    case ND_ADDR:
+        return eval_rval(node->lhs, label);
+    case ND_MEMBER:
+        if (!label) {
+            error("not a compile-time constant");
+        }
+        if (node->ty->ty != TY_ARRAY) {
+            error("invalid initializer");
+        }
+        return eval_rval(node->lhs, label) + node->member->offset;
+    case ND_GVAR:
+        if (!label) {
+            error("not a compile-time constant");
+        }
+        if (node->obj->ty->ty != TY_ARRAY && node->obj->ty->ty != TY_FUNC) {
+            error("invalid initializer");
+        }
+        *label = node->obj->name;
+        return 0;
     }
     error("コンパイル時定数ではありません");
 }
 
-static long eval(struct Node *node) {
-    return internal_eval(node, NULL);
-}
+static long eval(struct Node *node) { return internal_eval(node, NULL); }
 
 static void write_buffer(char *buf, uint64_t val, int sz) {
     if (sz == 1) {
@@ -485,7 +482,8 @@ static void write_buffer(char *buf, uint64_t val, int sz) {
 
 static struct Relocation *write_gvar_data(struct Relocation *cur,
                                           struct Initializer *init,
-                                          struct Type *ty, char *buf,
+                                          struct Type *ty,
+                                          char *buf,
                                           int offset) {
     if (ty->ty == TY_ARRAY) {
         int sz = ty->ptr_to->size;
@@ -538,8 +536,8 @@ struct VarAttr {
 
 struct Object *program(struct Token *);
 struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
-struct Token *global_variable(struct Token *, struct Type *,
-                              struct VarAttr *attr);
+struct Token *
+global_variable(struct Token *, struct Type *, struct VarAttr *attr);
 struct Type *declspec(struct Token **, struct Token *, struct VarAttr *attr);
 struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
@@ -563,7 +561,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitor(struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -578,7 +576,8 @@ struct Node *funcall(struct Token **, struct Token *);
 struct Node *primary(struct Token **, struct Token *);
 
 bool is_function(struct Token *token) {
-    if (equal(token, ";")) return false;
+    if (equal(token, ";"))
+        return false;
     struct Type dummy = {};
     declarator(&token, token, &dummy);
     return equal(token, "(");
@@ -627,8 +626,8 @@ struct Object *program(struct Token *token) {
 /*
 function = declarator "(" func_params "{" compound_stmt
 */
-struct Token *function(struct Token *token, struct Type *ty,
-                       struct VarAttr *attr) {
+struct Token *
+function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
     tag = func_params(&token, token, tag);
@@ -666,8 +665,8 @@ struct Token *function(struct Token *token, struct Type *ty,
 /*
 global_variable = (declarator ("," declarator)* )? ";"
 */
-struct Token *global_variable(struct Token *token, struct Type *ty,
-                              struct VarAttr *attr) {
+struct Token *
+global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     bool is_first = true;
     while (!equal(token, ";")) {
         if (!is_first)
@@ -690,8 +689,8 @@ struct Token *global_variable(struct Token *token, struct Type *ty,
 declspec = ("long" | "int" | "short" | "char" | "typedef" | typedef_type )+ |
 struct_decl | union_decl | enum_specifier
 */
-struct Type *declspec(struct Token **rest, struct Token *token,
-                      struct VarAttr *attr) {
+struct Type *
+declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     enum {
         VOID = 1 << 0,
         CHAR = 1 << 2,
@@ -702,7 +701,8 @@ struct Type *declspec(struct Token **rest, struct Token *token,
     };
     int counter = 0;
     while (is_typename(token)) {
-        if (equal(token, "typedef") || equal(token, "static") || equal(token, "extern")) {
+        if (equal(token, "typedef") || equal(token, "static") ||
+            equal(token, "extern")) {
             if (attr == NULL) {
                 error("storage class specifier is not allowed in this context");
             }
@@ -774,39 +774,39 @@ struct Type *declspec(struct Token **rest, struct Token *token,
     }
     struct Type *ty = NULL;
     switch (counter) {
-        case VOID:
-            ty = ty_void;
-            break;
-        case CHAR:
-            ty = ty_char;
-            break;
-        case SHORT:
-        case SHORT + INT:
-            ty = ty_short;
-            break;
-        case INT:
+    case VOID:
+        ty = ty_void;
+        break;
+    case CHAR:
+        ty = ty_char;
+        break;
+    case SHORT:
+    case SHORT + INT:
+        ty = ty_short;
+        break;
+    case INT:
+        ty = ty_int;
+        break;
+    case LONG:
+    case LONG + INT:
+    case LONG + LONG:
+    case LONG + LONG + INT:
+        ty = ty_long;
+        break;
+    default:
+        if (attr != NULL && attr->is_typedef) {
             ty = ty_int;
             break;
-        case LONG:
-        case LONG + INT:
-        case LONG + LONG:
-        case LONG + LONG + INT:
-            ty = ty_long;
-            break;
-        default:
-            if (attr != NULL && attr->is_typedef) {
-                ty = ty_int;
-                break;
-            }
-            error("invalid type");
+        }
+        error("invalid type");
     }
     *rest = token;
     return ty;
 }
 
 // abstract-declarator = "*"* ("(" abstract-declarator ")")? type_suffix
-struct Type *abstract_declarator(struct Token **rest, struct Token *token,
-                                 struct Type *ty) {
+struct Type *
+abstract_declarator(struct Token **rest, struct Token *token, struct Type *ty) {
     while (equal(token, "*")) {
         ty = pointer_to(ty);
         token = skip(token, "*");
@@ -920,7 +920,8 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
 /*
 struct_union_members = (declspec declarator (","  declarator)* ";")* "}"
 */
-void struct_union_members(struct Token **rest, struct Token *token,
+void struct_union_members(struct Token **rest,
+                          struct Token *token,
                           struct Type *ty) {
     struct Member head = {};
     struct Member *cur = &head;
@@ -929,7 +930,8 @@ void struct_union_members(struct Token **rest, struct Token *token,
         struct Type *base_ty = declspec(&token, token, NULL);
         bool is_first = true;
         while (!equal(token, ";")) {
-            if (!is_first) token = skip(token, ",");
+            if (!is_first)
+                token = skip(token, ",");
             is_first = false;
             struct NameTag *tag = declarator(&token, token, base_ty);
             struct Member *member = calloc(1, sizeof(struct Member));
@@ -1011,8 +1013,8 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
 /*
 declarator = "*"* ( "(" declarator ")" | ident)? type_suffix
 */
-struct NameTag *declarator(struct Token **rest, struct Token *token,
-                           struct Type *ty) {
+struct NameTag *
+declarator(struct Token **rest, struct Token *token, struct Type *ty) {
     while (equal(token, "*")) {
         token = skip(token, "*");
         ty = pointer_to(ty);
@@ -1041,8 +1043,8 @@ struct NameTag *declarator(struct Token **rest, struct Token *token,
 /*
 type_suffix = "[" array_dimensions | ""
 */
-struct Type *type_suffix(struct Token **rest, struct Token *token,
-                         struct Type *ty) {
+struct Type *
+type_suffix(struct Token **rest, struct Token *token, struct Type *ty) {
     if (equal(token, "[")) {
         return array_dimensions(rest, token->next, ty);
     }
@@ -1053,8 +1055,8 @@ struct Type *type_suffix(struct Token **rest, struct Token *token,
 /*
 array_dimensions = const_expr? "]" type_suffix
 */
-struct Type *array_dimensions(struct Token **rest, struct Token *token,
-                              struct Type *ty) {
+struct Type *
+array_dimensions(struct Token **rest, struct Token *token, struct Type *ty) {
     if (equal(token, "]")) {
         return array_to(type_suffix(rest, token->next, ty), -1);
     }
@@ -1066,7 +1068,8 @@ struct Type *array_dimensions(struct Token **rest, struct Token *token,
 /*
 func_params = ("void" | param ("," param )? )? ")"
 */
-struct NameTag *func_params(struct Token **rest, struct Token *token,
+struct NameTag *func_params(struct Token **rest,
+                            struct Token *token,
                             struct NameTag *return_tag) {
     struct NameTag head = {};
     struct NameTag *cur = &head;
@@ -1271,7 +1274,8 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
         } else {
             cur->next = stmt(&token, token);
         }
-        if (cur->next == NULL) continue;
+        if (cur->next == NULL)
+            continue;
         cur = cur->next;
         add_type(cur);
     }
@@ -1285,13 +1289,14 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 declaration = (declarator ("=" lvar_initializer) ("," declarator "="
 lvar_initializer)* )? ";"
 */
-struct Node *declaration(struct Token **rest, struct Token *token,
-                         struct Type *base_ty) {
+struct Node *
+declaration(struct Token **rest, struct Token *token, struct Type *base_ty) {
     struct Node head = {};
     struct Node *cur = &head;
     bool is_first = true;
     while (!equal(token, ";")) {
-        if (!is_first) token = skip(token, ",");
+        if (!is_first)
+            token = skip(token, ",");
         is_first = false;
         struct NameTag *tag = declarator(&token, token, base_ty);
         struct Object *var = new_local_var(tag);
@@ -1394,10 +1399,12 @@ struct Token *string_initializer(struct Token *token,
     return skip_keyword(token, TK_STR);
 }
 
-void internal_initializer(struct Token **, struct Token *,
+void internal_initializer(struct Token **,
+                          struct Token *,
                           struct Initializer *);
 
-void internal_initializer2(struct Token **, struct Token *,
+void internal_initializer2(struct Token **,
+                           struct Token *,
                            struct Initializer *);
 
 struct Token *struct_initializer(struct Token *token,
@@ -1508,7 +1515,8 @@ struct Type *copy_struct_type(struct Type *ty) {
 initializer = struct_initializer | string_initializer | array_initializer |
 assign
 */
-void internal_initializer(struct Token **rest, struct Token *token,
+void internal_initializer(struct Token **rest,
+                          struct Token *token,
                           struct Initializer *init) {
     if (init->ty->ty == TY_STRUCT) {
         if (!equal(token, "{")) {
@@ -1542,7 +1550,8 @@ void internal_initializer(struct Token **rest, struct Token *token,
     *rest = token;
 }
 
-void internal_initializer2(struct Token **rest, struct Token *token,
+void internal_initializer2(struct Token **rest,
+                           struct Token *token,
                            struct Initializer *init) {
     if (init->ty->ty == TY_STRUCT) {
         if (equal(token, "{")) {
@@ -1580,8 +1589,10 @@ void internal_initializer2(struct Token **rest, struct Token *token,
     *rest = token;
 }
 
-struct Initializer *initializer(struct Token **rest, struct Token *token,
-                                struct Type *ty, struct Type **new_type) {
+struct Initializer *initializer(struct Token **rest,
+                                struct Token *token,
+                                struct Type *ty,
+                                struct Type **new_type) {
     struct Initializer *init = new_initializer(ty, true);
     internal_initializer(rest, token, init);
 
@@ -1618,7 +1629,8 @@ struct Node *init_desg_expr(struct InitDesg *desg) {
     return new_node_unary(ND_DEREF, new_node_add(lhs, rhs));
 }
 
-struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
+struct Node *create_lvar_init(struct Initializer *init,
+                              struct Type *ty,
                               struct InitDesg *desg) {
     if (ty->ty == TY_ARRAY) {
         struct Node *node = NULL;
@@ -1657,8 +1669,8 @@ struct Node *create_lvar_init(struct Initializer *init, struct Type *ty,
     return new_node_binary(ND_ASSIGN, lhs, init->expr);
 }
 
-struct Node *lvar_initializer(struct Token **rest, struct Token *token,
-                              struct Object *var) {
+struct Node *
+lvar_initializer(struct Token **rest, struct Token *token, struct Object *var) {
     struct Initializer *init = initializer(rest, token, var->ty, &var->ty);
     struct InitDesg desg = {NULL, 0, var, NULL};
     struct Node *lhs = new_node(ND_MEMZERO);
@@ -1667,7 +1679,8 @@ struct Node *lvar_initializer(struct Token **rest, struct Token *token,
     return new_node_binary(ND_COMMA, lhs, rhs);
 }
 
-static void gvar_initializer(struct Token **rest, struct Token *token,
+static void gvar_initializer(struct Token **rest,
+                             struct Token *token,
                              struct Object *gvar) {
     struct Initializer *init = initializer(rest, token, gvar->ty, &gvar->ty);
 
@@ -1681,7 +1694,8 @@ static void gvar_initializer(struct Token **rest, struct Token *token,
 /*
 typedef_decl = (declarator ("," declarator)* )? ";"
 */
-void typedef_decl(struct Token **rest, struct Token *token,
+void typedef_decl(struct Token **rest,
+                  struct Token *token,
                   struct Type *base_ty) {
     bool first = true;
     while (!equal(token, ";")) {
@@ -1826,9 +1840,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = bitor(&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
     }
     *rest = token;
     return node;
@@ -1837,7 +1851,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node * bitor (struct Token * *rest, struct Token *token) {
+struct Node *bitor(struct Token **rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));
@@ -2009,8 +2023,8 @@ struct Node *unary(struct Token **rest, struct Token *token) {
     }
 }
 
-struct Node *new_node_inc_dec(struct Node *node, struct Token *token,
-                              int addend) {
+struct Node *
+new_node_inc_dec(struct Node *node, struct Token *token, int addend) {
     add_type(node);
     struct Node *node2 =
         new_node_sub(to_assign(new_node_add(node, new_node_num(addend))),
@@ -2085,7 +2099,8 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
     assert(equal(token, "("));
     token = skip(token, "(");
     while (!equal(token, ")")) {
-        if (cur != &head) token = skip(token, ",");
+        if (cur != &head)
+            token = skip(token, ",");
         cur = cur->next = assign(&token, token);
     }
     node->args = head.next;

@@ -11,28 +11,31 @@ bool is_integer(struct Type *ty) {
            ty->ty == TY_CHAR || ty->ty == TY_ENUM;
 }
 
-bool is_void(struct Type *ty) {
-    return ty->ty == TY_VOID;
-}
+bool is_void(struct Type *ty) { return ty->ty == TY_VOID; }
 
 bool is_pointer(struct Type *ty) {
     return ty->ty == TY_PTR || ty->ty == TY_ARRAY;
 }
 
 bool is_same_type(struct Type *lhs, struct Type *rhs) {
-    if (lhs->ty != rhs->ty) return false;
+    if (lhs->ty != rhs->ty)
+        return false;
     if (lhs->ty == TY_STRUCT || lhs->ty == TY_UNION) {
-        if (strcmp(lhs->name, rhs->name) != 0) return false;
+        if (strcmp(lhs->name, rhs->name) != 0)
+            return false;
     } else if (lhs->ty == TY_FUNC) {
-        if (!is_same_type(lhs->return_ty, rhs->return_ty)) return false;
+        if (!is_same_type(lhs->return_ty, rhs->return_ty))
+            return false;
         struct NameTag *param_lhs = lhs->params;
         struct NameTag *param_rhs = rhs->params;
         while (param_lhs != NULL && param_rhs != NULL) {
-            if (!is_same_type(param_lhs->ty, param_rhs->ty)) return false;
+            if (!is_same_type(param_lhs->ty, param_rhs->ty))
+                return false;
             param_lhs = param_lhs->next;
             param_rhs = param_rhs->next;
         }
-        if (param_lhs != NULL && param_rhs != NULL) return false;
+        if (param_lhs != NULL && param_rhs != NULL)
+            return false;
     }
 
     return true;
@@ -54,7 +57,8 @@ struct Type *array_to(struct Type *ty, int array_size) {
     array->array_size = array_size;
     array->align = ty->align;
 
-    if (array_size < 0) return array;
+    if (array_size < 0)
+        return array;
 
     array->size = ty->size * array_size;
     return array;
@@ -76,17 +80,11 @@ struct Type *new_type(TypeKind kind, int size, int align) {
     return ty;
 }
 
-struct Type *struct_type() {
-    return new_type(TY_STRUCT, 0, 1);
-}
+struct Type *struct_type() { return new_type(TY_STRUCT, 0, 1); }
 
-struct Type *union_type() {
-    return new_type(TY_UNION, 0, 1);
-}
+struct Type *union_type() { return new_type(TY_UNION, 0, 1); }
 
-struct Type *enum_type() {
-    return new_type(TY_ENUM, 4, 4);
-}
+struct Type *enum_type() { return new_type(TY_ENUM, 4, 4); }
 
 struct Type *get_common_type(struct Type *lhs, struct Type *rhs) {
     if (lhs->ptr_to) {
@@ -118,7 +116,8 @@ void usual_arith_conv(struct Node **lhs, struct Node **rhs) {
 }
 
 void add_type(struct Node *node) {
-    if (node == NULL || node->ty) return;
+    if (node == NULL || node->ty)
+        return;
     add_type(node->lhs);
     add_type(node->rhs);
 
@@ -137,62 +136,62 @@ void add_type(struct Node *node) {
     }
 
     switch (node->kind) {
-        case ND_ADD:
-        case ND_SUB:
-        case ND_MUL:
-        case ND_DIV:
-        case ND_MOD:
-        case ND_BITOR:
-        case ND_BITXOR:
-        case ND_BITAND:
-        case ND_SHL:
-        case ND_SHR:
-            usual_arith_conv(&node->lhs, &node->rhs);
-            node->ty = node->lhs->ty;
-            return;
-        case ND_ASSIGN:
-            node->ty = node->lhs->ty;
-            return;
-        case ND_COMMA:
-            node->ty = node->rhs->ty;
-            return;
-        case ND_EQ:
-        case ND_NE:
-        case ND_LT:
-        case ND_LE:
-        case ND_NUM:
-            node->ty = ty_int;
-            return;
-        case ND_ADDR:
-            node->ty = pointer_to(node->lhs->ty);
-            return;
-        case ND_DEREF:
-            node->ty = node->lhs->ty->ptr_to;
-            return;
-        case ND_NOT:
-        case ND_LOGOR:
-        case ND_LOGAND:
-            node->ty = ty_int;
-            return;
-        case ND_BITNOT:
-            node->ty = node->lhs->ty;
-            return;
-        case ND_LVAR:
-        case ND_GVAR:
-            return;
-        case ND_FUNCALL:
-            node->ty = node->obj->ty->return_ty;
-            return;
-        case ND_MEMBER:
-            node->ty = node->member->ty;
-            return;
-        case ND_COND:
-            if (node->then->ty->ty == TY_VOID || node->els->ty->ty == TY_VOID) {
-                node->ty = ty_void;
-            } else {
-                usual_arith_conv(&node->then, &node->els);
-                node->ty = node->then->ty;
-            }
-            return;
+    case ND_ADD:
+    case ND_SUB:
+    case ND_MUL:
+    case ND_DIV:
+    case ND_MOD:
+    case ND_BITOR:
+    case ND_BITXOR:
+    case ND_BITAND:
+    case ND_SHL:
+    case ND_SHR:
+        usual_arith_conv(&node->lhs, &node->rhs);
+        node->ty = node->lhs->ty;
+        return;
+    case ND_ASSIGN:
+        node->ty = node->lhs->ty;
+        return;
+    case ND_COMMA:
+        node->ty = node->rhs->ty;
+        return;
+    case ND_EQ:
+    case ND_NE:
+    case ND_LT:
+    case ND_LE:
+    case ND_NUM:
+        node->ty = ty_int;
+        return;
+    case ND_ADDR:
+        node->ty = pointer_to(node->lhs->ty);
+        return;
+    case ND_DEREF:
+        node->ty = node->lhs->ty->ptr_to;
+        return;
+    case ND_NOT:
+    case ND_LOGOR:
+    case ND_LOGAND:
+        node->ty = ty_int;
+        return;
+    case ND_BITNOT:
+        node->ty = node->lhs->ty;
+        return;
+    case ND_LVAR:
+    case ND_GVAR:
+        return;
+    case ND_FUNCALL:
+        node->ty = node->obj->ty->return_ty;
+        return;
+    case ND_MEMBER:
+        node->ty = node->member->ty;
+        return;
+    case ND_COND:
+        if (node->then->ty->ty == TY_VOID || node->els->ty->ty == TY_VOID) {
+            node->ty = ty_void;
+        } else {
+            usual_arith_conv(&node->then, &node->els);
+            node->ty = node->then->ty;
+        }
+        return;
     }
 }

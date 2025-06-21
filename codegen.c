@@ -73,36 +73,36 @@ void gen(struct Node *);
 
 void gen_lval(struct Node *node) {
     switch (node->kind) {
-        case ND_DEREF:
-            gen(node->lhs);
-            return;
-        case ND_LVAR:
-            printf("  mov rax, rbp\n");
-            printf("  sub rax, %d\n", node->obj->offset);
-            return;
-        case ND_GVAR:
-            printf("  lea rax, [rip + %s]\n", node->obj->name);
-            return;
-        case ND_MEMBER:
-            gen_lval(node->lhs);
-            printf("  add rax, %d\n", node->member->offset);
-            return;
+    case ND_DEREF:
+        gen(node->lhs);
+        return;
+    case ND_LVAR:
+        printf("  mov rax, rbp\n");
+        printf("  sub rax, %d\n", node->obj->offset);
+        return;
+    case ND_GVAR:
+        printf("  lea rax, [rip + %s]\n", node->obj->name);
+        return;
+    case ND_MEMBER:
+        gen_lval(node->lhs);
+        printf("  add rax, %d\n", node->member->offset);
+        return;
     }
     error("代入の左辺値が変数でありません");
 }
 
 int get_type_id(struct Type *ty) {
     switch (ty->ty) {
-        case TY_CHAR:
-            return 0;
-        case TY_SHORT:
-            return 1;
-        case TY_INT:
-            return 2;
-        case TY_LONG:
-            return 3;
-        default:
-            return 4;
+    case TY_CHAR:
+        return 0;
+    case TY_SHORT:
+        return 1;
+    case TY_INT:
+        return 2;
+    case TY_LONG:
+        return 3;
+    default:
+        return 4;
     }
 }
 
@@ -111,10 +111,10 @@ static char i32i16[] = "movsx eax, ax";
 static char i32i64[] = "movsx rax, eax";
 
 static char *cast_table[][10] = {
-    {NULL, NULL, NULL, i32i64},     // i8
-    {i32i8, NULL, NULL, i32i64},    // i16
-    {i32i8, i32i16, NULL, i32i64},  // i32
-    {i32i8, i32i16, NULL, NULL},    // i64
+    {NULL, NULL, NULL, i32i64},    // i8
+    {i32i8, NULL, NULL, i32i64},   // i16
+    {i32i8, i32i16, NULL, i32i64}, // i32
+    {i32i8, i32i16, NULL, NULL},   // i64
 };
 
 static void cast(struct Type *from, struct Type *to) {
@@ -164,7 +164,8 @@ void gen(struct Node *node) {
         gen(node->then);
         printf("  jmp .Lend%d\n", number);
         printf(".Lelse%d:\n", number);
-        if (node->els) gen(node->els);
+        if (node->els)
+            gen(node->els);
         printf(".Lend%d:\n", number);
         return;
     }
@@ -392,68 +393,68 @@ void gen(struct Node *node) {
     pop("rax");
 
     switch (node->kind) {
-        case ND_ADD:
-            printf("  add rax, rdi\n");
-            break;
-        case ND_SUB:
-            printf("  sub rax, rdi\n");
-            break;
-        case ND_MUL:
-            printf("  imul rax, rdi\n");
-            break;
-        case ND_DIV:
-        case ND_MOD:
-            if (node->lhs->ty->size == 8) {
-                printf("  cqo\n");
-            } else {
-                printf("  cdq\n");
-            }
+    case ND_ADD:
+        printf("  add rax, rdi\n");
+        break;
+    case ND_SUB:
+        printf("  sub rax, rdi\n");
+        break;
+    case ND_MUL:
+        printf("  imul rax, rdi\n");
+        break;
+    case ND_DIV:
+    case ND_MOD:
+        if (node->lhs->ty->size == 8) {
             printf("  cqo\n");
-            printf("  idiv rdi\n");
+        } else {
+            printf("  cdq\n");
+        }
+        printf("  cqo\n");
+        printf("  idiv rdi\n");
 
-            if (node->kind == ND_MOD) {
-                printf("  mov rax, rdx\n");
-            }
-            break;
-        case ND_EQ:
-            printf("  cmp rax, rdi\n");
-            printf("  sete al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_NE:
-            printf("  cmp rax, rdi\n");
-            printf("  setne al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_LT:
-            printf("  cmp rax, rdi\n");
-            printf("  setl al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_LE:
-            printf("  cmp rax, rdi\n");
-            printf("  setle al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_BITOR:
-            printf("  or rax, rdi\n");
-            break;
-        case ND_BITXOR:
-            printf("  xor rax, rdi\n");
-            break;
-        case ND_BITAND:
-            printf("  and rax, rdi\n");
-            break;
-        case ND_SHL: {
-            printf("  mov rcx, rdi\n");
-            printf("  sal rax, cl\n");
-            break;
+        if (node->kind == ND_MOD) {
+            printf("  mov rax, rdx\n");
         }
-        case ND_SHR: {
-            printf("  mov rcx, rdi\n");
-            printf("  sar rax, cl\n");
-            break;
-        }
+        break;
+    case ND_EQ:
+        printf("  cmp rax, rdi\n");
+        printf("  sete al\n");
+        printf("  movzb rax, al\n");
+        break;
+    case ND_NE:
+        printf("  cmp rax, rdi\n");
+        printf("  setne al\n");
+        printf("  movzb rax, al\n");
+        break;
+    case ND_LT:
+        printf("  cmp rax, rdi\n");
+        printf("  setl al\n");
+        printf("  movzb rax, al\n");
+        break;
+    case ND_LE:
+        printf("  cmp rax, rdi\n");
+        printf("  setle al\n");
+        printf("  movzb rax, al\n");
+        break;
+    case ND_BITOR:
+        printf("  or rax, rdi\n");
+        break;
+    case ND_BITXOR:
+        printf("  xor rax, rdi\n");
+        break;
+    case ND_BITAND:
+        printf("  and rax, rdi\n");
+        break;
+    case ND_SHL: {
+        printf("  mov rcx, rdi\n");
+        printf("  sal rax, cl\n");
+        break;
+    }
+    case ND_SHR: {
+        printf("  mov rcx, rdi\n");
+        printf("  sar rax, cl\n");
+        break;
+    }
     }
 }
 
@@ -462,7 +463,7 @@ void codegen() {
 
     for (struct Object *obj = globals; obj; obj = obj->next) {
         assert(obj->is_global_variable);
-        if(!obj->is_definition) {
+        if (!obj->is_definition) {
             continue;
         }
         printf("  .globl %s\n", obj->name);
@@ -489,7 +490,8 @@ void codegen() {
     }
 
     for (struct Object *obj = functions; obj; obj = obj->next) {
-        if (obj->body == NULL) continue;
+        if (obj->body == NULL)
+            continue;
         assert(obj->is_function);
         printf("  .text\n");
         if (obj->is_static) {

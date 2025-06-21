@@ -1,0 +1,37 @@
+BasedOnStyle: LLVM
+
+# インデント設定
+IndentWidth: 4            # スペース幅
+TabWidth: 4
+UseTab: Never             # スペースを使う
+
+# 波カッコ（中括弧）のスタイル
+BreakBeforeBraces: Attach  # 開き中括弧を同じ行に
+
+# 関数の引数が長いときの改行
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+# インクルード順の自動整列
+IncludeBlocks: Regroup
+SortIncludes: true
+
+# 名前空間やクラス内での空行の管理
+EmptyLineBeforeAccessModifier: LogicalBlock  # public/private の前に空行
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# 引数・テンプレートのカンマの位置
+Cpp11BracedListStyle: true
+SpacesInAngles: false
+
+# コンストラクタやイニシャライザリストの改行
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+
+# スペースの使い方
+SpaceBeforeParens: ControlStatements    # if, while などの前にスペース
+SpaceInEmptyParentheses: false
+SpacesInConditionalStatement: false
+
+# コメント周り
+IndentWrappedFunctionNames: false
+AlignTrailingComments: true
