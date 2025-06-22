@@ -32,8 +32,6 @@ struct Node *switch_node = NULL;
 char *continue_label = NULL;
 char *break_label = NULL;
 
-int align_to(int n, int align) { return (n + align - 1) / align * align; }
-
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
@@ -269,11 +267,6 @@ struct Object *new_local_var(struct NameTag *tag) {
         struct Object *lvar = new_var(tag);
         lvar->next = locals;
         lvar->len = strlen(tag->name);
-        if (locals == NULL) {
-            lvar->offset = (int)tag->ty->size;
-        } else {
-            lvar->offset = locals->offset + (int)tag->ty->size;
-        }
         locals = lvar;
         return lvar;
     }
@@ -656,11 +649,7 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         fn->args = expand_func_params(tag->ty);
         token = skip(token, "{");
         fn->body = compound_stmt(&token, token);
-        if (locals)
-            fn->stack_size = locals->offset;
-        else
-            fn->stack_size = 0;
-        fn->stack_size = align_to(fn->stack_size + 8, 16);
+        fn->locals = locals;
         leave_scope();
         resolve_goto_labels();
     } else {
@@ -880,7 +869,7 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
         member->offset = offset;
         offset += member->ty->size;
         if (ty->align < member->align) {
-            ty->align = member->ty->align;
+            ty->align = member->align;
         }
     }
     ty->size = align_to(offset, ty->align);

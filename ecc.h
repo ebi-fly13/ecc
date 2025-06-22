@@ -107,6 +107,8 @@ struct Object {
     int stack_size;
 
     int align;
+
+    struct Object *locals;
 };
 
 extern struct Object *locals;
@@ -279,3 +281,4 @@ bool is_pointer(struct Type *);
 bool is_void(struct Type *);
 bool is_same_type(struct Type *, struct Type *);
 void add_type(struct Node *);
+int align_to(int n, int align);

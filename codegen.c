@@ -458,6 +458,16 @@ void gen(struct Node *node) {
     }
 }
 
+static void assign_lvar_offsets(struct Object *function) {
+    int offset = 0;
+    for (struct Object *var = function->locals; var != NULL; var = var->next) {
+        offset += var->ty->size;
+        offset = align_to(offset, var->align);
+        var->offset = offset;
+    }
+    function->stack_size = align_to(offset, 16);
+}
+
 void codegen() {
     printf(".intel_syntax noprefix\n");
 
@@ -493,6 +503,7 @@ void codegen() {
         if (obj->body == NULL)
             continue;
         assert(obj->is_function);
+        assign_lvar_offsets(obj);
         printf("  .text\n");
         if (obj->is_static) {
             printf("  .local %s\n", obj->name);

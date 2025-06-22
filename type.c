@@ -6,6 +6,8 @@ struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2, 2};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1, 1};
 struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0, 1};
 
+int align_to(int n, int align) { return (n + align - 1) / align * align; }
+
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
            ty->ty == TY_CHAR || ty->ty == TY_ENUM;
