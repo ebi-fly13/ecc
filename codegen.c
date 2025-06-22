@@ -467,7 +467,7 @@ void codegen() {
             continue;
         }
         printf("  .globl %s\n", obj->name);
-        printf("  .align %d\n", obj->ty->align);
+        printf("  .align %d\n", obj->align);
         if (obj->init_data) {
             printf("  .data\n");
             printf("%s:\n", obj->name);

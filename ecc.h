@@ -36,6 +36,8 @@ typedef enum {
     TK_SWITCH,   // switch
     TK_CASE,     // case
     TK_DEFAULT,  // default
+    TK_ALIGNOF,  // _Alignof
+    TK_ALIGNAS,  // _Alignas
 } TokenKind;
 
 struct Token {
@@ -103,6 +105,8 @@ struct Object {
     struct Node *body;
     struct Node *args;
     int stack_size;
+
+    int align;
 };
 
 extern struct Object *locals;
@@ -204,7 +208,7 @@ struct Node {
     struct Node *next_case;    // case
     struct Node *default_case; // default
 
-    struct Node *goto_next;    // goto
+    struct Node *goto_next; // goto
 };
 
 struct Node *new_node_cast(struct Node *, struct Type *);
@@ -219,6 +223,7 @@ struct Member {
     struct Type *ty;
     int offset;
     int index;
+    int align;
 
     struct Member *next;
 };

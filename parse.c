@@ -257,6 +257,7 @@ struct Object *new_var(struct NameTag *tag) {
     struct Object *var = calloc(1, sizeof(struct Object));
     var->name = tag->name;
     var->ty = tag->ty;
+    var->align = tag->ty->align;
     push_var_scope(var);
     return var;
 }
@@ -357,7 +358,8 @@ struct Node *struct_union_ref(struct Node *node, char *name) {
 bool is_typename(struct Token *token) {
     if (equal_keyword(token, TK_MOLD) || equal(token, "struct") ||
         equal(token, "union") || equal(token, "typedef") ||
-        equal(token, "static") || equal(token, "extern"))
+        equal(token, "static") || equal(token, "extern") ||
+        equal(token, "_Alignas"))
         return true;
     struct Type *ty = find_typedef(strndup(token->loc, token->len));
     return ty != NULL;
@@ -532,6 +534,7 @@ struct VarAttr {
     bool is_typedef;
     bool is_static;
     bool is_extern;
+    int align;
 };
 
 struct Object *program(struct Token *);
@@ -543,6 +546,7 @@ struct Type *struct_decl(struct Token **, struct Token *);
 struct Type *union_decl(struct Token **, struct Token *);
 struct Type *enum_specifier(struct Token **, struct Token *);
 struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
+struct Type *typename(struct Token **rest, struct Token *token);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
 struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
@@ -551,7 +555,10 @@ struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
 void typedef_decl(struct Token **, struct Token *, struct Type *);
-struct Node *declaration(struct Token **, struct Token *, struct Type *base_ty);
+struct Node *declaration(struct Token **,
+                         struct Token *,
+                         struct Type *base_ty,
+                         struct VarAttr *attr);
 struct Node *lvar_initializer(struct Token **, struct Token *, struct Object *);
 static void gvar_initializer(struct Token **, struct Token *, struct Object *);
 struct Node *expr_stmt(struct Token **, struct Token *);
@@ -561,7 +568,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node *bitor(struct Token **, struct Token *);
+struct Node * bitor (struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -676,7 +683,9 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
         struct Object *gvar = new_global_var(gvar_nametag);
         gvar->is_definition = !attr->is_extern;
-
+        if (attr->align) {
+            gvar->align = attr->align;
+        }
         if (equal(token, "=")) {
             token = skip(token, "=");
             gvar_initializer(&token, token, gvar);
@@ -720,7 +729,18 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             if (attr->is_typedef && (attr->is_static || attr->is_extern)) {
                 error("typedefはstaticやexternと同時に使えません");
             }
-            continue;
+        } else if (equal(token, "_Alignas")) {
+            if (attr == NULL) {
+                error("_Alignas is not allowed in this context");
+            }
+            token = skip(token, "_Alignas");
+            token = skip(token, "(");
+            if (is_typename(token)) {
+                attr->align = typename(&token, token)->align;
+            } else {
+                attr->align = const_expr(&token, token);
+            }
+            token = skip(token, ")");
         } else if (equal(token, "long")) {
             token = skip(token, "long");
             if ((counter & (LONG + LONG))) {
@@ -856,10 +876,10 @@ struct Type *struct_decl(struct Token **rest, struct Token *token) {
     int offset = 0;
     for (struct Member *member = ty->member; member != NULL;
          member = member->next) {
-        offset = align_to(offset, member->ty->align);
+        offset = align_to(offset, member->align);
         member->offset = offset;
         offset += member->ty->size;
-        if (ty->align < member->ty->align) {
+        if (ty->align < member->align) {
             ty->align = member->ty->align;
         }
     }
@@ -902,8 +922,8 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
         if (ty->size < member->ty->size) {
             ty->size = member->ty->size;
         }
-        if (ty->align < member->ty->align) {
-            ty->align = member->ty->align;
+        if (ty->align < member->align) {
+            ty->align = member->align;
         }
     }
     ty->size = align_to(ty->size, ty->align);
@@ -927,7 +947,8 @@ void struct_union_members(struct Token **rest,
     struct Member *cur = &head;
     int index = 0;
     while (!equal(token, "}")) {
-        struct Type *base_ty = declspec(&token, token, NULL);
+        struct VarAttr attr = {};
+        struct Type *base_ty = declspec(&token, token, &attr);
         bool is_first = true;
         while (!equal(token, ";")) {
             if (!is_first)
@@ -937,6 +958,7 @@ void struct_union_members(struct Token **rest,
             struct Member *member = calloc(1, sizeof(struct Member));
             member->name = tag->name;
             member->ty = tag->ty;
+            member->align = attr.align ? attr.align : tag->ty->align;
             member->index = index++;
             cur = cur->next = member;
         }
@@ -1155,7 +1177,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, "(");
         if (is_typename(token)) {
             struct Type *type = declspec(&token, token, NULL);
-            node->init = declaration(&token, token, type);
+            node->init = declaration(&token, token, type, NULL);
         } else {
             node->init = expr_stmt(&token, token);
         }
@@ -1273,7 +1295,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
             } else if (attr.is_typedef) {
                 typedef_decl(&token, token, base_ty);
             } else {
-                cur->next = declaration(&token, token, base_ty);
+                cur->next = declaration(&token, token, base_ty, &attr);
             }
         } else {
             cur->next = stmt(&token, token);
@@ -1293,8 +1315,10 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 declaration = (declarator ("=" lvar_initializer) ("," declarator "="
 lvar_initializer)* )? ";"
 */
-struct Node *
-declaration(struct Token **rest, struct Token *token, struct Type *base_ty) {
+struct Node *declaration(struct Token **rest,
+                         struct Token *token,
+                         struct Type *base_ty,
+                         struct VarAttr *attr) {
     struct Node head = {};
     struct Node *cur = &head;
     bool is_first = true;
@@ -1304,6 +1328,10 @@ declaration(struct Token **rest, struct Token *token, struct Type *base_ty) {
         is_first = false;
         struct NameTag *tag = declarator(&token, token, base_ty);
         struct Object *var = new_local_var(tag);
+
+        if (attr != NULL && attr->align) {
+            var->align = attr->align;
+        }
 
         if (equal(token, "=")) {
             token = skip(token, "=");
@@ -1844,9 +1872,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor(&token, token);
+    struct Node *node = bitor (&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
     }
     *rest = token;
     return node;
@@ -1855,7 +1883,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node *bitor(struct Token **rest, struct Token *token) {
+struct Node * bitor (struct Token * *rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));
@@ -2139,6 +2167,12 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         add_type(node);
         node = new_node_num(node->ty->size);
         *rest = token;
+    } else if (equal(token, "_Alignof")) {
+        token = skip(token, "_Alignof");
+        token = skip(token, "(");
+        struct Type *ty = typename(&token, token);
+        *rest = skip(token, ")");
+        return new_node_num(ty->align);
     } else if (token->kind == TK_IDENT) {
         if (equal(token->next, "(")) {
             node = funccall(&token, token);
