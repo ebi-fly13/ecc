@@ -674,6 +674,7 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
         struct Object *gvar = new_global_var(gvar_nametag);
         gvar->is_definition = !attr->is_extern;
+        gvar->is_static = attr->is_static;
         if (attr->align) {
             gvar->align = attr->align;
         }

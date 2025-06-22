@@ -5,6 +5,8 @@ int printf();
 
 int g1, g2[4];
 
+static int g3 = 3;
+
 int main() {
     ASSERT(3, ({ int a; a=3; a; }));
     ASSERT(3, ({ int a=3; a; }));
@@ -59,6 +61,8 @@ int main() {
     ASSERT(4, ({ char (x[3])[4]; sizeof(x[0]); }));
     ASSERT(3, ({ char *x[3]; char y; x[0]=&y; y=3; x[0][0]; }));
     ASSERT(4, ({ char x[3]; char (*y)[3]=x; y[0][0]=4; y[0][0]; }));
+
+    ASSERT(3, g3);
   
     printf("OK\n");
     return 0;

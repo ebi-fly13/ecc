@@ -482,7 +482,11 @@ void codegen() {
         if (!obj->is_definition) {
             continue;
         }
-        printf("  .globl %s\n", obj->name);
+        if (obj->is_static) {
+            printf("  .local %s\n", obj->name);
+        } else {
+            printf("  .globl %s\n", obj->name);
+        }
         printf("  .align %d\n", obj->align);
         if (obj->init_data) {
             printf("  .data\n");
