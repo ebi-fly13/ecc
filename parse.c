@@ -561,7 +561,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitor(struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -1316,6 +1316,17 @@ struct Node *declaration(struct Token **rest,
             token = skip(token, ",");
         is_first = false;
         struct NameTag *tag = declarator(&token, token, base_ty);
+
+        if (attr != NULL && attr->is_static) {
+            struct Object *var = new_anon_gvar(tag->ty);
+            push_scope(tag->name)->var = var;
+            if (equal(token, "=")) {
+                token = skip(token, "=");
+                gvar_initializer(&token, token, var);
+            }
+            continue;
+        }
+
         struct Object *var = new_local_var(tag);
 
         if (attr != NULL && attr->align) {
@@ -1861,9 +1872,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = bitor(&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
     }
     *rest = token;
     return node;
@@ -1872,7 +1883,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node * bitor (struct Token * *rest, struct Token *token) {
+struct Node *bitor(struct Token **rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));

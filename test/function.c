@@ -62,6 +62,18 @@ void swap(int *a, int *b) {
     return;
 }
 
+int static_variable() {
+    static int a = 0;
+    a++;
+    return a;
+}
+
+int counter() {
+  static int i;
+  static int j = 1+1;
+  return i++ + j++;
+}
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -88,7 +100,14 @@ int main() {
 
     ASSERT(3, ({ int x[2]; x[0] = 3; param_decay(x); }));
 
-    f(); 
+    f();
+
+    ASSERT(1, static_variable());
+    ASSERT(2, static_variable());
+
+    ASSERT(2, counter());
+    ASSERT(4, counter());
+    ASSERT(6, counter());
 
     printf("OK\n");
     return 0;
