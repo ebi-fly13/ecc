@@ -87,6 +87,10 @@ void gen_lval(struct Node *node) {
         gen_lval(node->lhs);
         printf("  add rax, %d\n", node->member->offset);
         return;
+    case ND_COMMA:
+        gen(node->lhs);
+        gen_lval(node->rhs);
+        return;
     }
     error("代入の左辺値が変数でありません");
 }
@@ -300,6 +304,8 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_ASSIGN) {
+        add_type(node);
+
         gen_lval(node->lhs);
         push();
         gen(node->rhs);

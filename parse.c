@@ -32,6 +32,8 @@ struct Node *switch_node = NULL;
 char *continue_label = NULL;
 char *break_label = NULL;
 
+static bool is_global_scope() { return scope->next == NULL; }
+
 struct Node *new_node(NodeKind kind) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->kind = kind;
@@ -2014,9 +2016,16 @@ cast = "(" typename ")" cast | unary
 */
 struct Node *cast(struct Token **rest, struct Token *token) {
     if (equal(token, "(") && is_typename(token->next)) {
+        struct Token *start = token;
         token = skip(token, "(");
         struct Type *ty = typename(&token, token);
         token = skip(token, ")");
+
+        // compound literal
+        if (equal(token, "{")) {
+            return unary(rest, start);
+        }
+
         struct Node *node = new_node_cast(cast(&token, token), ty);
         *rest = token;
         return node;
@@ -2066,9 +2075,29 @@ new_node_inc_dec(struct Node *node, struct Token *token, int addend) {
 }
 
 /*
-postfix = primary ( "[" expr "]" | "." ident | "->" ident | "++" | "--")*
+postfix = "(" typename ")" "{" initialize-list "}" | primary ( "[" expr "]" |
+"." ident | "->" ident | "++" | "--")*
 */
 struct Node *postfix(struct Token **rest, struct Token *token) {
+    if (equal(token, "(") && is_typename(token->next)) {
+        token = skip(token, "(");
+        struct Type *ty = typename(&token, token);
+        token = skip(token, ")");
+
+        if (is_global_scope()) {
+            struct Object *var = new_anon_gvar(ty);
+            gvar_initializer(rest, token, var);
+            return new_node_var(var);
+        } else {
+            struct NameTag tag = {NULL, "", ty};
+            tag.ty = ty;
+            struct Object *var = new_local_var(&tag);
+            struct Node *lhs = lvar_initializer(rest, token, var);
+            struct Node *rhs = new_node_var(var);
+            return new_node_binary(ND_COMMA, lhs, rhs);
+        }
+    }
+
     struct Node *node = primary(&token, token);
     while (true) {
         if (equal(token, "[")) {
