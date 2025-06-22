@@ -6,3 +6,4 @@ tmp*
 a.out
 ecc
 .gdb_history
+.vscode
