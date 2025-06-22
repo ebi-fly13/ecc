@@ -1266,7 +1266,11 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
         if (is_typename(token) && !equal(token->next, ":")) {
             struct VarAttr attr = {};
             struct Type *base_ty = declspec(&token, token, &attr);
-            if (attr.is_typedef) {
+            if (is_function(token)) {
+                token = function(token, base_ty, &attr);
+            } else if (attr.is_extern) {
+                token = global_variable(token, base_ty, &attr);
+            } else if (attr.is_typedef) {
                 typedef_decl(&token, token, base_ty);
             } else {
                 cur->next = declaration(&token, token, base_ty);
