@@ -444,6 +444,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "do") && !is_alnum(p[2])) {
+            cur = new_token(TK_DO, cur, p, 2);
+            p += 2;
+            continue;
+        }
+
         if (startswith(p, "_Alignof") && !is_alnum(p[8])) {
             cur = new_token(TK_ALIGNOF, cur, p, 8);
             p += 8;

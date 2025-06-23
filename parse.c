@@ -563,7 +563,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node *bitor(struct Token **, struct Token *);
+struct Node * bitor (struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -1125,7 +1125,8 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
 "goto" ident ";"  | ident ":" stmt | "break" ";" | "switch" "(" expr ")" stmt |
-"case" const_expr ":" stmt | "default" ":" stmt | expr-stmt
+"case" const_expr ":" stmt | "default" ":" stmt | "do" stmt "while" "(" expr ")"
+";" | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -1258,6 +1259,25 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         node->lhs = stmt(&token, token);
 
         switch_node->default_case = node;
+    } else if (equal_keyword(token, TK_DO)) {
+        token = skip(token, "do");
+        node = new_node(ND_DO);
+
+        char *current_break_label = break_label;
+        char *current_continue_label = continue_label;
+
+        break_label = node->break_label = new_unique_name();
+        continue_label = node->continue_label = new_unique_name();
+        node->then = stmt(&token, token);
+
+        break_label = current_break_label;
+        continue_label = current_continue_label;
+
+        token = skip(token, "while");
+        token = skip(token, "(");
+        node->cond = expr(&token, token);
+        token = skip(token, ")");
+        token = skip(token, ";");
     } else if (equal(token, "{")) {
         node = compound_stmt(&token, token->next);
     } else {
@@ -1875,9 +1895,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor(&token, token);
+    struct Node *node = bitor (&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
     }
     *rest = token;
     return node;
@@ -1886,7 +1906,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node *bitor(struct Token **rest, struct Token *token) {
+struct Node * bitor (struct Token * *rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));

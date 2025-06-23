@@ -36,6 +36,7 @@ typedef enum {
     TK_SWITCH,   // switch
     TK_CASE,     // case
     TK_DEFAULT,  // default
+    TK_DO,       // do
     TK_ALIGNOF,  // _Alignof
     TK_ALIGNAS,  // _Alignas
 } TokenKind;
@@ -167,6 +168,7 @@ typedef enum {
     ND_CONTINUE,    // continue
     ND_SWITCH,      // switch
     ND_CASE,        // case
+    ND_DO,          // do
     ND_DUMMY,       // ダミー
     ND_BLOCK,       // block
     ND_FUNCALL,     // function call

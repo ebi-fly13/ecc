@@ -390,6 +390,18 @@ void gen(struct Node *node) {
         return;
     }
 
+    if (node->kind == ND_DO) {
+        int number = label++;
+        printf(".L.begin.%d:\n", number);
+        gen(node->then);
+        printf("%s:\n", node->continue_label);
+        gen(node->cond);
+        printf("  cmp rax, 0\n");
+        printf("  jne .L.begin.%d\n", number);
+        printf("%s:\n", node->break_label);
+        return;
+    }
+
     gen(node->lhs);
     push();
     gen(node->rhs);

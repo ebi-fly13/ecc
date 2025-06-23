@@ -72,5 +72,8 @@ int main() {
   ASSERT(-2, 1?(long)-2:-1);
   ASSERT(-2, 1?-2:(long)-1);
 
+  ASSERT(7, ({ int i=0; int j=0; do { j++; } while (i++ < 6); j; }));
+  ASSERT(4, ({ int i=0; int j=0; int k=0; do { if (++j > 3) break; continue; k++; } while (1); j; }));
+
   return 0;
 }
