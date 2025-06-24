@@ -74,6 +74,11 @@ int counter() {
   return i++ + j++;
 }
 
+_Bool true_fn() { return 513; }
+_Bool false_fn() { return 512; }
+char char_fn() { return (2 << 8) + 3; }
+short short_fn() { return (2 << 16) + 5; }
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -108,6 +113,11 @@ int main() {
     ASSERT(2, counter());
     ASSERT(4, counter());
     ASSERT(6, counter());
+
+    ASSERT(1, true_fn());
+    ASSERT(0, false_fn());
+    ASSERT(3, char_fn());
+    ASSERT(5, short_fn());
 
     printf("OK\n");
     return 0;

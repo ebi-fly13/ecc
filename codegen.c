@@ -297,6 +297,16 @@ void gen(struct Node *node) {
         printf("  add rsp, 8\n");
         printf("  mov rsp, [rsp]\n");
 
+        switch (node->obj->ty->return_ty->ty) {
+        case TY_BOOL:
+        case TY_CHAR:
+            printf("  movzx eax, al\n");
+            break;
+        case TY_SHORT:
+            printf("  movzx eax, ax\n");
+            break;
+        }
+
         return;
     }
 
