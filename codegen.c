@@ -303,7 +303,7 @@ void gen(struct Node *node) {
             printf("  movzx eax, al\n");
             break;
         case TY_SHORT:
-            printf("  movzx eax, ax\n");
+            printf("  movsx eax, ax\n");
             break;
         }
 
