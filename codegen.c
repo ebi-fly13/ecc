@@ -58,6 +58,13 @@ void store(struct Type *ty) {
         return;
     }
 
+    if (ty->ty == TY_BOOL) {
+        printf("  cmp eax, 0\n");
+        printf("  setne al\n");
+        printf("  mov [rdi], al\n");
+        return;
+    }
+
     if (ty->size == 1)
         printf("  mov [rdi], al\n");
     else if (ty->size == 2)
@@ -123,6 +130,13 @@ static char *cast_table[][10] = {
 
 static void cast(struct Type *from, struct Type *to) {
     if (to->ty == TY_VOID) {
+        return;
+    }
+
+    if (to->ty == TY_BOOL) {
+        printf("  cmp eax, 0\n");
+        printf("  setne al\n");
+        printf("  movsx eax, al\n");
         return;
     }
     int from_id = get_type_id(from);

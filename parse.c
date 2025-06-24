@@ -687,18 +687,19 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
 }
 
 /*
-declspec = ("long" | "int" | "short" | "char" | "typedef" | typedef_type )+ |
-struct_decl | union_decl | enum_specifier
+declspec = ("long" | "int" | "short" | "char" | "_Bool" | "void" | "typedef" |
+typedef_type )+ | struct_decl | union_decl | enum_specifier
 */
 struct Type *
 declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     enum {
         VOID = 1 << 0,
-        CHAR = 1 << 2,
-        SHORT = 1 << 4,
-        INT = 1 << 6,
-        LONG = 1 << 8,
-        OTHER = 1 << 10,
+        BOOL = 1 << 2,
+        CHAR = 1 << 4,
+        SHORT = 1 << 6,
+        INT = 1 << 8,
+        LONG = 1 << 10,
+        OTHER = 1 << 12,
     };
     int counter = 0;
     while (is_typename(token)) {
@@ -757,6 +758,12 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
                 error("charが2重になっています");
             }
             counter += CHAR;
+        } else if (equal(token, "_Bool")) {
+            token = skip_keyword(token, TK_MOLD);
+            if (counter & BOOL) {
+                error("boolが2重になっています");
+            }
+            counter += BOOL;
         } else if (equal(token, "void")) {
             token = skip(token, "void");
             if (counter & VOID) {
@@ -788,6 +795,9 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     switch (counter) {
     case VOID:
         ty = ty_void;
+        break;
+    case BOOL:
+        ty = ty_bool;
         break;
     case CHAR:
         ty = ty_char;

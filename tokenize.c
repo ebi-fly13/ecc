@@ -360,6 +360,12 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "_Bool") && !is_alnum(p[5])) {
+            cur = new_token(TK_MOLD, cur, p, 5);
+            p += 5;
+            continue;
+        }
+
         if (startswith(p, "void") && !is_alnum(p[4])) {
             cur = new_token(TK_MOLD, cur, p, 4);
             p += 4;
