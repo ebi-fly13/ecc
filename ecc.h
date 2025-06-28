@@ -119,6 +119,7 @@ extern struct Object *functions;
 extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
+void error_at(char *, char *,...);
 
 long get_number(struct Token *);
 struct Token *skip(struct Token *, char *);

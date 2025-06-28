@@ -6,7 +6,7 @@ TEST_SRCS=$(wildcard test/*.c)
 TESTS=$(TEST_SRCS:.c=.exe)
 
 ecc: $(OBJS)
-		$(CC) -o ecc $(OBJS) $(LDFLAGS)
+		$(CC) -o ecc $(OBJS) $(LDFLAGS) -xc error
 
 $(OBJS): ecc.h
 
@@ -19,8 +19,27 @@ test/%.exe: ecc test/%.c
 test: $(TESTS)
 		for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 
+# Stage 2
+
+stage2/ecc: $(OBJS:%=stage2/%)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+stage2/%.s: ecc self.py %.c
+	mkdir -p stage2
+	python3 self.py ecc.h $*.c > stage2/$*.c
+	./ecc stage2/$*.c > stage2/$*.s
+
+stage2/test/%.exe: stage2/ecc test/%.c
+	mkdir -p stage2/test
+	$(CC) -o- -E -P -C test/$*.c | ./stage2/ecc -o stage2/test/$*.s -
+	$(CC) -o $@ stage2/test/$*.s -xc test/common
+
+test-stage2: $(TESTS:test/%=stage2/test/%)
+	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+
 clean:
-		rm -f ecc *.o *~ tmp*
+		rm -f ecc *.o
 		rm -f test/*.s test/*.o test/*.exe test/_*
+		rm -rf stage2
 
 .PHONY: test clean
