@@ -633,6 +633,9 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
     tag = func_params(&token, token, tag);
+    if(tag->name == NULL) {
+        error("function name omit");
+    }
     struct Object *fn = find_object(functions, tag->name);
     if (fn == NULL) {
         fn = new_func(tag);
@@ -672,6 +675,9 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         else
             is_first = false;
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
+        if(gvar_nametag->name == NULL) {
+            error("variable name omit");
+        }
         struct Object *gvar = new_global_var(gvar_nametag);
         gvar->is_definition = !attr->is_extern;
         gvar->is_static = attr->is_static;
