@@ -563,7 +563,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitor(struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -1119,6 +1119,11 @@ struct NameTag *func_params(struct Token **rest,
         }
     }
     *rest = skip(token, ")");
+
+    if (cur == &head) {
+        is_variadic = true;
+    }
+
     struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
     fn->ty = func_to(return_tag->ty, head.next);
     fn->ty->is_variadic = is_variadic;
@@ -1914,9 +1919,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = bitor(&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
     }
     *rest = token;
     return node;
@@ -1925,7 +1930,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node * bitor (struct Token * *rest, struct Token *token) {
+struct Node *bitor(struct Token **rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));
@@ -2182,7 +2187,7 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 }
 
 /*
-funcall = ident "(" (assign ("," assign)*)? ")"
+funccall = ident "(" (assign ("," assign)*)? ")"
 */
 struct Node *funccall(struct Token **rest, struct Token *token) {
     assert(token->kind == TK_IDENT);
@@ -2197,13 +2202,34 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
     node->obj = func;
     struct Node head = {};
     struct Node *cur = &head;
+    struct NameTag *param_tag = func->ty->params;
     assert(equal(token, "("));
     token = skip(token, "(");
     while (!equal(token, ")")) {
         if (cur != &head)
             token = skip(token, ",");
-        cur = cur->next = assign(&token, token);
+        struct Node *arg = assign(&token, token);
+
+        if (param_tag == NULL && !func->ty->is_variadic) {
+            error("too many arguments");
+        }
+
+        if (param_tag != NULL) {
+            if (param_tag->ty->ty == TY_STRUCT ||
+                param_tag->ty->ty == TY_UNION) {
+                error("struct and union is not supported for function params "
+                      "yet.");
+            }
+            arg = new_node_cast(arg, param_tag->ty);
+            param_tag = param_tag->next;
+        }
+        cur = cur->next = arg;
     }
+
+    if (param_tag != NULL) {
+        error("few arguments");
+    }
+
     node->args = head.next;
     *rest = token->next;
     return node;
