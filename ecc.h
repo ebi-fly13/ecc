@@ -261,6 +261,7 @@ struct Type {
     // for function type
     struct Type *return_ty;
     struct NameTag *params;
+    bool is_variadic;
 
     // for struct
     struct Member *member;

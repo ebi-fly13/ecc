@@ -79,6 +79,8 @@ _Bool false_fn() { return 512; }
 char char_fn() { return (2 << 8) + 3; }
 short short_fn() { return (2 << 16) + 5; }
 
+int add_all(int n, ...);
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -118,6 +120,9 @@ int main() {
     ASSERT(0, false_fn());
     ASSERT(3, char_fn());
     ASSERT(5, short_fn());
+
+    ASSERT(15, add_all(5,1,2,3,4,5));
+    ASSERT(5, add_all(4,1,2,3,-1));
 
     printf("OK\n");
     return 0;

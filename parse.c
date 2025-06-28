@@ -1090,13 +1090,14 @@ array_dimensions(struct Token **rest, struct Token *token, struct Type *ty) {
 }
 
 /*
-func_params = ("void" | param ("," param )? )? ")"
+func_params = ("void" | param ("," param )* ("," "...")?)? ")"
 */
 struct NameTag *func_params(struct Token **rest,
                             struct Token *token,
                             struct NameTag *return_tag) {
     struct NameTag head = {};
     struct NameTag *cur = &head;
+    bool is_variadic = false;
 
     if (equal(token, "void") && equal(token->next, ")")) {
         token = skip(token, "void");
@@ -1104,7 +1105,14 @@ struct NameTag *func_params(struct Token **rest,
         while (!equal(token, ")")) {
             if (cur != &head) {
                 token = skip(token, ",");
+
+                if (equal(token, "...")) {
+                    is_variadic = true;
+                    token = skip(token, "...");
+                    break;
+                }
             }
+
             struct NameTag *tag = param(&token, token);
             cur->next = tag;
             cur = tag;
@@ -1113,6 +1121,7 @@ struct NameTag *func_params(struct Token **rest,
     *rest = skip(token, ")");
     struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
     fn->ty = func_to(return_tag->ty, head.next);
+    fn->ty->is_variadic = is_variadic;
     fn->name = return_tag->name;
     return fn;
 }
