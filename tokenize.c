@@ -130,7 +130,7 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
     } else if (*p == '0') {
         base = 8;
     }
-    long val = strtol(p, &p, base);
+    unsigned long val = strtoul(p, &p, base);
 
     if (isalnum(*p)) {
         error_at(p, "invalid digit");

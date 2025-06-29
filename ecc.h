@@ -119,7 +119,7 @@ extern struct Object *functions;
 extern struct Token *token;
 extern char *user_input;
 void error(char *, ...);
-void error_at(char *, char *,...);
+void error_at(char *, char *, ...);
 
 long get_number(struct Token *);
 struct Token *skip(struct Token *, char *);
@@ -255,6 +255,7 @@ struct Type {
     int array_size;
     int size;
     int align;
+    bool is_unsigned;
     char *name;
 
     bool is_flexible;
@@ -274,6 +275,10 @@ extern struct Type *ty_short;
 extern struct Type *ty_char;
 extern struct Type *ty_bool;
 extern struct Type *ty_void;
+extern struct Type *ty_ulong;
+extern struct Type *ty_uint;
+extern struct Type *ty_ushort;
+extern struct Type *ty_uchar;
 
 struct Type *pointer_to(struct Type *);
 struct Type *array_to(struct Type *, int);

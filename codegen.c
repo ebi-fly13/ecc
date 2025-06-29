@@ -36,12 +36,15 @@ void load(struct Type *ty) {
     if (ty->ty == TY_ARRAY || ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
         return;
     }
+
+    char *instruction = ty->is_unsigned ? "movz" : "movs";
+
     if (ty->size == 1)
-        printf("  movsbq rax, [rax]\n");
+        printf("  %sx rax, byte ptr [rax]\n", instruction);
     else if (ty->size == 2)
-        printf("  movswq rax, [rax]\n");
+        printf("  %sx rax, word ptr [rax]\n", instruction);
     else if (ty->size == 4)
-        printf("  movsxd rax, [rax]\n");
+        printf("  %sxd rax, dword ptr [rax]\n", instruction);
     else
         printf("  mov rax, [rax]\n");
     return;
@@ -102,30 +105,49 @@ void gen_lval(struct Node *node) {
     error("代入の左辺値が変数でありません");
 }
 
+enum {
+    I8,
+    I16,
+    I32,
+    I64,
+    UI8,
+    UI16,
+    UI32,
+    UI64,
+};
+
 int get_type_id(struct Type *ty) {
     switch (ty->ty) {
     case TY_CHAR:
-        return 0;
+        return ty->is_unsigned ? UI8 : I8;
     case TY_SHORT:
-        return 1;
+        return ty->is_unsigned ? UI16 : I16;
     case TY_INT:
-        return 2;
+        return ty->is_unsigned ? UI32 : I32;
     case TY_LONG:
-        return 3;
+        return ty->is_unsigned ? UI64 : I64;
     default:
-        return 4;
+        return UI64;
     }
 }
 
 static char i32i8[] = "movsx eax, al";
 static char i32i16[] = "movsx eax, ax";
-static char i32i64[] = "movsx rax, eax";
+static char i32i64[] = "movsxd rax, eax";
+
+static char i32u8[] = "movzx eax, al";
+static char i32u16[] = "movzx eax, ax";
+static char u32i64[] = "mov eax, eax";
 
 static char *cast_table[][10] = {
-    {NULL, NULL, NULL, i32i64},    // i8
-    {i32i8, NULL, NULL, i32i64},   // i16
-    {i32i8, i32i16, NULL, i32i64}, // i32
-    {i32i8, i32i16, NULL, NULL},   // i64
+    {NULL, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},    // i8
+    {i32i8, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},   // i16
+    {i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64}, // i32
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},     // i64
+    {i32i8, NULL, NULL, i32i64, NULL, NULL, NULL, i32i64},      // u8
+    {i32i8, i32i16, NULL, i32i64, i32u8, NULL, NULL, i32i64},   // u16
+    {i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64}, // u32
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},     // u64
 };
 
 static void cast(struct Type *from, struct Type *to) {
@@ -134,9 +156,13 @@ static void cast(struct Type *from, struct Type *to) {
     }
 
     if (to->ty == TY_BOOL) {
-        printf("  cmp eax, 0\n");
+        if (is_integer(from) && from->size <= 4) {
+            printf("  cmp eax, 0\n");
+        } else {
+            printf("  cmp rax, 0\n");
+        }
         printf("  setne al\n");
-        printf("  movsx eax, al\n");
+        printf("  movzx eax, al\n");
         return;
     }
     int from_id = get_type_id(from);
@@ -300,10 +326,18 @@ void gen(struct Node *node) {
         switch (node->obj->ty->return_ty->ty) {
         case TY_BOOL:
         case TY_CHAR:
-            printf("  movzx eax, al\n");
+            if (node->obj->ty->is_unsigned) {
+                printf("  movsx eax, al\n");
+            } else {
+                printf("  movzx eax, al\n");
+            }
             break;
         case TY_SHORT:
-            printf("  movsx eax, ax\n");
+            if (node->obj->ty->is_unsigned) {
+                printf("  movzx eax, ax\n");
+            } else {
+                printf("  movsx eax, ax\n");
+            }
             break;
         }
 
@@ -434,48 +468,74 @@ void gen(struct Node *node) {
     pop("rdi");
     pop("rax");
 
+    add_type(node);
+
+    char *ax, *di, *dx;
+
+    if (node->lhs->ty->ty == TY_LONG || node->lhs->ty->ptr_to != NULL) {
+        ax = "rax";
+        di = "rdi";
+        dx = "rdx";
+    } else {
+        ax = "eax";
+        di = "edi";
+        dx = "edx";
+    }
+
     switch (node->kind) {
     case ND_ADD:
-        printf("  add rax, rdi\n");
+        printf("  add %s, %s\n", ax, di);
         break;
     case ND_SUB:
-        printf("  sub rax, rdi\n");
+        printf("  sub %s, %s\n", ax, di);
         break;
     case ND_MUL:
-        printf("  imul rax, rdi\n");
+        printf("  imul %s, %s\n", ax, di);
         break;
     case ND_DIV:
     case ND_MOD:
-        if (node->lhs->ty->size == 8) {
-            printf("  cqo\n");
+        if (node->ty->is_unsigned) {
+            printf("  mov %s, 0\n", dx);
+            printf("  div %s\n", di);
         } else {
-            printf("  cdq\n");
+            if (node->lhs->ty->size == 8) {
+                printf("  cqo\n");
+            } else {
+                printf("  cdq\n");
+            }
+            printf("  idiv %s\n", di);
         }
-        printf("  cqo\n");
-        printf("  idiv rdi\n");
 
         if (node->kind == ND_MOD) {
             printf("  mov rax, rdx\n");
         }
         break;
     case ND_EQ:
-        printf("  cmp rax, rdi\n");
+        printf("  cmp %s, %s\n", ax, di);
         printf("  sete al\n");
         printf("  movzb rax, al\n");
         break;
     case ND_NE:
-        printf("  cmp rax, rdi\n");
+        printf("  cmp %s, %s\n", ax, di);
         printf("  setne al\n");
         printf("  movzb rax, al\n");
         break;
     case ND_LT:
-        printf("  cmp rax, rdi\n");
-        printf("  setl al\n");
+        printf("  cmp %s, %s\n", ax, di);
+        if (node->lhs->ty->is_unsigned) {
+            printf("  setb al\n");
+        } else {
+            printf("  setl al\n");
+        }
         printf("  movzb rax, al\n");
         break;
     case ND_LE:
-        printf("  cmp rax, rdi\n");
-        printf("  setle al\n");
+        printf("  cmp %s, %s\n", ax, di);
+        if (node->lhs->ty->is_unsigned) {
+            printf("  setbe al\n");
+        } else {
+            printf("  setle al\n");
+        }
         printf("  movzb rax, al\n");
         break;
     case ND_BITOR:
@@ -489,14 +549,20 @@ void gen(struct Node *node) {
         break;
     case ND_SHL: {
         printf("  mov rcx, rdi\n");
-        printf("  sal rax, cl\n");
+        printf("  sal %s, cl\n", ax);
         break;
     }
     case ND_SHR: {
         printf("  mov rcx, rdi\n");
-        printf("  sar rax, cl\n");
+        if (node->lhs->ty->is_unsigned) {
+            printf("  shr %s, cl\n", ax);
+        } else {
+            printf("  sar %s, cl\n", ax);
+        }
         break;
     }
+    default:
+        error("unreached");
     }
 }
 

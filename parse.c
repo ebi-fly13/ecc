@@ -100,7 +100,9 @@ struct Node *new_node_add(struct Node *lhs, struct Node *rhs) {
         rhs = buff;
     }
 
-    rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->ptr_to->size));
+    rhs = new_node_binary(
+        ND_MUL, rhs,
+        new_node_cast(new_node_num(lhs->ty->ptr_to->size), ty_long));
 
     return new_node_binary(ND_ADD, lhs, rhs);
 }
@@ -118,7 +120,9 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     }
 
     if (is_pointer(lhs->ty) && is_integer(rhs->ty)) {
-        rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->ptr_to->size));
+        rhs = new_node_binary(
+            ND_MUL, rhs,
+            new_node_cast(new_node_num(lhs->ty->ptr_to->size), ty_long));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
@@ -586,7 +590,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node *bitor(struct Token **, struct Token *);
+struct Node * bitor (struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -841,16 +845,27 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     case SIGNED + CHAR:
         ty = ty_char;
         break;
+    case UNSIGNED + CHAR:
+        ty = ty_uchar;
+        break;
     case SHORT:
     case SHORT + INT:
     case SIGNED + SHORT:
     case SIGNED + SHORT + INT:
         ty = ty_short;
         break;
+    case UNSIGNED + SHORT:
+    case UNSIGNED + SHORT + INT:
+        ty = ty_ushort;
+        break;
     case INT:
     case SIGNED:
     case SIGNED + INT:
         ty = ty_int;
+        break;
+    case UNSIGNED:
+    case UNSIGNED + INT:
+        ty = ty_uint;
         break;
     case LONG:
     case LONG + INT:
@@ -861,6 +876,12 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     case SIGNED + LONG + LONG:
     case SIGNED + LONG + LONG + INT:
         ty = ty_long;
+        break;
+    case UNSIGNED + LONG:
+    case UNSIGNED + LONG + INT:
+    case UNSIGNED + LONG + LONG:
+    case UNSIGNED + LONG + LONG + INT:
+        ty = ty_ulong;
         break;
     default:
         if (attr != NULL && attr->is_typedef) {
@@ -1966,9 +1987,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor(&token, token);
+    struct Node *node = bitor (&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
     }
     *rest = token;
     return node;
@@ -1977,7 +1998,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node *bitor(struct Token **rest, struct Token *token) {
+struct Node * bitor (struct Token * *rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));

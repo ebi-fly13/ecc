@@ -7,6 +7,11 @@ struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1, 1};
 struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0, 1};
 struct Type *ty_bool = &(struct Type){TY_BOOL, NULL, 0, 1, 1};
 
+struct Type *ty_ulong = &(struct Type){TY_LONG, NULL, 0, 8, 8, true};
+struct Type *ty_uint = &(struct Type){TY_INT, NULL, 0, 4, 4, true};
+struct Type *ty_ushort = &(struct Type){TY_SHORT, NULL, 0, 2, 2, true};
+struct Type *ty_uchar = &(struct Type){TY_CHAR, NULL, 0, 1, 1, true};
+
 int align_to(int n, int align) { return (n + align - 1) / align * align; }
 
 bool is_integer(struct Type *ty) {
@@ -93,16 +98,21 @@ struct Type *get_common_type(struct Type *lhs, struct Type *rhs) {
     if (lhs->ptr_to) {
         return pointer_to(lhs->ptr_to);
     }
-    if (lhs->size == 8 || rhs->size == 8) {
-        return ty_long;
-    } else if (lhs->size == 4 || rhs->size == 4) {
-        return ty_int;
-    } else if (lhs->size == 2 || rhs->size == 2) {
-        return ty_short;
-    } else if (lhs->size == 1 || rhs->size == 1) {
-        return ty_char;
+
+    if (lhs->size < 4) {
+        lhs = ty_int;
+    }
+    if (rhs->size < 4) {
+        rhs = ty_int;
+    }
+
+    if (lhs->size != rhs->size) {
+        return (lhs->size > rhs->size) ? lhs : rhs;
+    }
+    if (rhs->is_unsigned) {
+        return rhs;
     } else {
-        assert(0);
+        return lhs;
     }
 }
 
@@ -139,6 +149,9 @@ void add_type(struct Node *node) {
     }
 
     switch (node->kind) {
+    case ND_NUM:
+        node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
+        return;
     case ND_ADD:
     case ND_SUB:
     case ND_MUL:
@@ -162,7 +175,7 @@ void add_type(struct Node *node) {
     case ND_NE:
     case ND_LT:
     case ND_LE:
-    case ND_NUM:
+        usual_arith_conv(&node->lhs, &node->rhs);
         node->ty = ty_int;
         return;
     case ND_ADDR:
