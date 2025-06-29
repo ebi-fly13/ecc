@@ -723,7 +723,9 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
         SHORT = 1 << 6,
         INT = 1 << 8,
         LONG = 1 << 10,
-        OTHER = 1 << 12,
+        SIGNED = 1 << 12,
+        UNSIGNED = 1 << 14,
+        OTHER = 1 << 16,
     };
     int counter = 0;
     while (is_typename(token)) {
@@ -794,6 +796,18 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
                 error("voidが2重になっています");
             }
             counter += VOID;
+        } else if (equal(token, "signed")) {
+            token = skip(token, "signed");
+            if (counter & SIGNED) {
+                error("signedが2重になっています");
+            }
+            counter += SIGNED;
+        } else if (equal(token, "unsigned")) {
+            token = skip(token, "unsigned");
+            if (counter & UNSIGNED) {
+                error("unsignedが2重になっています");
+            }
+            counter += UNSIGNED;
         } else if (equal(token, "struct")) {
             assert(counter == 0);
             struct Type *ty = struct_decl(rest, token->next);
@@ -824,19 +838,28 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
         ty = ty_bool;
         break;
     case CHAR:
+    case SIGNED + CHAR:
         ty = ty_char;
         break;
     case SHORT:
     case SHORT + INT:
+    case SIGNED + SHORT:
+    case SIGNED + SHORT + INT:
         ty = ty_short;
         break;
     case INT:
+    case SIGNED:
+    case SIGNED + INT:
         ty = ty_int;
         break;
     case LONG:
     case LONG + INT:
     case LONG + LONG:
     case LONG + LONG + INT:
+    case SIGNED + LONG:
+    case SIGNED + LONG + INT:
+    case SIGNED + LONG + LONG:
+    case SIGNED + LONG + LONG + INT:
         ty = ty_long;
         break;
     default:

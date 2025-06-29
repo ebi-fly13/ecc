@@ -33,6 +33,27 @@ int main() {
     ASSERT(8, sizeof(int(*)[10]));
     ASSERT(8, sizeof(int(*)[][10]));
 
+    ASSERT(1, sizeof(char));
+    ASSERT(1, sizeof(signed char));
+
+    ASSERT(2, sizeof(short));
+    ASSERT(2, sizeof(int short));
+    ASSERT(2, sizeof(short int));
+    ASSERT(2, sizeof(signed short));
+    ASSERT(2, sizeof(int short signed));
+
+    ASSERT(4, sizeof(int));
+    ASSERT(4, sizeof(signed int));
+    ASSERT(4, sizeof(signed));
+
+    ASSERT(8, sizeof(long));
+    ASSERT(8, sizeof(signed long));
+    ASSERT(8, sizeof(signed long int));
+
+    ASSERT(8, sizeof(long long));
+    ASSERT(8, sizeof(signed long long));
+    ASSERT(8, sizeof(signed long long int));
+
     printf("OK\n");
     return 0;
 }

@@ -336,6 +336,18 @@ struct Token *tokenize(char *p) {
             continue;
         }
 
+        if (startswith(p, "signed") && !is_alnum(p[6])) {
+            cur = new_token(TK_MOLD, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
+        if (startswith(p, "unsigned") && !is_alnum(p[8])) {
+            cur = new_token(TK_MOLD, cur, p, 8);
+            p += 8;
+            continue;
+        }
+
         if (startswith(p, "sizeof") && !is_alnum(p[6])) {
             cur = new_token(TK_SIZEOF, cur, p, 6);
             p += 6;
