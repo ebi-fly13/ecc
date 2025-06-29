@@ -5,6 +5,10 @@ int printf();
 
 extern int ext1;
 extern int *ext2;
+extern int a;
+int a = 1;
+int b = 2;
+extern int b;
 
 int main() {
     ASSERT(5, ext1);
@@ -17,6 +21,9 @@ int main() {
 
     extern int ext_fn2(int x);
     ASSERT(8, ext_fn2(8));
+
+    ASSERT(1, a);
+    ASSERT(2, b);
 
     printf("OK\n");
     return 0;

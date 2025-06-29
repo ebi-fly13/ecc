@@ -21,6 +21,13 @@ struct InitDesg {
     struct Member *member;
 };
 
+struct VarAttr {
+    bool is_typedef;
+    bool is_static;
+    bool is_extern;
+    int align;
+};
+
 struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
@@ -274,9 +281,23 @@ struct Object *new_local_var(struct NameTag *tag) {
     }
 }
 
-struct Object *new_global_var(struct NameTag *tag) {
+struct Object *new_global_var(struct NameTag *tag, struct VarAttr *attr) {
     struct Object *gvar = find_object(globals, tag->name);
     if (gvar) {
+        assert(attr != NULL);
+        if (attr->is_extern) {
+            if (!is_same_type(gvar->ty, tag->ty)) {
+                error("redeclaration of %s with a different type", tag->name);
+            }
+            return gvar;
+        } else if (!gvar->is_definition) {
+            gvar->is_definition = true;
+            gvar->is_static = attr->is_static;
+            if (attr->align) {
+                gvar->align = attr->align;
+            }
+            return gvar;
+        }
         error("グローバル変数%sは既に定義されています", tag->name);
     } else if (is_void(tag->ty)) {
         error("%sはvoidで宣言されています", tag->name);
@@ -285,7 +306,16 @@ struct Object *new_global_var(struct NameTag *tag) {
         gvar->next = globals;
         gvar->len = strlen(tag->name);
         gvar->is_global_variable = true;
-        gvar->is_definition = true;
+        if (attr == NULL) {
+            gvar->is_definition = true;
+            gvar->is_static = true;
+        } else {
+            gvar->is_definition = !attr->is_extern;
+            gvar->is_static = attr->is_static;
+            if (attr->align) {
+                gvar->align = attr->align;
+            }
+        }
         globals = gvar;
         return gvar;
     }
@@ -295,7 +325,7 @@ struct Object *new_anon_gvar(struct Type *ty) {
     struct NameTag *tag = calloc(1, sizeof(1, sizeof(struct NameTag)));
     tag->name = new_unique_name();
     tag->ty = ty;
-    return new_global_var(tag);
+    return new_global_var(tag, NULL);
 }
 
 struct Object *new_string_literal(struct Token *token) {
@@ -525,13 +555,6 @@ static struct Relocation *write_gvar_data(struct Relocation *cur,
     return cur->next;
 }
 
-struct VarAttr {
-    bool is_typedef;
-    bool is_static;
-    bool is_extern;
-    int align;
-};
-
 struct Object *program(struct Token *);
 struct Token *function(struct Token *, struct Type *, struct VarAttr *attr);
 struct Token *
@@ -633,7 +656,7 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     struct NameTag *tag = declarator(&token, token, ty);
     token = skip(token, "(");
     tag = func_params(&token, token, tag);
-    if(tag->name == NULL) {
+    if (tag->name == NULL) {
         error("function name omit");
     }
     struct Object *fn = find_object(functions, tag->name);
@@ -675,15 +698,10 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         else
             is_first = false;
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
-        if(gvar_nametag->name == NULL) {
+        if (gvar_nametag->name == NULL) {
             error("variable name omit");
         }
-        struct Object *gvar = new_global_var(gvar_nametag);
-        gvar->is_definition = !attr->is_extern;
-        gvar->is_static = attr->is_static;
-        if (attr->align) {
-            gvar->align = attr->align;
-        }
+        struct Object *gvar = new_global_var(gvar_nametag, attr);
         if (equal(token, "=")) {
             token = skip(token, "=");
             gvar_initializer(&token, token, gvar);
