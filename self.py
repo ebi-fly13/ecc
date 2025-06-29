@@ -38,6 +38,8 @@ int memcmp(char *s1, char *s2, long n);
 int printf(char *fmt, ...);
 int sprintf(char *buf, char *fmt, ...);
 int fprintf(FILE *fp, char *fmt, ...);
+int fseek(FILE *, long, int);
+long ftell(FILE *);
 int vfprintf();
 long strlen(char *p);
 int strncmp(char *p, char *q, long n);
@@ -65,4 +67,6 @@ for path in sys.argv[1:]:
         s = re.sub(r'\bfalse\b', '0', s)
         s = re.sub(r'\bNULL\b', '0', s)
         s = re.sub(r'\bMIN\(([^)]*),([^)]*)\)', '((\\1)<(\\2)?(\\1):(\\2))', s)
+        s = re.sub(r'\bSEEK_SET\b', '0', s)
+        s = re.sub(r'\bSEEK_END\b', '2', s)
         print(s)
