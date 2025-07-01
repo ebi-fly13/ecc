@@ -22,7 +22,7 @@ test: $(TESTS)
 # Stage 2
 
 stage2/ecc: $(OBJS:%=stage2/%)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -xc error
 
 stage2/%.s: ecc self.py %.c
 	mkdir -p stage2
@@ -31,7 +31,8 @@ stage2/%.s: ecc self.py %.c
 
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage2/ecc -o stage2/test/$*.s -
+	$(CC) -o- -E -P -C test/$*.c > stage2/test/_.c
+	./stage2/ecc stage2/test/_.c > stage2/test/$.s
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
