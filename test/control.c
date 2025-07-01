@@ -60,6 +60,7 @@ int main() {
   ASSERT(2, ({ int i=0; switch(1) { case 0: 0; case 1: 0; case 2: 0; i=2; } i; }));
   ASSERT(0, ({ int i=0; switch(3) { case 0: 0; case 1: 0; case 2: 0; i=2; } i; }));
   ASSERT(3, ({ int i=0; switch(-1) { case 0xffffffff: i=3; break; } i; }));
+  ASSERT(3, ({ int i=0; switch(-1) { case 0xffffffff: int j = 1; i = 3; break; } i; }));
 
   ASSERT(2, 0?1:2);
   ASSERT(1, 1?1:2);

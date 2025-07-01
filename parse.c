@@ -462,11 +462,11 @@ static long internal_eval(struct Node *node, char **label) {
         if (is_integer(node->ty)) {
             switch (node->ty->size) {
             case 1:
-                return (__uint8_t)val;
+                return (uint8_t)val;
             case 2:
-                return (__uint16_t)val;
+                return (uint16_t)val;
             case 4:
-                return (__uint32_t)val;
+                return (uint32_t)val;
             case 8:
                 return val;
             }
@@ -576,6 +576,7 @@ void struct_union_members(struct Token **, struct Token *, struct Type *);
 struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
 struct Node *compound_stmt(struct Token **, struct Token *);
+struct Node *compound_element(struct Token **, struct Token *);
 void typedef_decl(struct Token **, struct Token *, struct Type *);
 struct Node *declaration(struct Token **,
                          struct Token *,
@@ -590,7 +591,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitor(struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -1217,7 +1218,8 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 stmt = "return" expr? ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "("
 expr ")" stmt | "for" "(" expr? ";" expr? ";" expr ")" |  "{" compound_stmt |
 "goto" ident ";"  | ident ":" stmt | "break" ";" | "switch" "(" expr ")" stmt |
-"case" const_expr ":" stmt | "default" ":" stmt | "do" stmt "while" "(" expr ")"
+"case" const_expr ":" compound_element | "default" ":" compound_element | "do"
+stmt "while" "(" expr ")"
 ";" | expr-stmt
 */
 struct Node *stmt(struct Token **rest, struct Token *token) {
@@ -1336,7 +1338,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         node->val = const_expr(&token, token);
         token = skip(token, ":");
         node->label = new_unique_name();
-        node->lhs = stmt(&token, token);
+        node->lhs = compound_element(&token, token);
 
         node->next_case = switch_node->next_case;
         switch_node->next_case = node;
@@ -1348,7 +1350,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_DEFAULT);
         token = skip(token, ":");
         node->label = new_unique_name();
-        node->lhs = stmt(&token, token);
+        node->lhs = compound_element(&token, token);
 
         switch_node->default_case = node;
     } else if (equal_keyword(token, TK_DO)) {
@@ -1380,7 +1382,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
 }
 
 /*
-compound_stmt = (declaration | typedef_decl | stmt)* "}"
+compound_stmt = compound_element* "}"
 */
 struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     struct Node *node = new_node(ND_BLOCK);
@@ -1389,21 +1391,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
 
     enter_scope();
     while (!equal(token, "}")) {
-        if (is_typename(token) && !equal(token->next, ":")) {
-            struct VarAttr attr = {};
-            struct Type *base_ty = declspec(&token, token, &attr);
-            if (is_function(token)) {
-                token = function(token, base_ty, &attr);
-            } else if (attr.is_extern) {
-                token = global_variable(token, base_ty, &attr);
-            } else if (attr.is_typedef) {
-                typedef_decl(&token, token, base_ty);
-            } else {
-                cur->next = declaration(&token, token, base_ty, &attr);
-            }
-        } else {
-            cur->next = stmt(&token, token);
-        }
+        cur->next = compound_element(&token, token);
         if (cur->next == NULL)
             continue;
         cur = cur->next;
@@ -1412,6 +1400,30 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     leave_scope();
     *rest = skip(token, "}");
     node->body = head.next;
+    return node;
+}
+
+/*
+compound_element = (declaration | typedef_decl | stmt)
+*/
+struct Node *compound_element(struct Token **rest, struct Token *token) {
+    struct Node *node = NULL;
+    if (is_typename(token) && !equal(token->next, ":")) {
+        struct VarAttr attr = {};
+        struct Type *base_ty = declspec(&token, token, &attr);
+        if (is_function(token)) {
+            token = function(token, base_ty, &attr);
+        } else if (attr.is_extern) {
+            token = global_variable(token, base_ty, &attr);
+        } else if (attr.is_typedef) {
+            typedef_decl(&token, token, base_ty);
+        } else {
+            node = declaration(&token, token, base_ty, &attr);
+        }
+    } else {
+        node = stmt(&token, token);
+    }
+    *rest = token;
     return node;
 }
 
@@ -1987,9 +1999,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = bitor(&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
     }
     *rest = token;
     return node;
@@ -1998,7 +2010,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node * bitor (struct Token * *rest, struct Token *token) {
+struct Node *bitor(struct Token **rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));
