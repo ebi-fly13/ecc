@@ -34,13 +34,35 @@ stage2/test/%.exe: stage2/ecc test/%.c
 	$(CC) -o- -E -P -C test/$*.c > stage2/test/_.c
 	./stage2/ecc stage2/test/_.c > stage2/test/$*.s
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
+	rm stage2/test/_.c
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
+	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+
+# Stage 3
+
+stage3/ecc: $(OBJS:%=stage3/%)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -xc error
+
+stage3/%.s: stage2/ecc self.py %.c
+	mkdir -p stage3
+	python3 self.py ecc.h $*.c > stage3/$*.c
+	./stage2/ecc stage3/$*.c > stage3/$*.s
+
+stage3/test/%.exe: stage3/ecc test/%.c
+	mkdir -p stage3/test
+	$(CC) -o- -E -P -C test/$*.c > stage3/test/_.c
+	./stage3/ecc stage3/test/_.c > stage3/test/$*.s
+	$(CC) -o $@ stage3/test/$*.s -xc test/common
+	rm stage3/test/_.c
+
+test-stage3: $(TESTS:test/%=stage3/test/%)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 
 clean:
 		rm -f ecc *.o
 		rm -f test/*.s test/*.o test/*.exe test/_*
 		rm -rf stage2
+		rm -rf stage3
 
 .PHONY: test clean

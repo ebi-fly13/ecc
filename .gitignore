@@ -8,3 +8,4 @@ ecc
 .gdb_history
 .vscode
 /stage2
+/stage3
