@@ -32,7 +32,7 @@ stage2/%.s: ecc self.py %.c
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
 	$(CC) -o- -E -P -C test/$*.c > stage2/test/_.c
-	./stage2/ecc stage2/test/_.c > stage2/test/$.s
+	./stage2/ecc stage2/test/_.c > stage2/test/$*.s
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)

@@ -53,8 +53,6 @@ int isxdigit(int c);
 char *strstr(char *haystack, char *needle);
 char *strchr(char *s, int c);
 void exit(int code);
-_Bool isalpha();
-_Bool isalnum();
 unsigned long strtoul();
 """)
 
