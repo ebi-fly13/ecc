@@ -34,9 +34,15 @@ bool equal_keyword(struct Token *tok, TokenKind kind) {
     return tok->kind == kind;
 }
 
-bool is_alnum(char c) { return isdigit(c) || isalpha(c) || c == '_'; }
+bool is_digit(char c) { return '0' <= c && c <= '9'; }
 
-bool is_ident_head(char c) { return isalpha(c) || c == '_'; }
+bool is_alpha(char c) {
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+}
+
+bool is_alnum(char c) { return is_digit(c) || is_alpha(c) || c == '_'; }
+
+bool is_ident_head(char c) { return is_alpha(c) || c == '_'; }
 
 bool is_end(struct Token *token) {
     return equal(token, "}") || equal(token, ",") && equal(token->next, "}");
@@ -121,10 +127,10 @@ struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
 struct Token *read_int_literal(struct Token *cur, char *str) {
     char *p = str;
     long base = 10;
-    if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+    if (!strncasecmp(p, "0x", 2) && is_alnum(p[2])) {
         p += 2;
         base = 16;
-    } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+    } else if (!strncasecmp(p, "0b", 2) && is_alnum(p[2])) {
         p += 2;
         base = 2;
     } else if (*p == '0') {
@@ -132,7 +138,7 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
     }
     unsigned long val = strtoul(p, &p, base);
 
-    if (isalnum(*p)) {
+    if (is_alnum(*p)) {
         error_at(p, "invalid digit");
     }
 
