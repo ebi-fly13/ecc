@@ -6,7 +6,7 @@ TEST_SRCS=$(wildcard test/*.c)
 TESTS=$(TEST_SRCS:.c=.exe)
 
 ecc: $(OBJS)
-		$(CC) -o ecc $(OBJS) $(LDFLAGS) -xc error
+		$(CC) -o ecc $(OBJS) $(LDFLAGS)
 
 $(OBJS): ecc.h
 
@@ -22,7 +22,7 @@ test: $(TESTS)
 # Stage 2
 
 stage2/ecc: $(OBJS:%=stage2/%)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -xc error
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 stage2/%.s: ecc self.py %.c
 	mkdir -p stage2
@@ -42,7 +42,7 @@ test-stage2: $(TESTS:test/%=stage2/test/%)
 # Stage 3
 
 stage3/ecc: $(OBJS:%=stage3/%)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -xc error
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 stage3/%.s: stage2/ecc self.py %.c
 	mkdir -p stage3

@@ -13,6 +13,15 @@ typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 typedef unsigned long uint64_t;
 
+typedef struct {
+  int gp_offset;
+  int fp_offset;
+  void *overflow_arg_area;
+  void *reg_save_area;
+} __va_elem;
+
+typedef __va_elem va_list[1];
+
 typedef struct FILE FILE;
 extern FILE *stdin;
 extern FILE *stdout;
@@ -40,7 +49,7 @@ int sprintf(char *buf, char *fmt, ...);
 int fprintf(FILE *fp, char *fmt, ...);
 int fseek(FILE *, long, int);
 long ftell(FILE *);
-int vfprintf();
+int vfprintf(FILE *fp, char *fmt, va_list ap);
 long strlen(char *p);
 int strncmp(char *p, char *q, long n);
 void *memcpy(char *dst, char *src, long n);
@@ -52,6 +61,7 @@ int isdigit(int c);
 int isxdigit(int c);
 char *strstr(char *haystack, char *needle);
 char *strchr(char *s, int c);
+static void va_end(va_list ap) {}
 void exit(int code);
 unsigned long strtoul();
 """)
@@ -67,6 +77,7 @@ for path in sys.argv[1:]:
         s = re.sub(r'\btrue\b', '1', s)
         s = re.sub(r'\bfalse\b', '0', s)
         s = re.sub(r'\bNULL\b', '0', s)
+        s = re.sub(r'\bva_start\(([^)]*),([^)]*)\)', '*(\\1)=*(__va_elem*)__va_area__', s)
         s = re.sub(r'\bMIN\(([^)]*),([^)]*)\)', '((\\1)<(\\2)?(\\1):(\\2))', s)
         s = re.sub(r'\bSEEK_SET\b', '0', s)
         s = re.sub(r'\bSEEK_END\b', '2', s)
