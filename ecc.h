@@ -158,8 +158,7 @@ typedef enum {
     ND_COND,        // 三項演算子
     ND_CAST,        // cast
     ND_NUM,         // 整数
-    ND_LVAR,        // ローカル変数
-    ND_GVAR,        // グローバル変数
+    ND_VAR,         // 変数
     ND_GOTO,        // goto
     ND_LABEL,       // label
     ND_RETURN,      // return

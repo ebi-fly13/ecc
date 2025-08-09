@@ -33,7 +33,8 @@ void pop(char *reg) {
 }
 
 void load(struct Type *ty) {
-    if (ty->ty == TY_ARRAY || ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
+    if (ty->ty == TY_ARRAY || ty->ty == TY_STRUCT || ty->ty == TY_UNION ||
+        ty->ty == TY_FUNC) {
         return;
     }
 
@@ -86,11 +87,20 @@ void gen_lval(struct Node *node) {
     case ND_DEREF:
         gen(node->lhs);
         return;
-    case ND_LVAR:
-        printf("  lea rax, [rbp - %d]\n", node->obj->offset);
-        return;
-    case ND_GVAR:
-        printf("  lea rax, [rip + %s]\n", node->obj->name);
+    case ND_VAR:
+        if (node->obj->is_global_variable) {
+            if (node->ty->ty == TY_FUNC) {
+                if (node->obj->is_definition) {
+                    printf("  lea rax, [rip + %s]\n", node->obj->name);
+                } else {
+                    printf("  mov rax, [rip + %s@GOTPCREL]\n", node->obj->name);
+                }
+            } else {
+                printf("  lea rax, [rip + %s]\n", node->obj->name);
+            }
+        } else {
+            printf("  lea rax, [rbp - %d]\n", node->obj->offset);
+        }
         return;
     case ND_MEMBER:
         gen_lval(node->lhs);
@@ -305,34 +315,34 @@ void gen(struct Node *node) {
             nargs++;
         }
 
+        gen(node->lhs);
+
         for (int i = nargs - 1; i >= 0; i--) {
             pop(argreg64[i]);
         }
-
-        printf("  mov rax, 0\n");
 
         // 16-byte align rsp
         printf("  push rsp\n");
         printf("  push [rsp]\n");
         printf("  and rsp, -0x10\n");
 
-        printf("  call %s\n", node->obj->name);
+        printf("  call rax\n");
 
         // get original rsp
         printf("  add rsp, 8\n");
         printf("  mov rsp, [rsp]\n");
 
-        switch (node->obj->ty->return_ty->ty) {
+        switch (node->ty->ty) {
         case TY_BOOL:
         case TY_CHAR:
-            if (node->obj->ty->is_unsigned) {
+            if (node->ty->is_unsigned) {
                 printf("  movsx eax, al\n");
             } else {
                 printf("  movzx eax, al\n");
             }
             break;
         case TY_SHORT:
-            if (node->obj->ty->is_unsigned) {
+            if (node->ty->is_unsigned) {
                 printf("  movzx eax, ax\n");
             } else {
                 printf("  movsx eax, ax\n");
@@ -354,7 +364,7 @@ void gen(struct Node *node) {
         return;
     }
 
-    if (node->kind == ND_LVAR || node->kind == ND_GVAR) {
+    if (node->kind == ND_VAR) {
         gen_lval(node);
         load(node->ty);
         return;

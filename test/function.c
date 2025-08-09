@@ -99,6 +99,10 @@ char *fmt(char *buf, char *fmt, ...) {
 
 int add_all(int n, ...);
 
+int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
+    return fn;
+}
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -144,6 +148,11 @@ int main() {
 
     { char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); printf("%s\n", buf); }
     ASSERT(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf); }));
+
+    ASSERT(5, (add2)(2,3));
+    ASSERT(5, (&add2)(2,3));
+    ASSERT(7, ({ int (*fn)(int,int) = add2; fn(2,5); }));
+    ASSERT(6, fnptr(add_all)(3, 1, 2, 3));
 
     printf("OK\n");
     return 0;

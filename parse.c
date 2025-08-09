@@ -73,11 +73,7 @@ struct Node *new_node_num(int val) {
 struct Node *new_node_var(struct Object *var) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->obj = var;
-    if (var->is_global_variable) {
-        node->kind = ND_GVAR;
-    } else {
-        node->kind = ND_LVAR;
-    }
+    node->kind = ND_VAR;
     node->ty = var->ty;
     return node;
 }
@@ -399,7 +395,7 @@ static long internal_eval(struct Node *, char **);
 
 static long eval_rval(struct Node *node, char **label) {
     switch (node->kind) {
-    case ND_GVAR:
+    case ND_VAR:
         *label = node->obj->name;
         return 0;
     case ND_DEREF:
@@ -482,7 +478,8 @@ static long internal_eval(struct Node *node, char **label) {
             error("invalid initializer");
         }
         return eval_rval(node->lhs, label) + node->member->offset;
-    case ND_GVAR:
+    case ND_VAR:
+        assert(node->obj->is_global_variable);
         if (!label) {
             error("not a compile-time constant");
         }
@@ -571,7 +568,7 @@ struct NameTag *declarator(struct Token **, struct Token *, struct Type *);
 struct Type *typename(struct Token **rest, struct Token *token);
 struct Type *type_suffix(struct Token **, struct Token *, struct Type *);
 struct Type *array_dimensions(struct Token **, struct Token *, struct Type *);
-struct NameTag *func_params(struct Token **, struct Token *, struct NameTag *);
+struct Type *func_params(struct Token **, struct Token *, struct Type *);
 void struct_union_members(struct Token **, struct Token *, struct Type *);
 struct NameTag *param(struct Token **, struct Token *);
 struct Node *stmt(struct Token **, struct Token *);
@@ -602,15 +599,15 @@ struct Node *mul(struct Token **, struct Token *);
 struct Node *unary(struct Token **, struct Token *);
 static struct Node *cast(struct Token **, struct Token *);
 struct Node *postfix(struct Token **, struct Token *);
-struct Node *funcall(struct Token **, struct Token *);
+struct Node *funccall(struct Token **, struct Token *, struct Node *);
 struct Node *primary(struct Token **, struct Token *);
 
 bool is_function(struct Token *token) {
     if (equal(token, ";"))
         return false;
     struct Type dummy = {};
-    declarator(&token, token, &dummy);
-    return equal(token, "(");
+    struct NameTag *tag = declarator(&token, token, &dummy);
+    return tag->ty->ty == TY_FUNC;
 }
 
 void resolve_goto_labels() {
@@ -659,8 +656,6 @@ function = declarator "(" func_params "{" compound_stmt
 struct Token *
 function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     struct NameTag *tag = declarator(&token, token, ty);
-    token = skip(token, "(");
-    tag = func_params(&token, token, tag);
     if (tag->name == NULL) {
         error("function name omit");
     }
@@ -671,6 +666,7 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
         assert(is_same_type(fn->ty, tag->ty));
     }
     locals = NULL;
+    fn->is_global_variable = true;
     fn->is_function = true;
     fn->is_definition = !equal(token, ";");
     fn->is_static = attr->is_static;
@@ -1140,12 +1136,15 @@ declarator(struct Token **rest, struct Token *token, struct Type *ty) {
 }
 
 /*
-type_suffix = "[" array_dimensions | ""
+type_suffix = "[" array_dimensions | "(" func-params | ""
 */
 struct Type *
 type_suffix(struct Token **rest, struct Token *token, struct Type *ty) {
     if (equal(token, "[")) {
         return array_dimensions(rest, token->next, ty);
+    }
+    if (equal(token, "(")) {
+        return func_params(rest, token->next, ty);
     }
     *rest = token;
     return ty;
@@ -1167,9 +1166,8 @@ array_dimensions(struct Token **rest, struct Token *token, struct Type *ty) {
 /*
 func_params = ("void" | param ("," param )* ("," "...")?)? ")"
 */
-struct NameTag *func_params(struct Token **rest,
-                            struct Token *token,
-                            struct NameTag *return_tag) {
+struct Type *
+func_params(struct Token **rest, struct Token *token, struct Type *return_ty) {
     struct NameTag head = {};
     struct NameTag *cur = &head;
     bool is_variadic = false;
@@ -1199,11 +1197,9 @@ struct NameTag *func_params(struct Token **rest,
         is_variadic = true;
     }
 
-    struct NameTag *fn = calloc(1, sizeof(1, sizeof(struct NameTag)));
-    fn->ty = func_to(return_tag->ty, head.next);
-    fn->ty->is_variadic = is_variadic;
-    fn->name = return_tag->name;
-    return fn;
+    struct Type *ty = func_to(return_ty, head.next);
+    ty->is_variadic = is_variadic;
+    return ty;
 }
 
 /*
@@ -2206,8 +2202,8 @@ new_node_inc_dec(struct Node *node, struct Token *token, int addend) {
 }
 
 /*
-postfix = "(" typename ")" "{" initialize-list "}" | primary ( "[" expr "]" |
-"." ident | "->" ident | "++" | "--")*
+postfix = "(" typename ")" "{" initialize-list "}" | primary postfix-tail*
+postfix-tail = "[" expr "]" | funccall | "." ident | "->" ident | "++" | "--"
 */
 struct Node *postfix(struct Token **rest, struct Token *token) {
     if (equal(token, "(") && is_typename(token->next)) {
@@ -2231,6 +2227,11 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 
     struct Node *node = primary(&token, token);
     while (true) {
+        if (equal(token, "(")) {
+            node = funccall(&token, token, node);
+            continue;
+        }
+
         if (equal(token, "[")) {
             node = new_node_unary(
                 ND_DEREF, new_node_add(node, expr(&token, token->next)));
@@ -2273,22 +2274,20 @@ struct Node *postfix(struct Token **rest, struct Token *token) {
 }
 
 /*
-funccall = ident "(" (assign ("," assign)*)? ")"
+funccall = "(" (assign ("," assign)*)? ")"
 */
-struct Node *funccall(struct Token **rest, struct Token *token) {
-    assert(token->kind == TK_IDENT);
-    char *name = strndup(token->loc, token->len);
-    struct Node *node = new_node(ND_FUNCALL);
-    struct Object *func = find_object(functions, name);
-    if (func == NULL) {
-        error("関数 %s は定義されていません", name);
+struct Node *
+funccall(struct Token **rest, struct Token *token, struct Node *func) {
+    add_type(func);
+    if (func->ty->ty != TY_FUNC &&
+        (func->ty->ty != TY_PTR || func->ty->ptr_to->ty != TY_FUNC)) {
+        error("%s is not a function", func->obj->name);
     }
-    token = token->next;
-    node->ty = func->ty->return_ty;
-    node->obj = func;
+    struct Type *ty = (func->ty->ty == TY_FUNC) ? func->ty : func->ty->ptr_to;
+    struct Node *node = new_node_unary(ND_FUNCALL, func);
     struct Node head = {};
     struct Node *cur = &head;
-    struct NameTag *param_tag = func->ty->params;
+    struct NameTag *param_tag = ty->params;
     assert(equal(token, "("));
     token = skip(token, "(");
     while (!equal(token, ")")) {
@@ -2296,7 +2295,7 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
             token = skip(token, ",");
         struct Node *arg = assign(&token, token);
 
-        if (param_tag == NULL && !func->ty->is_variadic) {
+        if (param_tag == NULL && !ty->is_variadic) {
             error("too many arguments");
         }
 
@@ -2317,13 +2316,14 @@ struct Node *funccall(struct Token **rest, struct Token *token) {
     }
 
     node->args = head.next;
+    node->ty = ty->return_ty;
     *rest = token->next;
     return node;
 }
 
 /*
 primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" "(" typename ")"
-| "sizeof" unary | ident funccall? | string | num
+| "sizeof" unary | ident | string | num
 */
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -2355,22 +2355,17 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         *rest = skip(token, ")");
         return new_node_num(ty->align);
     } else if (token->kind == TK_IDENT) {
-        if (equal(token->next, "(")) {
-            node = funccall(&token, token);
-            *rest = token;
-        } else {
-            char *name = strndup(token->loc, token->len);
-            struct VarScope *sc = find_variable(name);
-            if (sc == NULL || (sc->var == NULL && sc->enum_ty == NULL)) {
-                error("変数%sは定義されていません", name);
-            }
-            if (sc->var != NULL) {
-                node = new_node_var(sc->var);
-            } else {
-                node = new_node_num(sc->enum_val);
-            }
-            *rest = token->next;
+        char *name = strndup(token->loc, token->len);
+        struct VarScope *sc = find_variable(name);
+        if (sc == NULL || (sc->var == NULL && sc->enum_ty == NULL)) {
+            error("変数%sは定義されていません", name);
         }
+        if (sc->var != NULL) {
+            node = new_node_var(sc->var);
+        } else {
+            node = new_node_num(sc->enum_val);
+        }
+        *rest = token->next;
     } else if (token->kind == TK_STR) {
         node = new_node_var(new_string_literal(token));
         *rest = token->next;

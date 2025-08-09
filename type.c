@@ -192,11 +192,8 @@ void add_type(struct Node *node) {
     case ND_BITNOT:
         node->ty = node->lhs->ty;
         return;
-    case ND_LVAR:
-    case ND_GVAR:
-        return;
+    case ND_VAR:
     case ND_FUNCALL:
-        node->ty = node->obj->ty->return_ty;
         return;
     case ND_MEMBER:
         node->ty = node->member->ty;
