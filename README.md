@@ -25,10 +25,10 @@ make test
 
 第二世代
 ```
-make stage2/test
+make test-stage2
 ```
 
 第三世代
 ```
-make stage3/test
+make test-stage3
 ```
