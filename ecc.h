@@ -110,6 +110,7 @@ struct Object {
     int align;
 
     struct Object *locals;
+    struct Object *va_area;
 };
 
 extern struct Object *locals;

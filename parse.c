@@ -680,6 +680,12 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
 
         enter_scope();
         fn->args = expand_func_params(tag->ty);
+        if (tag->ty->is_variadic) {
+            struct NameTag tag_of_va_area;
+            tag_of_va_area.name = "__va_area__";
+            tag_of_va_area.ty = array_to(ty_char, 136);
+            fn->va_area = new_local_var(&tag_of_va_area);
+        }
         token = skip(token, "{");
         fn->body = compound_stmt(&token, token);
         fn->locals = locals;

@@ -79,6 +79,24 @@ _Bool false_fn() { return 512; }
 char char_fn() { return (2 << 8) + 3; }
 short short_fn() { return (2 << 16) + 5; }
 
+typedef struct {
+    int gp_offset;
+    int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+} __va_elem;
+
+typedef __va_elem va_list[1];
+
+int strcmp(char *, char *);
+int vsprintf(char *buf, char *fmt, va_list ap);
+
+char *fmt(char *buf, char *fmt, ...) {
+    va_list ap;
+    *ap = *(__va_elem *)__va_area__;
+    vsprintf(buf, fmt, ap);
+}
+
 int add_all(int n, ...);
 
 int main() {
@@ -123,6 +141,9 @@ int main() {
 
     ASSERT(15, add_all(5,1,2,3,4,5));
     ASSERT(5, add_all(4,1,2,3,-1));
+
+    { char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); printf("%s\n", buf); }
+    ASSERT(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf); }));
 
     printf("OK\n");
     return 0;

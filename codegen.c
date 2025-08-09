@@ -87,8 +87,7 @@ void gen_lval(struct Node *node) {
         gen(node->lhs);
         return;
     case ND_LVAR:
-        printf("  mov rax, rbp\n");
-        printf("  sub rax, %d\n", node->obj->offset);
+        printf("  lea rax, [rbp - %d]\n", node->obj->offset);
         return;
     case ND_GVAR:
         printf("  lea rax, [rip + %s]\n", node->obj->name);
@@ -625,6 +624,38 @@ void codegen() {
         printf("%s:\n", obj->name);
 
         prologue(obj->stack_size);
+
+        if (obj->va_area) {
+            int gp = 0;
+            for (struct Node *arg = obj->args; arg; arg = arg->next) {
+                gp++;
+            }
+            int offset = obj->va_area->offset;
+            // va_elem
+            printf("  mov dword ptr [rbp - %d], %d\n", offset,
+                   gp * 8); // general purpose offset
+            printf("  mov dword ptr [rbp - %d], 0\n",
+                   offset - 4); // floating purpose offset
+            printf("  mov qword ptr [rbp - %d], rbp\n", offset - 16);
+            printf("  sub qword ptr [rbp - %d], %d\n", offset - 16,
+                   offset - 24);
+
+            // __reg_save_area__
+            printf("  mov qword ptr [rbp - %d], rdi\n", offset - 24);
+            printf("  mov qword ptr [rbp - %d], rsi\n", offset - 32);
+            printf("  mov qword ptr [rbp - %d], rdx\n", offset - 40);
+            printf("  mov qword ptr [rbp - %d], rcx\n", offset - 48);
+            printf("  mov qword ptr [rbp - %d], r8\n", offset - 56);
+            printf("  mov qword ptr [rbp - %d], r9\n", offset - 64);
+            printf("  movsd qword ptr [rbp - %d], xmm0\n", offset - 72);
+            printf("  movsd qword ptr [rbp - %d], xmm1\n", offset - 80);
+            printf("  movsd qword ptr [rbp - %d], xmm2\n", offset - 88);
+            printf("  movsd qword ptr [rbp - %d], xmm3\n", offset - 96);
+            printf("  movsd qword ptr [rbp - %d], xmm4\n", offset - 104);
+            printf("  movsd qword ptr [rbp - %d], xmm5\n", offset - 112);
+            printf("  movsd qword ptr [rbp - %d], xmm6\n", offset - 120);
+            printf("  movsd qword ptr [rbp - %d], xmm7\n", offset - 128);
+        }
 
         int i = 0;
         for (struct Node *arg = obj->args; arg; arg = arg->next) {
