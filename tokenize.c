@@ -246,6 +246,20 @@ struct Token *read_string_literal(struct Token *cur, char *str) {
 
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
+void add_line_number(struct Token *token) {
+    char *p = user_input;
+    int n = 1;
+    do {
+        if (p == token->loc) {
+            token->line_number = n;
+            token = token->next;
+        }
+        if (*p == '\n') {
+            n++;
+        }
+    } while(*p++);
+}
+
 struct Token *tokenize(char *p) {
     struct Token head;
     head.next = NULL;
@@ -512,5 +526,6 @@ struct Token *tokenize(char *p) {
     }
 
     new_token(TK_EOF, cur, p, 0);
+    add_line_number(head.next);
     return head.next;
 }

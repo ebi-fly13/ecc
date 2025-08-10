@@ -48,6 +48,7 @@ struct Token {
     char *loc;          // Tokenの開始位置
     char *str;          // トークンの文字列
     int len;            // トークンの長さ
+    int line_number;           // 行番号
     struct Type *ty;    // 型
 };
 
