@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
 
     user_input = read_file(filename);
     struct Token *token = tokenize(user_input);
+    token = preprocess(token);
     program(token);
 
     codegen();

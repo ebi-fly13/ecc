@@ -3,6 +3,8 @@
 // 入力プログラム
 char *user_input;
 
+static bool is_begin;
+
 // エラー報告するための関数
 // printfと同じ引数を取る
 void error(char *fmt, ...) {
@@ -159,10 +161,12 @@ int read_escaped_char(char **new_pos, char *p) {
 
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
+    tok->is_begin = is_begin;
     tok->kind = kind;
     tok->loc = str;
     tok->len = len;
     cur->next = tok;
+    is_begin = false;
     return tok;
 }
 
@@ -257,7 +261,7 @@ void add_line_number(struct Token *token) {
         if (*p == '\n') {
             n++;
         }
-    } while(*p++);
+    } while (*p++);
 }
 
 struct Token *tokenize(char *p) {
@@ -265,6 +269,12 @@ struct Token *tokenize(char *p) {
     head.next = NULL;
     struct Token *cur = &head;
     while (*p) {
+        if (*p == '\n') {
+            is_begin = true;
+            p++;
+            continue;
+        }
+
         if (isspace(*p)) {
             p++;
             continue;
@@ -315,7 +325,8 @@ struct Token *tokenize(char *p) {
             *p == ')' || *p == '<' || *p == '>' || *p == ';' || *p == '=' ||
             *p == '{' || *p == '}' || *p == ',' || *p == '&' || *p == '[' ||
             *p == ']' || *p == '.' || *p == '!' || *p == '~' || *p == '%' ||
-            *p == '|' || *p == '^' || *p == ':' || *p == '?' || *p == ':') {
+            *p == '|' || *p == '^' || *p == ':' || *p == '?' || *p == ':' ||
+            *p == '#') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }

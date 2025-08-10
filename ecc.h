@@ -48,7 +48,8 @@ struct Token {
     char *loc;          // Tokenの開始位置
     char *str;          // トークンの文字列
     int len;            // トークンの長さ
-    int line_number;           // 行番号
+    int line_number;    // 行番号
+    bool is_begin;      // 行の開始トークンかどうか
     struct Type *ty;    // 型
 };
 
@@ -132,6 +133,9 @@ bool equal_keyword(struct Token *, TokenKind);
 bool is_end(struct Token *);
 bool is_end(struct Token *);
 struct Token *tokenize(char *);
+
+// preprocess.c
+struct Token *preprocess(struct Token *);
 
 // parse.c
 typedef enum {
