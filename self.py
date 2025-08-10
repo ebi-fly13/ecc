@@ -12,6 +12,8 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 typedef unsigned long uint64_t;
+      
+typedef unsigned long size_t;
 
 typedef struct {
   int gp_offset;
@@ -27,6 +29,7 @@ extern FILE *stdin;
 extern FILE *stdout;
 extern FILE *stderr;
 
+char *dirname(char *);
 void *malloc(long size);
 void *calloc(long nmemb, long size);
 void *realloc(void *buf, long size);
@@ -64,6 +67,7 @@ char *strchr(char *s, int c);
 static void va_end(va_list ap) {}
 void exit(int code);
 unsigned long strtoul();
+
 """)
 
 for path in sys.argv[1:]:

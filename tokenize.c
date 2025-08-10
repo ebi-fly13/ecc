@@ -166,6 +166,7 @@ struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     tok->kind = kind;
     tok->loc = str;
     tok->len = len;
+    tok->file = current_file;
     cur->next = tok;
     is_begin = false;
     return tok;
@@ -267,6 +268,7 @@ void add_line_number(struct Token *token) {
 
 struct Token *tokenize(struct File *file) {
     current_file = file;
+    is_begin = true;
     char *p = file->contents;
     struct Token head;
     head.next = NULL;
