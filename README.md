@@ -4,7 +4,7 @@ https://www.sigbus.info/compilerbook を参考にCコンパイラ作成してい
 
 ## セルフホスト
 
-preprocessor と可変長引数（error ファイルにある）を除いてセルフコンパイルができます。
+preprocessor を除いてセルフコンパイルができます。
 
 セルフコンパイルしてコンパイラを作成
 ```
