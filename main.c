@@ -7,9 +7,7 @@ int main(int argc, char **argv) {
     }
 
     filename = argv[1];
-
-    user_input = read_file(filename);
-    struct Token *token = tokenize(user_input);
+    struct Token *token = tokenize_file(filename);
     token = preprocess(token);
     program(token);
 

@@ -41,6 +41,12 @@ typedef enum {
     TK_ALIGNAS,  // _Alignas
 } TokenKind;
 
+struct File {
+    char *path;
+    int file_number;
+    char *contents;
+};
+
 struct Token {
     TokenKind kind;     // トークンの型
     struct Token *next; // 次の入力トークン
@@ -51,6 +57,7 @@ struct Token {
     int line_number;    // 行番号
     bool is_begin;      // 行の開始トークンかどうか
     struct Type *ty;    // 型
+    struct File *file;  // Source file
 };
 
 struct VarScope {
@@ -119,8 +126,6 @@ extern struct Object *locals;
 extern struct Object *globals;
 extern struct Object *functions;
 
-extern struct Token *token;
-extern char *user_input;
 void error(char *, ...);
 void error_at(char *, char *, ...);
 
@@ -132,7 +137,8 @@ bool equal(struct Token *, char *);
 bool equal_keyword(struct Token *, TokenKind);
 bool is_end(struct Token *);
 bool is_end(struct Token *);
-struct Token *tokenize(char *);
+struct Token *tokenize(struct File *);
+struct Token *tokenize_file(char *);
 
 // preprocess.c
 struct Token *preprocess(struct Token *);

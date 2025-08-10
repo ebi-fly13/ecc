@@ -1,9 +1,9 @@
 #include "ecc.h"
 
-// 入力プログラム
-char *user_input;
-
 static bool is_begin;
+
+static struct File *current_file;
+static struct File **input_files;
 
 // エラー報告するための関数
 // printfと同じ引数を取る
@@ -21,7 +21,8 @@ void error_at(char *loc, char *fmt, ...) {
 
     // locが含まれている行の開始地点と終了地点を取得
     char *line = loc;
-    while (user_input < line && line[-1] != '\n')
+    char *contents = current_file->contents;
+    while (contents < line && line[-1] != '\n')
         line--;
 
     char *end = loc;
@@ -30,7 +31,7 @@ void error_at(char *loc, char *fmt, ...) {
 
     // 見つかった行が全体の何行目なのかを調べる
     int line_num = 1;
-    for (char *p = user_input; p < line; p++)
+    for (char *p = contents; p < line; p++)
         if (*p == '\n')
             line_num++;
 
@@ -38,8 +39,8 @@ void error_at(char *loc, char *fmt, ...) {
     int indent = fprintf(stderr, "%s:%d: ", filename, line_num);
     fprintf(stderr, "%.*s\n", (int)(end - line), line);
 
-    int pos = loc - user_input;
-    fprintf(stderr, "%s\n", user_input);
+    int pos = loc - contents;
+    fprintf(stderr, "%s:\n", current_file->path);
     fprintf(stderr, "%*s", pos, " ");
     fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
@@ -251,7 +252,7 @@ struct Token *read_string_literal(struct Token *cur, char *str) {
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 void add_line_number(struct Token *token) {
-    char *p = user_input;
+    char *p = current_file->contents;
     int n = 1;
     do {
         if (p == token->loc) {
@@ -264,7 +265,9 @@ void add_line_number(struct Token *token) {
     } while (*p++);
 }
 
-struct Token *tokenize(char *p) {
+struct Token *tokenize(struct File *file) {
+    current_file = file;
+    char *p = file->contents;
     struct Token head;
     head.next = NULL;
     struct Token *cur = &head;
@@ -539,4 +542,26 @@ struct Token *tokenize(char *p) {
     new_token(TK_EOF, cur, p, 0);
     add_line_number(head.next);
     return head.next;
+}
+
+struct File *new_file(char *path, int file_number, char *contents) {
+    struct File *file = calloc(1, sizeof(struct File));
+    file->path = path;
+    file->file_number = file_number;
+    file->contents = contents;
+    return file;
+}
+
+struct Token *tokenize_file(char *path) {
+    static int file_number = 0;
+    char *p = read_file(path);
+    if (p == NULL) {
+        return NULL;
+    }
+    struct File *file = new_file(path, file_number + 1, p);
+    input_files = realloc(input_files, sizeof(char *) * (file_number + 2));
+    input_files[file_number] = file;
+    input_files[file_number + 1] = NULL;
+    file_number++;
+    return tokenize(file);
 }
