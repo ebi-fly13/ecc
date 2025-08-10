@@ -15,10 +15,8 @@ test/macro.exe: ecc test/macro.c
 		$(CC) -o $@ test/macro.s -xc test/common
 
 test/%.exe: ecc test/%.c
-		$(CC) -o- -E -P -C test/$*.c > test/_.c
-		./ecc test/_.c > test/$*.s
+		$(CC) -o- -E -P -C test/$*.c | ./ecc -o test/$*.s -
 		$(CC) -static -o $@ test/$*.s -xc test/common
-		rm test/_.c
 
 test: $(TESTS)
 		for i in $^; do echo $$i; ./$$i || exit 1; echo; done
@@ -31,19 +29,17 @@ stage2/ecc: $(OBJS:%=stage2/%)
 stage2/%.s: ecc self.py %.c
 	mkdir -p stage2
 	python3 self.py ecc.h $*.c > stage2/$*.c
-	./ecc stage2/$*.c > stage2/$*.s
+	./ecc stage2/$*.c -o stage2/$*.s
 
 stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
-	./stage2/ecc test/macro.c > stage2/test/macro.s
+	./stage2/ecc test/macro.c -o stage2/test/macro.s
 	$(CC) -o $@ stage2/test/macro.s -xc test/common
 
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c > stage2/test/_.c
-	./stage2/ecc stage2/test/_.c > stage2/test/$*.s
+	$(CC) -o- -E -P -C test/$*.c | ./stage2/ecc -o stage2/test/$*.s -
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
-	rm stage2/test/_.c
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
@@ -65,10 +61,8 @@ stage3/test/macro.exe: stage3/ecc test/macro.c
 
 stage3/test/%.exe: stage3/ecc test/%.c
 	mkdir -p stage3/test
-	$(CC) -o- -E -P -C test/$*.c > stage3/test/_.c
-	./stage3/ecc stage3/test/_.c > stage3/test/$*.s
+	$(CC) -o- -E -P -C test/$*.c | ./stage3/ecc -o stage3/test/$*.s -
 	$(CC) -o $@ stage3/test/$*.s -xc test/common
-	rm stage3/test/_.c
 
 test-stage3: $(TESTS:test/%=stage3/test/%)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done

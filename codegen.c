@@ -8,27 +8,29 @@ static char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
+static FILE *output_file;
+
 void prologue(int stack_size) {
     // 変数の領域を確保する
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %d\n", stack_size);
+    fprintf(output_file, "  push rbp\n");
+    fprintf(output_file, "  mov rbp, rsp\n");
+    fprintf(output_file, "  sub rsp, %d\n", stack_size);
 }
 
 void epilogue() {
     // 最後の式の結果がRAXに残っているのでそれが返り値になる
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
+    fprintf(output_file, "  mov rsp, rbp\n");
+    fprintf(output_file, "  pop rbp\n");
+    fprintf(output_file, "  ret\n");
 }
 
 void push() {
-    printf("  push rax\n");
+    fprintf(output_file, "  push rax\n");
     depth++;
 }
 
 void pop(char *reg) {
-    printf("  pop %s\n", reg);
+    fprintf(output_file, "  pop %s\n", reg);
     depth--;
 }
 
@@ -41,13 +43,13 @@ void load(struct Type *ty) {
     char *instruction = ty->is_unsigned ? "movz" : "movs";
 
     if (ty->size == 1)
-        printf("  %sx rax, byte ptr [rax]\n", instruction);
+        fprintf(output_file, "  %sx rax, byte ptr [rax]\n", instruction);
     else if (ty->size == 2)
-        printf("  %sx rax, word ptr [rax]\n", instruction);
+        fprintf(output_file, "  %sx rax, word ptr [rax]\n", instruction);
     else if (ty->size == 4)
-        printf("  %sxd rax, dword ptr [rax]\n", instruction);
+        fprintf(output_file, "  %sxd rax, dword ptr [rax]\n", instruction);
     else
-        printf("  mov rax, [rax]\n");
+        fprintf(output_file, "  mov rax, [rax]\n");
     return;
 }
 
@@ -56,27 +58,27 @@ void store(struct Type *ty) {
 
     if (ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
         for (int i = 0; i < ty->size; i++) {
-            printf("  mov r8b, [rax + %d]\n", i);
-            printf("  mov [rdi + %d], r8b\n", i);
+            fprintf(output_file, "  mov r8b, [rax + %d]\n", i);
+            fprintf(output_file, "  mov [rdi + %d], r8b\n", i);
         }
         return;
     }
 
     if (ty->ty == TY_BOOL) {
-        printf("  cmp eax, 0\n");
-        printf("  setne al\n");
-        printf("  mov [rdi], al\n");
+        fprintf(output_file, "  cmp eax, 0\n");
+        fprintf(output_file, "  setne al\n");
+        fprintf(output_file, "  mov [rdi], al\n");
         return;
     }
 
     if (ty->size == 1)
-        printf("  mov [rdi], al\n");
+        fprintf(output_file, "  mov [rdi], al\n");
     else if (ty->size == 2)
-        printf("  mov [rdi], ax\n");
+        fprintf(output_file, "  mov [rdi], ax\n");
     else if (ty->size == 4)
-        printf("  mov [rdi], eax\n");
+        fprintf(output_file, "  mov [rdi], eax\n");
     else
-        printf("  mov [rdi], rax\n");
+        fprintf(output_file, "  mov [rdi], rax\n");
     return;
 }
 
@@ -91,20 +93,23 @@ void gen_lval(struct Node *node) {
         if (node->obj->is_global_variable) {
             if (node->ty->ty == TY_FUNC) {
                 if (node->obj->is_definition) {
-                    printf("  lea rax, [rip + %s]\n", node->obj->name);
+                    fprintf(output_file, "  lea rax, [rip + %s]\n",
+                            node->obj->name);
                 } else {
-                    printf("  mov rax, [rip + %s@GOTPCREL]\n", node->obj->name);
+                    fprintf(output_file, "  mov rax, [rip + %s@GOTPCREL]\n",
+                            node->obj->name);
                 }
             } else {
-                printf("  lea rax, [rip + %s]\n", node->obj->name);
+                fprintf(output_file, "  lea rax, [rip + %s]\n",
+                        node->obj->name);
             }
         } else {
-            printf("  lea rax, [rbp - %d]\n", node->obj->offset);
+            fprintf(output_file, "  lea rax, [rbp - %d]\n", node->obj->offset);
         }
         return;
     case ND_MEMBER:
         gen_lval(node->lhs);
-        printf("  add rax, %d\n", node->member->offset);
+        fprintf(output_file, "  add rax, %d\n", node->member->offset);
         return;
     case ND_COMMA:
         gen(node->lhs);
@@ -166,18 +171,18 @@ static void cast(struct Type *from, struct Type *to) {
 
     if (to->ty == TY_BOOL) {
         if (is_integer(from) && from->size <= 4) {
-            printf("  cmp eax, 0\n");
+            fprintf(output_file, "  cmp eax, 0\n");
         } else {
-            printf("  cmp rax, 0\n");
+            fprintf(output_file, "  cmp rax, 0\n");
         }
-        printf("  setne al\n");
-        printf("  movzx eax, al\n");
+        fprintf(output_file, "  setne al\n");
+        fprintf(output_file, "  movzx eax, al\n");
         return;
     }
     int from_id = get_type_id(from);
     int to_id = get_type_id(to);
     if (cast_table[from_id][to_id]) {
-        printf("  %s\n", cast_table[from_id][to_id]);
+        fprintf(output_file, "  %s\n", cast_table[from_id][to_id]);
     }
 }
 
@@ -191,10 +196,10 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_MEMZERO) {
-        printf("  mov rcx, %d\n", node->obj->ty->size);
-        printf("  lea rdi, [rbp - %d]\n", node->obj->offset);
-        printf("  mov al, 0\n");
-        printf("  rep stosb\n");
+        fprintf(output_file, "  mov rcx, %d\n", node->obj->ty->size);
+        fprintf(output_file, "  lea rdi, [rbp - %d]\n", node->obj->offset);
+        fprintf(output_file, "  mov al, 0\n");
+        fprintf(output_file, "  rep stosb\n");
         return;
     }
 
@@ -212,61 +217,61 @@ void gen(struct Node *node) {
     if (node->kind == ND_IF) {
         int number = label++;
         gen(node->cond);
-        printf("  cmp rax, 0\n");
-        printf("  je  .Lelse%d\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je  .Lelse%d\n", number);
         gen(node->then);
-        printf("  jmp .Lend%d\n", number);
-        printf(".Lelse%d:\n", number);
+        fprintf(output_file, "  jmp .Lend%d\n", number);
+        fprintf(output_file, ".Lelse%d:\n", number);
         if (node->els)
             gen(node->els);
-        printf(".Lend%d:\n", number);
+        fprintf(output_file, ".Lend%d:\n", number);
         return;
     }
 
     if (node->kind == ND_WHILE) {
-        printf("%s:\n", node->continue_label);
+        fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->cond);
-        printf("  cmp rax, 0\n");
-        printf("  je  %s\n", node->break_label);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je  %s\n", node->break_label);
         gen(node->then);
-        printf("  jmp %s\n", node->continue_label);
-        printf("%s:\n", node->break_label);
+        fprintf(output_file, "  jmp %s\n", node->continue_label);
+        fprintf(output_file, "%s:\n", node->break_label);
         return;
     }
 
     if (node->kind == ND_FOR) {
         int number = label++;
         gen(node->init);
-        printf(".Lbegin%d:\n", number);
+        fprintf(output_file, ".Lbegin%d:\n", number);
         gen(node->cond);
-        printf("  cmp rax, 0\n");
-        printf("  je  %s\n", node->break_label);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je  %s\n", node->break_label);
         gen(node->then);
-        printf("%s:\n", node->continue_label);
+        fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->inc);
-        printf("  jmp  .Lbegin%d\n", number);
-        printf("%s:\n", node->break_label);
+        fprintf(output_file, "  jmp  .Lbegin%d\n", number);
+        fprintf(output_file, "%s:\n", node->break_label);
         return;
     }
 
     if (node->kind == ND_GOTO) {
-        printf("  jmp %s\n", node->unique_label);
+        fprintf(output_file, "  jmp %s\n", node->unique_label);
         return;
     }
 
     if (node->kind == ND_LABEL) {
-        printf("%s:\n", node->unique_label);
+        fprintf(output_file, "%s:\n", node->unique_label);
         gen(node->body);
         return;
     }
 
     if (node->kind == ND_BREAK) {
-        printf("  jmp %s\n", node->break_label);
+        fprintf(output_file, "  jmp %s\n", node->break_label);
         return;
     }
 
     if (node->kind == ND_CONTINUE) {
-        printf("  jmp %s\n", node->continue_label);
+        fprintf(output_file, "  jmp %s\n", node->continue_label);
         return;
     }
 
@@ -275,21 +280,21 @@ void gen(struct Node *node) {
         for (struct Node *case_node = node->next_case; case_node != NULL;
              case_node = case_node->next_case) {
             char *reg = (node->cond->ty->size == 8) ? "rax" : "eax";
-            printf("  cmp %s, %ld\n", reg, case_node->val);
-            printf("  je %s\n", case_node->label);
+            fprintf(output_file, "  cmp %s, %ld\n", reg, case_node->val);
+            fprintf(output_file, "  je %s\n", case_node->label);
         }
         if (node->default_case != NULL) {
-            printf("  jmp %s\n", node->default_case->label);
+            fprintf(output_file, "  jmp %s\n", node->default_case->label);
         }
-        printf("  jmp %s\n", node->break_label);
+        fprintf(output_file, "  jmp %s\n", node->break_label);
 
         gen(node->then);
-        printf("%s:\n", node->break_label);
+        fprintf(output_file, "%s:\n", node->break_label);
         return;
     }
 
     if (node->kind == ND_CASE) {
-        printf("%s:\n", node->label);
+        fprintf(output_file, "%s:\n", node->label);
         gen(node->lhs);
         return;
     }
@@ -322,30 +327,30 @@ void gen(struct Node *node) {
         }
 
         // 16-byte align rsp
-        printf("  push rsp\n");
-        printf("  push [rsp]\n");
-        printf("  and rsp, -0x10\n");
+        fprintf(output_file, "  push rsp\n");
+        fprintf(output_file, "  push [rsp]\n");
+        fprintf(output_file, "  and rsp, -0x10\n");
 
-        printf("  call rax\n");
+        fprintf(output_file, "  call rax\n");
 
         // get original rsp
-        printf("  add rsp, 8\n");
-        printf("  mov rsp, [rsp]\n");
+        fprintf(output_file, "  add rsp, 8\n");
+        fprintf(output_file, "  mov rsp, [rsp]\n");
 
         switch (node->ty->ty) {
         case TY_BOOL:
         case TY_CHAR:
             if (node->ty->is_unsigned) {
-                printf("  movsx eax, al\n");
+                fprintf(output_file, "  movsx eax, al\n");
             } else {
-                printf("  movzx eax, al\n");
+                fprintf(output_file, "  movzx eax, al\n");
             }
             break;
         case TY_SHORT:
             if (node->ty->is_unsigned) {
-                printf("  movzx eax, ax\n");
+                fprintf(output_file, "  movzx eax, ax\n");
             } else {
-                printf("  movsx eax, ax\n");
+                fprintf(output_file, "  movsx eax, ax\n");
             }
             break;
         }
@@ -360,7 +365,7 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_NUM) {
-        printf("  mov rax, %ld\n", node->val);
+        fprintf(output_file, "  mov rax, %ld\n", node->val);
         return;
     }
 
@@ -395,15 +400,15 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_NOT) {
         gen(node->lhs);
-        printf("  cmp rax, 0\n");
-        printf("  sete al\n");
-        printf("  movzx rax, al\n");
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  sete al\n");
+        fprintf(output_file, "  movzx rax, al\n");
         return;
     }
 
     if (node->kind == ND_BITNOT) {
         gen(node->lhs);
-        printf("  not rax\n");
+        fprintf(output_file, "  not rax\n");
         return;
     }
 
@@ -416,56 +421,56 @@ void gen(struct Node *node) {
     if (node->kind == ND_LOGOR) {
         int number = label++;
         gen(node->lhs);
-        printf("  cmp rax, 0\n");
-        printf("  jne .L.true.%d\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  jne .L.true.%d\n", number);
         gen(node->rhs);
-        printf("  cmp rax, 0\n");
-        printf("  jne .L.true.%d\n", number);
-        printf("  mov rax, 0\n");
-        printf("  jmp .L.end.%d\n", number);
-        printf(".L.true.%d:\n", number);
-        printf("  mov rax, 1\n");
-        printf(".L.end.%d:\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  jne .L.true.%d\n", number);
+        fprintf(output_file, "  mov rax, 0\n");
+        fprintf(output_file, "  jmp .L.end.%d\n", number);
+        fprintf(output_file, ".L.true.%d:\n", number);
+        fprintf(output_file, "  mov rax, 1\n");
+        fprintf(output_file, ".L.end.%d:\n", number);
         return;
     }
     if (node->kind == ND_LOGAND) {
         int number = label++;
         gen(node->lhs);
-        printf("  cmp rax, 0\n");
-        printf("  je .L.false.%d\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je .L.false.%d\n", number);
         gen(node->rhs);
-        printf("  cmp rax, 0\n");
-        printf("  je .L.false.%d\n", number);
-        printf("  mov rax, 1\n");
-        printf("  jmp .L.end.%d\n", number);
-        printf(".L.false.%d:\n", number);
-        printf("  mov rax, 0\n");
-        printf(".L.end.%d:\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je .L.false.%d\n", number);
+        fprintf(output_file, "  mov rax, 1\n");
+        fprintf(output_file, "  jmp .L.end.%d\n", number);
+        fprintf(output_file, ".L.false.%d:\n", number);
+        fprintf(output_file, "  mov rax, 0\n");
+        fprintf(output_file, ".L.end.%d:\n", number);
         return;
     }
 
     if (node->kind == ND_COND) {
         int number = label++;
         gen(node->cond);
-        printf("  cmp rax, 0\n");
-        printf("  je .L.false.%d\n", number);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  je .L.false.%d\n", number);
         gen(node->then);
-        printf("  jmp .L.end.%d\n", number);
-        printf(".L.false.%d:\n", number);
+        fprintf(output_file, "  jmp .L.end.%d\n", number);
+        fprintf(output_file, ".L.false.%d:\n", number);
         gen(node->els);
-        printf(".L.end.%d:\n", number);
+        fprintf(output_file, ".L.end.%d:\n", number);
         return;
     }
 
     if (node->kind == ND_DO) {
         int number = label++;
-        printf(".L.begin.%d:\n", number);
+        fprintf(output_file, ".L.begin.%d:\n", number);
         gen(node->then);
-        printf("%s:\n", node->continue_label);
+        fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->cond);
-        printf("  cmp rax, 0\n");
-        printf("  jne .L.begin.%d\n", number);
-        printf("%s:\n", node->break_label);
+        fprintf(output_file, "  cmp rax, 0\n");
+        fprintf(output_file, "  jne .L.begin.%d\n", number);
+        fprintf(output_file, "%s:\n", node->break_label);
         return;
     }
 
@@ -493,80 +498,80 @@ void gen(struct Node *node) {
 
     switch (node->kind) {
     case ND_ADD:
-        printf("  add %s, %s\n", ax, di);
+        fprintf(output_file, "  add %s, %s\n", ax, di);
         break;
     case ND_SUB:
-        printf("  sub %s, %s\n", ax, di);
+        fprintf(output_file, "  sub %s, %s\n", ax, di);
         break;
     case ND_MUL:
-        printf("  imul %s, %s\n", ax, di);
+        fprintf(output_file, "  imul %s, %s\n", ax, di);
         break;
     case ND_DIV:
     case ND_MOD:
         if (node->ty->is_unsigned) {
-            printf("  mov %s, 0\n", dx);
-            printf("  div %s\n", di);
+            fprintf(output_file, "  mov %s, 0\n", dx);
+            fprintf(output_file, "  div %s\n", di);
         } else {
             if (node->lhs->ty->size == 8) {
-                printf("  cqo\n");
+                fprintf(output_file, "  cqo\n");
             } else {
-                printf("  cdq\n");
+                fprintf(output_file, "  cdq\n");
             }
-            printf("  idiv %s\n", di);
+            fprintf(output_file, "  idiv %s\n", di);
         }
 
         if (node->kind == ND_MOD) {
-            printf("  mov rax, rdx\n");
+            fprintf(output_file, "  mov rax, rdx\n");
         }
         break;
     case ND_EQ:
-        printf("  cmp %s, %s\n", ax, di);
-        printf("  sete al\n");
-        printf("  movzb rax, al\n");
+        fprintf(output_file, "  cmp %s, %s\n", ax, di);
+        fprintf(output_file, "  sete al\n");
+        fprintf(output_file, "  movzb rax, al\n");
         break;
     case ND_NE:
-        printf("  cmp %s, %s\n", ax, di);
-        printf("  setne al\n");
-        printf("  movzb rax, al\n");
+        fprintf(output_file, "  cmp %s, %s\n", ax, di);
+        fprintf(output_file, "  setne al\n");
+        fprintf(output_file, "  movzb rax, al\n");
         break;
     case ND_LT:
-        printf("  cmp %s, %s\n", ax, di);
+        fprintf(output_file, "  cmp %s, %s\n", ax, di);
         if (node->lhs->ty->is_unsigned) {
-            printf("  setb al\n");
+            fprintf(output_file, "  setb al\n");
         } else {
-            printf("  setl al\n");
+            fprintf(output_file, "  setl al\n");
         }
-        printf("  movzb rax, al\n");
+        fprintf(output_file, "  movzb rax, al\n");
         break;
     case ND_LE:
-        printf("  cmp %s, %s\n", ax, di);
+        fprintf(output_file, "  cmp %s, %s\n", ax, di);
         if (node->lhs->ty->is_unsigned) {
-            printf("  setbe al\n");
+            fprintf(output_file, "  setbe al\n");
         } else {
-            printf("  setle al\n");
+            fprintf(output_file, "  setle al\n");
         }
-        printf("  movzb rax, al\n");
+        fprintf(output_file, "  movzb rax, al\n");
         break;
     case ND_BITOR:
-        printf("  or rax, rdi\n");
+        fprintf(output_file, "  or rax, rdi\n");
         break;
     case ND_BITXOR:
-        printf("  xor rax, rdi\n");
+        fprintf(output_file, "  xor rax, rdi\n");
         break;
     case ND_BITAND:
-        printf("  and rax, rdi\n");
+        fprintf(output_file, "  and rax, rdi\n");
         break;
     case ND_SHL: {
-        printf("  mov rcx, rdi\n");
-        printf("  sal %s, cl\n", ax);
+        fprintf(output_file, "  mov rcx, rdi\n");
+        fprintf(output_file, "  sal %s, cl\n", ax);
         break;
     }
     case ND_SHR: {
-        printf("  mov rcx, rdi\n");
+        fprintf(output_file, "  mov rcx, rdi\n");
         if (node->lhs->ty->is_unsigned) {
-            printf("  shr %s, cl\n", ax);
+            fprintf(output_file, "  shr %s, cl\n", ax);
         } else {
-            printf("  sar %s, cl\n", ax);
+            fprintf(output_file, "  sar %s, cl\n", ax);
         }
         break;
     }
@@ -585,8 +590,9 @@ static void assign_lvar_offsets(struct Object *function) {
     function->stack_size = align_to(offset, 16);
 }
 
-void codegen() {
-    printf(".intel_syntax noprefix\n");
+void codegen(FILE *out) {
+    output_file = out;
+    fprintf(output_file, ".intel_syntax noprefix\n");
 
     for (struct Object *obj = globals; obj; obj = obj->next) {
         assert(obj->is_global_variable);
@@ -594,29 +600,30 @@ void codegen() {
             continue;
         }
         if (obj->is_static) {
-            printf("  .local %s\n", obj->name);
+            fprintf(output_file, "  .local %s\n", obj->name);
         } else {
-            printf("  .globl %s\n", obj->name);
+            fprintf(output_file, "  .globl %s\n", obj->name);
         }
-        printf("  .align %d\n", obj->align);
+        fprintf(output_file, "  .align %d\n", obj->align);
         if (obj->init_data) {
-            printf("  .data\n");
-            printf("%s:\n", obj->name);
+            fprintf(output_file, "  .data\n");
+            fprintf(output_file, "%s:\n", obj->name);
             struct Relocation *rel = obj->rel;
             int pos = 0;
             while (pos < obj->ty->size) {
                 if (rel != NULL && rel->offset == pos) {
-                    printf("  .quad %s%+ld\n", rel->label, rel->addend);
+                    fprintf(output_file, "  .quad %s%+ld\n", rel->label,
+                            rel->addend);
                     pos += 8;
                     rel = rel->next;
                 } else {
-                    printf("  .byte %d\n", obj->init_data[pos++]);
+                    fprintf(output_file, "  .byte %d\n", obj->init_data[pos++]);
                 }
             }
         } else {
-            printf("  .bss\n");
-            printf("%s:\n", obj->name);
-            printf("  .zero %d\n", obj->ty->size);
+            fprintf(output_file, "  .bss\n");
+            fprintf(output_file, "%s:\n", obj->name);
+            fprintf(output_file, "  .zero %d\n", obj->ty->size);
         }
     }
 
@@ -625,13 +632,13 @@ void codegen() {
             continue;
         assert(obj->is_function);
         assign_lvar_offsets(obj);
-        printf("  .text\n");
+        fprintf(output_file, "  .text\n");
         if (obj->is_static) {
-            printf("  .local %s\n", obj->name);
+            fprintf(output_file, "  .local %s\n", obj->name);
         } else {
-            printf("  .globl %s\n", obj->name);
+            fprintf(output_file, "  .globl %s\n", obj->name);
         }
-        printf("%s:\n", obj->name);
+        fprintf(output_file, "%s:\n", obj->name);
 
         prologue(obj->stack_size);
 
@@ -642,42 +649,57 @@ void codegen() {
             }
             int offset = obj->va_area->offset;
             // va_elem
-            printf("  mov dword ptr [rbp - %d], %d\n", offset,
-                   gp * 8); // general purpose offset
-            printf("  mov dword ptr [rbp - %d], 0\n",
-                   offset - 4); // floating purpose offset
-            printf("  mov qword ptr [rbp - %d], rbp\n", offset - 16);
-            printf("  sub qword ptr [rbp - %d], %d\n", offset - 16,
-                   offset - 24);
+            fprintf(output_file, "  mov dword ptr [rbp - %d], %d\n", offset,
+                    gp * 8); // general purpose offset
+            fprintf(output_file, "  mov dword ptr [rbp - %d], 0\n",
+                    offset - 4); // floating purpose offset
+            fprintf(output_file, "  mov qword ptr [rbp - %d], rbp\n",
+                    offset - 16);
+            fprintf(output_file, "  sub qword ptr [rbp - %d], %d\n",
+                    offset - 16, offset - 24);
 
             // __reg_save_area__
-            printf("  mov qword ptr [rbp - %d], rdi\n", offset - 24);
-            printf("  mov qword ptr [rbp - %d], rsi\n", offset - 32);
-            printf("  mov qword ptr [rbp - %d], rdx\n", offset - 40);
-            printf("  mov qword ptr [rbp - %d], rcx\n", offset - 48);
-            printf("  mov qword ptr [rbp - %d], r8\n", offset - 56);
-            printf("  mov qword ptr [rbp - %d], r9\n", offset - 64);
-            printf("  movsd qword ptr [rbp - %d], xmm0\n", offset - 72);
-            printf("  movsd qword ptr [rbp - %d], xmm1\n", offset - 80);
-            printf("  movsd qword ptr [rbp - %d], xmm2\n", offset - 88);
-            printf("  movsd qword ptr [rbp - %d], xmm3\n", offset - 96);
-            printf("  movsd qword ptr [rbp - %d], xmm4\n", offset - 104);
-            printf("  movsd qword ptr [rbp - %d], xmm5\n", offset - 112);
-            printf("  movsd qword ptr [rbp - %d], xmm6\n", offset - 120);
-            printf("  movsd qword ptr [rbp - %d], xmm7\n", offset - 128);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], rdi\n",
+                    offset - 24);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], rsi\n",
+                    offset - 32);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], rdx\n",
+                    offset - 40);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], rcx\n",
+                    offset - 48);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], r8\n",
+                    offset - 56);
+            fprintf(output_file, "  mov qword ptr [rbp - %d], r9\n",
+                    offset - 64);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm0\n",
+                    offset - 72);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm1\n",
+                    offset - 80);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm2\n",
+                    offset - 88);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm3\n",
+                    offset - 96);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm4\n",
+                    offset - 104);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm5\n",
+                    offset - 112);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm6\n",
+                    offset - 120);
+            fprintf(output_file, "  movsd qword ptr [rbp - %d], xmm7\n",
+                    offset - 128);
         }
 
         int i = 0;
         for (struct Node *arg = obj->args; arg; arg = arg->next) {
             gen_lval(arg);
             if (arg->ty->size == 1)
-                printf("  mov [rax], %s\n", argreg8[i++]);
+                fprintf(output_file, "  mov [rax], %s\n", argreg8[i++]);
             else if (arg->ty->size == 2)
-                printf("  mov [rax], %s\n", argreg16[i++]);
+                fprintf(output_file, "  mov [rax], %s\n", argreg16[i++]);
             else if (arg->ty->size == 4)
-                printf("  mov [rax], %s\n", argreg32[i++]);
+                fprintf(output_file, "  mov [rax], %s\n", argreg32[i++]);
             else
-                printf("  mov [rax], %s\n", argreg64[i++]);
+                fprintf(output_file, "  mov [rax], %s\n", argreg64[i++]);
         }
 
         gen(obj->body);
@@ -685,9 +707,9 @@ void codegen() {
         epilogue();
     }
     if (depth != 0) {
-        printf("%d\n", depth);
+        fprintf(output_file, "%d\n", depth);
     }
     assert(depth == 0);
-    printf(".section .note.GNU-stack,\"\",@progbits\n");
+    fprintf(output_file, ".section .note.GNU-stack,\"\",@progbits\n");
     return;
 }

@@ -67,7 +67,10 @@ char *strchr(char *s, int c);
 static void va_end(va_list ap) {}
 void exit(int code);
 unsigned long strtoul();
-
+int wait(int *wstatus);
+int fork();
+int execvp(char *file, char **argv);
+void _exit();
 """)
 
 for path in sys.argv[1:]:

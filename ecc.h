@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 // file.c
 char *read_file(char *);
@@ -235,7 +238,7 @@ struct Node *new_node_cast(struct Node *, struct Type *);
 struct Object *program();
 
 // codegen.c
-void codegen();
+void codegen(FILE *);
 
 struct Member {
     char *name;
