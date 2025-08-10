@@ -1212,6 +1212,8 @@ struct NameTag *param(struct Token **rest, struct Token *token) {
 
     if (tag->ty->ty == TY_ARRAY) {
         tag->ty = pointer_to(tag->ty->ptr_to);
+    } else if (tag->ty->ty == TY_FUNC) {
+        tag->ty = pointer_to(tag->ty);
     }
     return tag;
 }
