@@ -15,37 +15,50 @@ void error(char *fmt, ...) {
     exit(1);
 }
 
-void error_at(char *loc, char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
-    // locが含まれている行の開始地点と終了地点を取得
+void verror_at(char *filename,
+               char *input,
+               int line_number,
+               char *loc,
+               char *fmt,
+               va_list ap) {
     char *line = loc;
-    char *contents = current_file->contents;
-    while (contents < line && line[-1] != '\n')
+    while (input < line && line[-1] != '\n') {
         line--;
-
+    }
     char *end = loc;
-    while (*end != '\n')
+    while (*end != '\n') {
         end++;
+    }
 
-    // 見つかった行が全体の何行目なのかを調べる
-    int line_num = 1;
-    for (char *p = contents; p < line; p++)
-        if (*p == '\n')
-            line_num++;
-
-    // 見つかった行を、ファイル名と行番号と一緒に表示
-    int indent = fprintf(stderr, "%s:%d: ", filename, line_num);
+    int indent = fprintf(stderr, "%s:%d:", filename, line_number);
     fprintf(stderr, "%.*s\n", (int)(end - line), line);
-
-    int pos = loc - contents;
-    fprintf(stderr, "%s:\n", current_file->path);
+    int pos = loc - line + indent;
     fprintf(stderr, "%*s", pos, " ");
     fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
+}
+
+void error_at(char *loc, char *fmt, ...) {
+    int line_number = 1;
+    for (char *p = current_file->contents; p < loc; p++) {
+        if (*p == '\n') {
+            line_number++;
+        }
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(current_file->path, current_file->contents, line_number, loc, fmt,
+              ap);
     exit(1);
+}
+
+void error_token(struct Token *token, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(token->file->path, token->file->contents, token->line_number,
+              token->loc, fmt, ap);
+    exit(0);
 }
 
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
@@ -58,14 +71,14 @@ struct Token *skip(struct Token *token, char *op) {
 
 struct Token *skip_keyword(struct Token *token, TokenKind kind) {
     if (token->kind != kind) {
-        error_at(token->loc, "skip TokenKind error");
+        error_token(token, "skip TokenKind error");
     }
     return token->next;
 }
 
 long get_number(struct Token *token) {
     if (token->kind != TK_NUM)
-        error_at(token->loc, "数ではありません");
+        error_token(token, "数ではありません");
     return token->val;
 }
 

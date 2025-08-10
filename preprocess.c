@@ -52,19 +52,19 @@ struct Token *preprocess(struct Token *token) {
         if (equal(token, "include")) {
             token = token->next;
             if (token->kind != TK_STR) {
-                error("expected a filename");
+                error_token(token, "expected a filename");
             }
             char *path =
                 format("%s/%s", dirname(strdup(token->file->path)), token->str);
             struct Token *include_token = tokenize_file(path);
             if (include_token == NULL) {
-                error("cannot tokenize %s: %s\n", path, strerror(errno));
+                error_token(token, "%s\n", strerror(errno));
             }
             token = concat(include_token, token->next);
             continue;
         }
 
-        error("invalid preprocessor directive");
+        error_token(token, "invalid preprocessor directive");
     }
     cur->next = token;
     return head.next;
