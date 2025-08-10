@@ -61,6 +61,14 @@ void error_token(struct Token *token, char *fmt, ...) {
     exit(0);
 }
 
+void warning_token(struct Token *token, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(token->file->path, token->file->contents, token->line_number,
+              token->loc, fmt, ap);
+    va_end(ap);
+}
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 struct Token *skip(struct Token *token, char *op) {

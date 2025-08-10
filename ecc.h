@@ -130,6 +130,7 @@ extern struct Object *functions;
 void error(char *, ...);
 void error_at(char *, char *, ...);
 void error_token(struct Token *, char *, ...);
+void warning_token(struct Token *, char *, ...);
 
 long get_number(struct Token *);
 struct Token *skip(struct Token *, char *);

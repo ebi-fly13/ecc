@@ -11,6 +11,17 @@ struct Token *copy_token(struct Token *src) {
     return dst;
 }
 
+struct Token *skip_line(struct Token *token) {
+    if (token->is_begin) {
+        return token;
+    }
+    warning_token(token, "extra token");
+    while (!token->is_begin) {
+        token = token->next;
+    }
+    return token;
+}
+
 struct Token *concat(struct Token *first, struct Token *second) {
     struct Token head = {};
     struct Token *cur = &head;
@@ -60,7 +71,8 @@ struct Token *preprocess(struct Token *token) {
             if (include_token == NULL) {
                 error_token(token, "%s\n", strerror(errno));
             }
-            token = concat(include_token, token->next);
+            token = skip_line(token->next);
+            token = concat(include_token, token);
             continue;
         }
 
