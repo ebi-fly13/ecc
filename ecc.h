@@ -14,9 +14,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+// string.c
+char *format(char *fmt, ...);
+
 // file.c
 char *read_file(char *);
-extern char *filename;
 
 // tokenize.c
 typedef enum {

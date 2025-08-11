@@ -1,7 +1,30 @@
 #include "ecc.h"
 
 static bool option_cc1;
+static bool option_S;
 static char *option_o;
+
+static char *input_path;
+
+static char *replace_extn(char *path, char *extn) {
+    char *filename = basename(strdup(path));
+    char *dot = strrchr(filename, '.');
+    if (dot != NULL) {
+        *dot = '\0';
+    }
+    return format("%s%s", filename, extn);
+}
+
+static char *create_tmpfile() {
+    char *path = strdup("/tmp/ecc-XXXXXX");
+    int fd = mkstemp(path);
+    if (fd == -1) {
+        error("mkstemp failed: %s", strerror(errno));
+    }
+    close(fd);
+
+    return path;
+}
 
 static void help_command(int status) {
     fprintf(stderr, "ecc [ -o path] <file>\n");
@@ -16,6 +39,11 @@ static void parse_args(int argc, char **argv) {
 
         if (!strcmp(argv[i], "-cc1")) {
             option_cc1 = true;
+            continue;
+        }
+
+        if (!strcmp(argv[i], "-S")) {
+            option_S = true;
             continue;
         }
 
@@ -37,9 +65,9 @@ static void parse_args(int argc, char **argv) {
             error("unknown argument: %s", argv[i]);
         }
 
-        filename = argv[i];
+        input_path = argv[i];
     }
-    if (filename == NULL) {
+    if (input_path == NULL) {
         error("no input files");
     }
 }
@@ -69,21 +97,33 @@ static void run_subprocess(char **args) {
     }
 }
 
-static void run_cc1(int argc, char **argv) {
+static void run_cc1(int argc, char **argv, char *input, char *output) {
     char **args = calloc(argc + 2, sizeof(char *));
     memcpy(args, argv, sizeof(char *) * argc);
-    args[argc] = "-cc1";
+    args[argc++] = "-cc1";
+    if (input != NULL) {
+        args[argc++] = input;
+    }
+    if (output != NULL) {
+        args[argc++] = "-o";
+        args[argc++] = output;
+    }
     run_subprocess(args);
 }
 
 static void cc1() {
-    struct Token *token = tokenize_file(filename);
+    struct Token *token = tokenize_file(input_path);
     token = preprocess(token);
     program(token);
 
     FILE *out = open_file(option_o);
 
     codegen(out);
+}
+
+static void assemble(char *input, char *output) {
+    char *cmd[] = {"as", "-c", input, "-o", output, NULL};
+    run_subprocess(cmd);
 }
 
 int main(int argc, char **argv) {
@@ -94,7 +134,24 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    run_cc1(argc, argv);
+    char *output;
+    if (option_o != NULL) {
+        output = option_o;
+    } else if (option_S) {
+        output = replace_extn(input_path, ".s");
+    } else {
+        output = replace_extn(input_path, ".o");
+    }
+
+    if (option_S) {
+        run_cc1(argc, argv, input_path, output);
+        return 0;
+    }
+
+    char *tmp_file = create_tmpfile();
+    run_cc1(argc, argv, input_path, tmp_file);
+    assemble(tmp_file, output);
+    unlink(tmp_file);
 
     return 0;
 }

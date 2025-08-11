@@ -1,7 +1,5 @@
 #include "ecc.h"
 
-char *filename;
-
 char *read_file(char *path) {
     FILE *fp;
     if (!strcmp(path, "-")) {

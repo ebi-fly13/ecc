@@ -71,6 +71,11 @@ int wait(int *wstatus);
 int fork();
 int execvp(char *file, char **argv);
 void _exit();
+char *basename(char *);
+char *strrchr(char *, char);
+int unlink(char *);
+int mkstemp(char *);
+int close(int);
 """)
 
 for path in sys.argv[1:]:
