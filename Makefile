@@ -14,6 +14,11 @@ test/macro.exe: ecc test/macro.c
 		./ecc test/macro.c -S -o test/macro.s
 		$(CC) -o $@ test/macro.s -xc test/common
 
+test/macro2.exe: ecc test/macro.c
+		./ecc test/macro.c -E | ./ecc -o test/macro2.s - -S
+		$(CC) -o $@ test/macro2.s -xc test/common
+		./test/macro2.exe
+
 test/%.exe: ecc test/%.c
 		$(CC) -o- -E -P -C test/$*.c | ./ecc -o test/$*.s - -S
 		$(CC) -static -o $@ test/$*.s -xc test/common
@@ -35,6 +40,12 @@ stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
 	./stage2/ecc test/macro.c -o stage2/test/macro.s -S
 	$(CC) -o $@ stage2/test/macro.s -xc test/common
+
+stage2/test/macro2.exe: stage2/ecc test/macro.c
+	mkdir -p stage2/test
+	./stage2/ecc test/macro.c -E | ./stage2/ecc -o stage2/test/macro2.s - -S
+	$(CC) -o $@ stage2/test/macro2.s -xc test/common
+	./stage2/test/macro2.exe
 
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
@@ -58,6 +69,12 @@ stage3/test/macro.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
 	./stage3/ecc test/macro.c -S -o stage3/test/macro.s
 	$(CC) -o $@ stage3/test/macro.s -xc test/common
+
+stage3/test/macro2.exe: stage3/ecc test/macro.c
+	mkdir -p stage3/test
+	./stage3/ecc test/macro.c -E | ./stage3/ecc -o stage3/test/macro2.s - -S
+	$(CC) -o $@ stage3/test/macro2.s -xc test/common
+	./stage3/test/macro2.exe
 
 stage3/test/%.exe: stage3/ecc test/%.c
 	mkdir -p stage3/test

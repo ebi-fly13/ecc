@@ -2,6 +2,7 @@
 
 static bool option_cc1;
 static bool option_S;
+static bool option_E;
 static char *option_o;
 
 static char *input_path;
@@ -44,6 +45,11 @@ static void parse_args(int argc, char **argv) {
 
         if (!strcmp(argv[i], "-S")) {
             option_S = true;
+            continue;
+        }
+
+        if (!strcmp(argv[i], "-E")) {
+            option_E = true;
             continue;
         }
 
@@ -98,7 +104,7 @@ static void run_subprocess(char **args) {
 }
 
 static void run_cc1(int argc, char **argv, char *input, char *output) {
-    char **args = calloc(argc + 2, sizeof(char *));
+    char **args = calloc(argc + 10, sizeof(char *));
     memcpy(args, argv, sizeof(char *) * argc);
     args[argc++] = "-cc1";
     if (input != NULL) {
@@ -111,9 +117,29 @@ static void run_cc1(int argc, char **argv, char *input, char *output) {
     run_subprocess(args);
 }
 
+static void print_token(struct Token *token) {
+    FILE *out = option_o == NULL ? stdout : open_file(option_o);
+    for (bool start = true; token != NULL && token->kind != TK_EOF;
+         token = token->next) {
+        if (!start && token->is_begin) {
+            fprintf(out, "\n");
+        }
+        if (!token->is_begin) {
+            fprintf(out, " ");
+        }
+        fprintf(out, "%.*s", token->len, token->loc);
+        start = false;
+    }
+    fprintf(out, "\n");
+}
+
 static void cc1() {
     struct Token *token = tokenize_file(input_path);
     token = preprocess(token);
+    if (option_E) {
+        print_token(token);
+        return;
+    }
     program(token);
 
     FILE *out = open_file(option_o);
@@ -145,6 +171,11 @@ int main(int argc, char **argv) {
 
     if (option_S) {
         run_cc1(argc, argv, input_path, output);
+        return 0;
+    }
+
+    if (option_E) {
+        run_cc1(argc, argv, input_path, NULL);
         return 0;
     }
 
