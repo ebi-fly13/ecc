@@ -239,6 +239,8 @@ struct Node *new_node_cast(struct Node *, struct Type *);
 
 struct Object *program();
 
+long const_expr(struct Token **, struct Token *);
+
 // codegen.c
 void codegen(FILE *);
 
