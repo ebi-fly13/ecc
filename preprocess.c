@@ -8,28 +8,28 @@ struct CondIncl {
 
 struct CondIncl *cond;
 
-bool is_hash(struct Token *token) {
+static bool is_hash(struct Token *token) {
     return equal(token, "#") && token->is_begin;
 }
 
-bool is_hash_and_keyword(struct Token *token, char *keyword) {
+static bool is_hash_and_keyword(struct Token *token, char *keyword) {
     return is_hash(token) && token->is_begin && equal(token->next, keyword);
 }
 
-struct Token *new_eof_token() {
+static struct Token *new_eof_token() {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_EOF;
     return token;
 }
 
-struct Token *copy_token(struct Token *src) {
+static struct Token *copy_token(struct Token *src) {
     struct Token *dst = calloc(1, sizeof(struct Token));
     *dst = *src;
     dst->next = NULL;
     return dst;
 }
 
-struct Token *copy_line(struct Token **rest, struct Token *src) {
+static struct Token *copy_line(struct Token **rest, struct Token *src) {
     struct Token head = {};
     struct Token *cur = &head;
     for (; !src->is_begin; src = src->next) {
@@ -40,12 +40,12 @@ struct Token *copy_line(struct Token **rest, struct Token *src) {
     return head.next;
 }
 
-long eval_const_expr(struct Token **rest, struct Token *token) {
+static long eval_const_expr(struct Token **rest, struct Token *token) {
     struct Token *line = copy_line(rest, token);
     return const_expr(&line, line);
 }
 
-struct Token *skip_line(struct Token *token) {
+static struct Token *skip_line(struct Token *token) {
     if (token->is_begin) {
         return token;
     }
@@ -56,7 +56,7 @@ struct Token *skip_line(struct Token *token) {
     return token;
 }
 
-struct Token *skip_cond_incl(struct Token *token) {
+static struct Token *skip_cond_incl(struct Token *token) {
     while (token->kind != TK_EOF) {
         if (is_hash_and_keyword(token, "if")) {
             eval_const_expr(&token, token->next->next);
@@ -73,7 +73,7 @@ struct Token *skip_cond_incl(struct Token *token) {
     return token;
 }
 
-struct Token *concat(struct Token *first, struct Token *second) {
+static struct Token *concat(struct Token *first, struct Token *second) {
     struct Token head = {};
     struct Token *cur = &head;
     while (first != NULL && first->kind != TK_EOF) {
@@ -84,7 +84,7 @@ struct Token *concat(struct Token *first, struct Token *second) {
     return head.next;
 }
 
-void push_cond_incl(struct Token **rest, struct Token *token) {
+static void push_cond_incl(struct Token **rest, struct Token *token) {
     struct CondIncl *next = calloc(1, sizeof(struct CondIncl));
     next->outer = cond;
     next->token = token;
@@ -92,7 +92,7 @@ void push_cond_incl(struct Token **rest, struct Token *token) {
     cond = next;
 }
 
-void pop_cond_incl() { cond = cond->outer; }
+static void pop_cond_incl() { cond = cond->outer; }
 
 struct Token *preprocess(struct Token *token) {
     struct Token head = {};
