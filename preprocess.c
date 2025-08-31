@@ -1,9 +1,12 @@
 #include "ecc.h"
 
+typedef enum Cond { If, Else } Cond;
+
 struct CondIncl {
     struct CondIncl *outer;
     struct Token *token;
-    bool cond;
+    Cond cond;
+    bool in;
 };
 
 struct CondIncl *cond;
@@ -13,7 +16,7 @@ static bool is_hash(struct Token *token) {
 }
 
 static bool is_hash_and_keyword(struct Token *token, char *keyword) {
-    return is_hash(token) && token->is_begin && equal(token->next, keyword);
+    return is_hash(token) && equal(token->next, keyword);
 }
 
 static struct Token *new_eof_token() {
@@ -45,11 +48,13 @@ static long eval_const_expr(struct Token **rest, struct Token *token) {
     return const_expr(&line, line);
 }
 
-static struct Token *skip_line(struct Token *token) {
+static struct Token *skip_line(struct Token *token, bool warning_option) {
     if (token->is_begin) {
         return token;
     }
-    warning_token(token, "extra token");
+    if (warning_option) {
+        warning_token(token, "extra token");
+    }
     while (!token->is_begin) {
         token = token->next;
     }
@@ -59,13 +64,21 @@ static struct Token *skip_line(struct Token *token) {
 static struct Token *skip_cond_incl(struct Token *token) {
     while (token->kind != TK_EOF) {
         if (is_hash_and_keyword(token, "if")) {
-            eval_const_expr(&token, token->next->next);
+            token = skip_line(token->next, false);
             token = skip_cond_incl(token);
-            assert(is_hash_and_keyword(token, "endif"));
-            token = skip_line(token->next->next);
+            if (is_hash_and_keyword(token, "else")) {
+                token = skip_line(token->next, false);
+                token = skip_cond_incl(token);
+            }
+            if (!is_hash_and_keyword(token, "endif")) {
+                error_token(token, "expected endif");
+            }
+            token = skip_line(token->next->next, false);
             continue;
         }
-        if (is_hash_and_keyword(token, "endif")) {
+        if (is_hash_and_keyword(token, "elif") ||
+            is_hash_and_keyword(token, "else") ||
+            is_hash_and_keyword(token, "endif")) {
             break;
         }
         token = token->next;
@@ -84,15 +97,19 @@ static struct Token *concat(struct Token *first, struct Token *second) {
     return head.next;
 }
 
-static void push_cond_incl(struct Token **rest, struct Token *token) {
+static void push_cond_incl(struct Token *token, int val) {
     struct CondIncl *next = calloc(1, sizeof(struct CondIncl));
     next->outer = cond;
     next->token = token;
-    next->cond = eval_const_expr(rest, token);
+    next->cond = If;
+    next->in = val != 0;
     cond = next;
 }
 
-static void pop_cond_incl() { cond = cond->outer; }
+static void pop_cond_incl() {
+    assert(cond != NULL);
+    cond = cond->outer;
+}
 
 struct Token *preprocess(struct Token *token) {
     struct Token head = {};
@@ -103,6 +120,12 @@ struct Token *preprocess(struct Token *token) {
             token = token->next;
             continue;
         }
+        if (token == token->next) {
+            error_token(token, "same pointer");
+        }
+
+        struct Token *start = token;
+
         token = token->next;
 
         if (token->is_begin) {
@@ -118,24 +141,38 @@ struct Token *preprocess(struct Token *token) {
                 format("%s/%s", dirname(strdup(token->file->path)), token->str);
             struct Token *include_token = tokenize_file(path);
             if (include_token == NULL) {
-                error_token(token, "%s\n", strerror(errno));
+                error_token(start, "%s\n", strerror(errno));
             }
-            token = skip_line(token->next);
+            token = skip_line(token->next, true);
             token = concat(include_token, token);
             continue;
         }
 
         if (equal(token, "if")) {
-            push_cond_incl(&token, token->next);
-            if (!cond->cond) {
+            long val = eval_const_expr(&token, token->next);
+            push_cond_incl(start, val);
+            if (!cond->in) {
                 token = token->next = skip_cond_incl(token);
             }
             continue;
         }
 
+        if (equal(token, "else")) {
+            if (cond == NULL || cond->cond == Else) {
+                error_token(token, "stray #else");
+            }
+            token = skip_line(token->next, true);
+            if (cond->in) {
+                token = skip_cond_incl(token);
+            }
+            cond->cond = Else;
+            cond->in = true;
+            continue;
+        }
+
         if (equal(token, "endif")) {
             pop_cond_incl();
-            token = skip_line(token->next);
+            token = skip_line(token->next, true);
             continue;
         }
 
