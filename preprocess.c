@@ -1,6 +1,6 @@
 #include "ecc.h"
 
-typedef enum Cond { If, Else } Cond;
+typedef enum Cond { If, Elif, Else } Cond;
 
 struct CondIncl {
     struct CondIncl *outer;
@@ -66,6 +66,10 @@ static struct Token *skip_cond_incl(struct Token *token) {
         if (is_hash_and_keyword(token, "if")) {
             token = skip_line(token->next, false);
             token = skip_cond_incl(token);
+            while (is_hash_and_keyword(token, "elif")) {
+                token = skip_line(token->next, false);
+                token = skip_cond_incl(token);
+            }
             if (is_hash_and_keyword(token, "else")) {
                 token = skip_line(token->next, false);
                 token = skip_cond_incl(token);
@@ -153,6 +157,24 @@ struct Token *preprocess(struct Token *token) {
             push_cond_incl(start, val);
             if (!cond->in) {
                 token = token->next = skip_cond_incl(token);
+            }
+            continue;
+        }
+
+        if (equal(token, "elif")) {
+            if (cond == NULL || cond->cond == Else) {
+                error_token(token, "stray #elif");
+            }
+            cond->cond = Elif;
+            if (cond->in) {
+                token = token->next = skip_cond_incl(token->next);
+            } else {
+                long val = eval_const_expr(&token, token->next);
+                if (val != 0) {
+                    cond->in = true;
+                } else {
+                    token = token->next = skip_cond_incl(token);
+                }
             }
             continue;
         }
