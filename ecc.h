@@ -147,6 +147,7 @@ bool is_end(struct Token *);
 bool is_end(struct Token *);
 struct Token *tokenize(struct File *);
 struct Token *tokenize_file(char *);
+void convert_keywords(struct Token *);
 
 // preprocess.c
 struct Token *preprocess(struct Token *);

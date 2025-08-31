@@ -369,180 +369,6 @@ struct Token *tokenize(struct File *file) {
             continue;
         }
 
-        if (startswith(p, "return") && !is_alnum(p[6])) {
-            cur = new_token(TK_RETURN, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "if") && !is_alnum(p[2])) {
-            cur = new_token(TK_IF, cur, p, 2);
-            p += 2;
-            continue;
-        }
-
-        if (startswith(p, "else") && !is_alnum(p[4])) {
-            cur = new_token(TK_ELSE, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "while") && !is_alnum(p[5])) {
-            cur = new_token(TK_WHILE, cur, p, 5);
-            p += 5;
-            continue;
-        }
-
-        if (startswith(p, "for") && !is_alnum(p[3])) {
-            cur = new_token(TK_FOR, cur, p, 3);
-            p += 3;
-            continue;
-        }
-
-        if (startswith(p, "long") && !is_alnum(p[4])) {
-            cur = new_token(TK_MOLD, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "int") && !is_alnum(p[3])) {
-            cur = new_token(TK_MOLD, cur, p, 3);
-            p += 3;
-            continue;
-        }
-
-        if (startswith(p, "short") && !is_alnum(p[5])) {
-            cur = new_token(TK_MOLD, cur, p, 5);
-            p += 5;
-            continue;
-        }
-
-        if (startswith(p, "char") && !is_alnum(p[4])) {
-            cur = new_token(TK_MOLD, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "_Bool") && !is_alnum(p[5])) {
-            cur = new_token(TK_MOLD, cur, p, 5);
-            p += 5;
-            continue;
-        }
-
-        if (startswith(p, "void") && !is_alnum(p[4])) {
-            cur = new_token(TK_MOLD, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "signed") && !is_alnum(p[6])) {
-            cur = new_token(TK_MOLD, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "unsigned") && !is_alnum(p[8])) {
-            cur = new_token(TK_MOLD, cur, p, 8);
-            p += 8;
-            continue;
-        }
-
-        if (startswith(p, "sizeof") && !is_alnum(p[6])) {
-            cur = new_token(TK_SIZEOF, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "struct") && !is_alnum(p[6])) {
-            cur = new_token(TK_MOLD, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "union") && !is_alnum(p[5])) {
-            cur = new_token(TK_MOLD, cur, p, 5);
-            p += 5;
-            continue;
-        }
-
-        if (startswith(p, "enum") && !is_alnum(p[4])) {
-            cur = new_token(TK_MOLD, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "typedef") && !is_alnum(p[7])) {
-            cur = new_token(TK_RESERVED, cur, p, 7);
-            p += 7;
-            continue;
-        }
-
-        if (startswith(p, "static") && !is_alnum(p[6])) {
-            cur = new_token(TK_STATIC, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "extern") && !is_alnum(p[6])) {
-            cur = new_token(TK_EXTERN, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "goto") && !is_alnum(p[4])) {
-            cur = new_token(TK_GOTO, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "break") && !is_alnum(p[5])) {
-            cur = new_token(TK_BREAK, cur, p, 5);
-            p += 5;
-            continue;
-        }
-
-        if (startswith(p, "continue") && !is_alnum(p[8])) {
-            cur = new_token(TK_CONTINUE, cur, p, 8);
-            p += 8;
-            continue;
-        }
-
-        if (startswith(p, "switch") && !is_alnum(p[6])) {
-            cur = new_token(TK_SWITCH, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
-        if (startswith(p, "case") && !is_alnum(p[4])) {
-            cur = new_token(TK_CASE, cur, p, 4);
-            p += 4;
-            continue;
-        }
-
-        if (startswith(p, "default") && !is_alnum(p[7])) {
-            cur = new_token(TK_DEFAULT, cur, p, 7);
-            p += 7;
-            continue;
-        }
-
-        if (startswith(p, "do") && !is_alnum(p[2])) {
-            cur = new_token(TK_DO, cur, p, 2);
-            p += 2;
-            continue;
-        }
-
-        if (startswith(p, "_Alignof") && !is_alnum(p[8])) {
-            cur = new_token(TK_ALIGNOF, cur, p, 8);
-            p += 8;
-            continue;
-        }
-
-        if (startswith(p, "_Alignas") && !is_alnum(p[8])) {
-            cur = new_token(TK_ALIGNAS, cur, p, 8);
-            p += 8;
-            continue;
-        }
-
         if (isdigit(*p)) {
             cur = read_int_literal(cur, p);
             p += cur->len;
@@ -565,6 +391,57 @@ struct Token *tokenize(struct File *file) {
     new_token(TK_EOF, cur, p, 0);
     add_line_number(head.next);
     return head.next;
+}
+
+void convert_keywords(struct Token *token) {
+    for (struct Token *cur = token; cur != NULL; cur = cur->next) {
+        if (cur->kind != TK_IDENT)
+            continue;
+        if (equal(cur, "return")) {
+            cur->kind = TK_RETURN;
+        } else if (equal(cur, "if")) {
+            cur->kind = TK_IF;
+        } else if (equal(cur, "else")) {
+            cur->kind = TK_ELSE;
+        } else if (equal(cur, "while")) {
+            cur->kind = TK_WHILE;
+        } else if (equal(cur, "for")) {
+            cur->kind = TK_FOR;
+        } else if (equal(cur, "long") || equal(cur, "int") ||
+                   equal(cur, "short") || equal(cur, "char") ||
+                   equal(cur, "_Bool") || equal(cur, "void") ||
+                   equal(cur, "signed") || equal(cur, "unsigned") ||
+                   equal(cur, "struct") || equal(cur, "union") ||
+                   equal(cur, "enum")) {
+            cur->kind = TK_MOLD;
+        } else if (equal(cur, "sizeof")) {
+            cur->kind = TK_SIZEOF;
+        } else if (equal(cur, "typedef")) {
+            cur->kind = TK_RESERVED;
+        } else if (equal(cur, "static")) {
+            cur->kind = TK_STATIC;
+        } else if (equal(cur, "extern")) {
+            cur->kind = TK_EXTERN;
+        } else if (equal(cur, "goto")) {
+            cur->kind = TK_GOTO;
+        } else if (equal(cur, "break")) {
+            cur->kind = TK_BREAK;
+        } else if (equal(cur, "continue")) {
+            cur->kind = TK_CONTINUE;
+        } else if (equal(cur, "switch")) {
+            cur->kind = TK_SWITCH;
+        } else if (equal(cur, "case")) {
+            cur->kind = TK_CASE;
+        } else if (equal(cur, "default")) {
+            cur->kind = TK_DEFAULT;
+        } else if (equal(cur, "do")) {
+            cur->kind = TK_DO;
+        } else if (equal(cur, "_Alignof")) {
+            cur->kind = TK_ALIGNOF;
+        } else if (equal(cur, "_Alignas")) {
+            cur->kind = TK_ALIGNAS;
+        }
+    }
 }
 
 struct File *new_file(char *path, int file_number, char *contents) {

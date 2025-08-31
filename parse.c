@@ -588,7 +588,7 @@ struct Node *assign(struct Token **, struct Token *);
 struct Node *conditional(struct Token **, struct Token *);
 struct Node *logor(struct Token **, struct Token *);
 struct Node *logand(struct Token **, struct Token *);
-struct Node * bitor (struct Token **, struct Token *);
+struct Node *bitor(struct Token **, struct Token *);
 struct Node *bitxor(struct Token **, struct Token *);
 struct Node *bitand(struct Token **, struct Token *);
 struct Node *equality(struct Token **, struct Token *);
@@ -891,7 +891,8 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             ty = ty_int;
             break;
         }
-        error("invalid type");
+        error_token(token, " %s is invalid type",
+                    strndup(token->loc, token->len));
     }
     *rest = token;
     return ty;
@@ -2003,9 +2004,9 @@ struct Node *logor(struct Token **rest, struct Token *token) {
 logand = bitor ("&&" bitor)*
 */
 struct Node *logand(struct Token **rest, struct Token *token) {
-    struct Node *node = bitor (&token, token);
+    struct Node *node = bitor(&token, token);
     while (equal(token, "&&")) {
-        node = new_node_binary(ND_LOGAND, node, bitor (&token, token->next));
+        node = new_node_binary(ND_LOGAND, node, bitor(&token, token->next));
     }
     *rest = token;
     return node;
@@ -2014,7 +2015,7 @@ struct Node *logand(struct Token **rest, struct Token *token) {
 /*
 bitor = bitxor ("|" bitxor)*
 */
-struct Node * bitor (struct Token * *rest, struct Token *token) {
+struct Node *bitor(struct Token **rest, struct Token *token) {
     struct Node *node = bitxor(&token, token);
     while (equal(token, "|")) {
         node = new_node_binary(ND_BITOR, node, bitxor(&token, token->next));

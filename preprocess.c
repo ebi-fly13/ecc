@@ -120,7 +120,7 @@ static void pop_cond_incl() {
 }
 
 static void add_macro(struct Token **rest, struct Token *token) {
-    // assert(token->kind == TK_IDENT);
+    assert(token->kind == TK_IDENT);
     struct Macro *macro = calloc(1, sizeof(struct Macro));
     macro->name = strndup(token->loc, token->len);
     macro->body = copy_line(rest, token->next);
@@ -129,9 +129,9 @@ static void add_macro(struct Token **rest, struct Token *token) {
 }
 
 static struct Macro *find_macro(struct Token *token) {
-    // if (token->kind != TK_IDENT) {
-    //     return NULL;
-    // }
+    if (token->kind != TK_IDENT) {
+        return NULL;
+    }
     for (struct Macro *cur = macros; cur != NULL; cur = cur->next) {
         if (strlen(cur->name) == token->len &&
             !strncmp(cur->name, token->loc, token->len)) {
@@ -142,7 +142,8 @@ static struct Macro *find_macro(struct Token *token) {
 }
 
 static bool expand_macro(struct Token **rest, struct Token *token) {
-    // if (token->kind != TK_IDENT) return false;
+    if (token->kind != TK_IDENT)
+        return false;
     struct Macro *m = find_macro(token);
     if (m == NULL) {
         return false;
@@ -237,9 +238,9 @@ struct Token *preprocess(struct Token *token) {
 
         if (equal(token, "define")) {
             token = token->next;
-            // if (token->kind != TK_IDENT) {
-            //     error_token(token, "expected ident");
-            // }
+            if (token->kind != TK_IDENT) {
+                error_token(token, "expected ident");
+            }
             add_macro(&token, token);
             continue;
         }
