@@ -7,9 +7,13 @@ struct CondIncl {
     struct Token *token;
     Cond cond;
     bool in;
-};
+} *cond;
 
-struct CondIncl *cond;
+struct Macro {
+    struct Macro *next;
+    char *name;
+    struct Token *body;
+} *macros;
 
 static bool is_hash(struct Token *token) {
     return equal(token, "#") && token->is_begin;
@@ -115,20 +119,53 @@ static void pop_cond_incl() {
     cond = cond->outer;
 }
 
+static void add_macro(struct Token **rest, struct Token *token) {
+    // assert(token->kind == TK_IDENT);
+    struct Macro *macro = calloc(1, sizeof(struct Macro));
+    macro->name = strndup(token->loc, token->len);
+    macro->body = copy_line(rest, token->next);
+    macro->next = macros;
+    macros = macro;
+}
+
+static struct Macro *find_macro(struct Token *token) {
+    // if (token->kind != TK_IDENT) {
+    //     return NULL;
+    // }
+    for (struct Macro *cur = macros; cur != NULL; cur = cur->next) {
+        if (strlen(cur->name) == token->len &&
+            !strncmp(cur->name, token->loc, token->len)) {
+            return cur;
+        }
+    }
+    return NULL;
+}
+
+static bool expand_macro(struct Token **rest, struct Token *token) {
+    // if (token->kind != TK_IDENT) return false;
+    struct Macro *m = find_macro(token);
+    if (m == NULL) {
+        return false;
+    }
+    *rest = concat(m->body, token->next);
+    return true;
+}
+
 struct Token *preprocess(struct Token *token) {
     struct Token head = {};
     struct Token *cur = &head;
     while (token->kind != TK_EOF) {
+        struct Token *start = token;
+
+        if (expand_macro(&token, token)) {
+            continue;
+        }
+
         if (!is_hash(token)) {
             cur = cur->next = token;
             token = token->next;
             continue;
         }
-        if (token == token->next) {
-            error_token(token, "same pointer");
-        }
-
-        struct Token *start = token;
 
         token = token->next;
 
@@ -195,6 +232,15 @@ struct Token *preprocess(struct Token *token) {
         if (equal(token, "endif")) {
             pop_cond_incl();
             token = skip_line(token->next, true);
+            continue;
+        }
+
+        if (equal(token, "define")) {
+            token = token->next;
+            // if (token->kind != TK_IDENT) {
+            //     error_token(token, "expected ident");
+            // }
+            add_macro(&token, token);
             continue;
         }
 
