@@ -10,6 +10,7 @@ struct CondIncl {
 } *cond;
 
 struct Macro {
+    struct Macro *prev;
     struct Macro *next;
     char *name;
     struct Token *body;
@@ -119,15 +120,6 @@ static void pop_cond_incl() {
     cond = cond->outer;
 }
 
-static void add_macro(struct Token **rest, struct Token *token) {
-    assert(token->kind == TK_IDENT);
-    struct Macro *macro = calloc(1, sizeof(struct Macro));
-    macro->name = strndup(token->loc, token->len);
-    macro->body = copy_line(rest, token->next);
-    macro->next = macros;
-    macros = macro;
-}
-
 static struct Macro *find_macro(struct Token *token) {
     if (token->kind != TK_IDENT) {
         return NULL;
@@ -150,6 +142,35 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
     }
     *rest = concat(m->body, token->next);
     return true;
+}
+
+static void define_macro(struct Token **rest, struct Token *token) {
+    assert(token->kind == TK_IDENT);
+    struct Macro *macro = calloc(1, sizeof(struct Macro));
+    macro->name = strndup(token->loc, token->len);
+    macro->body = copy_line(rest, token->next);
+    if (macros != NULL) {
+        macros->prev = macro;
+    }
+    macro->next = macros;
+    macros = macro;
+}
+
+static void undef_macro(struct Token *token) {
+    assert(token->kind == TK_IDENT);
+    struct Macro *def = find_macro(token);
+    if (def == NULL) {
+        return;
+    }
+    if (def->prev != NULL) {
+        def->prev->next = def->next;
+    }
+    if (def->next != NULL) {
+        def->next->prev = def->prev;
+    }
+    if (macros == def) {
+        macros = NULL;
+    }
 }
 
 struct Token *preprocess(struct Token *token) {
@@ -241,7 +262,17 @@ struct Token *preprocess(struct Token *token) {
             if (token->kind != TK_IDENT) {
                 error_token(token, "expected ident");
             }
-            add_macro(&token, token);
+            define_macro(&token, token);
+            continue;
+        }
+
+        if (equal(token, "undef")) {
+            token = token->next;
+            if (token->kind != TK_IDENT) {
+                error_token(token, "expected ident");
+            }
+            undef_macro(token);
+            token = skip_line(token->next, true);
             continue;
         }
 
