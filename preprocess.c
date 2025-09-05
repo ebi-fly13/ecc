@@ -75,7 +75,9 @@ static struct Token *skip_line(struct Token *token, bool warning_option) {
 
 static struct Token *skip_cond_incl(struct Token *token) {
     while (token->kind != TK_EOF) {
-        if (is_hash_and_keyword(token, "if")) {
+        if (is_hash_and_keyword(token, "if") ||
+            is_hash_and_keyword(token, "ifdef") ||
+            is_hash_and_keyword(token, "ifndef")) {
             token = skip_line(token->next, false);
             token = skip_cond_incl(token);
             while (is_hash_and_keyword(token, "elif")) {
@@ -258,6 +260,28 @@ struct Token *preprocess(struct Token *token) {
             push_cond_incl(start, val);
             if (!cond->in) {
                 token = token->next = skip_cond_incl(token);
+            }
+            continue;
+        }
+
+        if (equal(token, "ifdef")) {
+            token = token->next;
+            push_cond_incl(start, find_macro(token) != NULL);
+            if (!cond->in) {
+                token = token->next = skip_cond_incl(token->next);
+            } else {
+                token = skip_line(token->next, true);
+            }
+            continue;
+        }
+
+        if (equal(token, "ifndef")) {
+            token = token->next;
+            push_cond_incl(start, find_macro(token) == NULL);
+            if (!cond->in) {
+                token = token->next = skip_cond_incl(token->next);
+            } else {
+                token = skip_line(token->next, true);
             }
             continue;
         }
