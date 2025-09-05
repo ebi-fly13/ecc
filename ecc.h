@@ -53,17 +53,23 @@ struct File {
     char *contents;
 };
 
+struct Hideset {
+    struct Hideset *next;
+    char *name;
+};
+
 struct Token {
-    TokenKind kind;     // トークンの型
-    struct Token *next; // 次の入力トークン
-    long val;           // kindがTK_NUMの場合、その数値
-    char *loc;          // Tokenの開始位置
-    char *str;          // トークンの文字列
-    int len;            // トークンの長さ
-    int line_number;    // 行番号
-    bool is_begin;      // 行の開始トークンかどうか
-    struct Type *ty;    // 型
-    struct File *file;  // Source file
+    TokenKind kind;          // トークンの型
+    struct Token *next;      // 次の入力トークン
+    long val;                // kindがTK_NUMの場合、その数値
+    char *loc;               // Tokenの開始位置
+    char *str;               // トークンの文字列
+    int len;                 // トークンの長さ
+    int line_number;         // 行番号
+    bool is_begin;           // 行の開始トークンかどうか
+    struct Type *ty;         // 型
+    struct File *file;       // Source file
+    struct Hideset *hideset; // for macro expansion
 };
 
 struct VarScope {

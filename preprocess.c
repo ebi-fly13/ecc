@@ -24,6 +24,12 @@ static bool is_hash_and_keyword(struct Token *token, char *keyword) {
     return is_hash(token) && equal(token->next, keyword);
 }
 
+static struct Hideset *new_hideset(char *name) {
+    struct Hideset *hideset = calloc(1, sizeof(struct Hideset));
+    hideset->name = name;
+    return hideset;
+}
+
 static struct Token *new_eof_token() {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_EOF;
@@ -96,6 +102,36 @@ static struct Token *skip_cond_incl(struct Token *token) {
     return token;
 }
 
+static struct Hideset *hideset_union(struct Hideset *first,
+                                     struct Hideset *second) {
+    struct Hideset head = {};
+    struct Hideset *cur = &head;
+    for (struct Hideset *itr = first; itr != NULL; itr = itr->next) {
+        cur = cur->next = new_hideset(itr->name);
+    }
+    cur->next = second;
+    return head.next;
+}
+
+static bool hideset_contains(struct Hideset *hideset, char *name) {
+    for (struct Hideset *itr = hideset; itr != NULL; itr = itr->next) {
+        if (!strcmp(itr->name, name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static struct Token *add_hideset(struct Token *token, struct Hideset *hideset) {
+    struct Token head = {};
+    struct Token *cur = &head;
+    for (struct Token *itr = token; itr != NULL; itr = itr->next) {
+        cur = cur->next = copy_token(itr);
+        cur->hideset = hideset_union(cur->hideset, hideset);
+    }
+    return head.next;
+}
+
 static struct Token *concat(struct Token *first, struct Token *second) {
     struct Token head = {};
     struct Token *cur = &head;
@@ -137,11 +173,16 @@ static struct Macro *find_macro(struct Token *token) {
 static bool expand_macro(struct Token **rest, struct Token *token) {
     if (token->kind != TK_IDENT)
         return false;
+    if (hideset_contains(token->hideset, strndup(token->loc, token->len))) {
+        return false;
+    }
     struct Macro *m = find_macro(token);
     if (m == NULL) {
         return false;
     }
-    *rest = concat(m->body, token->next);
+    struct Token *body = add_hideset(
+        m->body, hideset_union(token->hideset, new_hideset(m->name)));
+    *rest = concat(body, token->next);
     return true;
 }
 
