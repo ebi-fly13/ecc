@@ -50,6 +50,7 @@ static struct Token *copy_line(struct Token **rest, struct Token *src) {
 
 static long eval_const_expr(struct Token **rest, struct Token *token) {
     struct Token *line = copy_line(rest, token);
+    line = preprocess(line);
     return const_expr(&line, line);
 }
 
