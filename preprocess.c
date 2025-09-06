@@ -14,6 +14,7 @@ struct Macro {
     struct Macro *next;
     char *name;
     struct Token *body;
+    bool is_objlike;
 } *macros;
 
 static bool is_hash(struct Token *token) {
@@ -181,18 +182,26 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
     struct Macro *m = find_macro(token);
     if (m == NULL) {
         return false;
+    } else if (m->is_objlike) {
+        struct Token *body = add_hideset(
+            m->body, hideset_union(token->hideset, new_hideset(m->name)));
+        *rest = concat(body, token->next);
+        return true;
+    } else {
+        if (!equal(token->next, "(")) {
+            return false;
+        }
+        token = skip(token->next->next, ")");
+        *rest = concat(m->body, token);
+        return true;
     }
-    struct Token *body = add_hideset(
-        m->body, hideset_union(token->hideset, new_hideset(m->name)));
-    *rest = concat(body, token->next);
-    return true;
 }
 
-static void define_macro(struct Token **rest, struct Token *token) {
-    assert(token->kind == TK_IDENT);
+static void add_macro(char *name, bool is_objlike, struct Token *body) {
     struct Macro *macro = calloc(1, sizeof(struct Macro));
-    macro->name = strndup(token->loc, token->len);
-    macro->body = copy_line(rest, token->next);
+    macro->name = name;
+    macro->is_objlike = is_objlike;
+    macro->body = body;
     if (macros != NULL) {
         macros->prev = macro;
     }
@@ -200,6 +209,19 @@ static void define_macro(struct Token **rest, struct Token *token) {
     macros = macro;
 }
 
+static void define_macro(struct Token **rest, struct Token *token) {
+    assert(token->kind == TK_IDENT);
+    char *name = strndup(token->loc, token->len);
+    token = token->next;
+    if (!token->has_space && equal(token, "(")) {
+        token = skip(token->next, ")");
+        add_macro(name, false, copy_line(rest, token));
+    } else {
+        add_macro(name, true, copy_line(rest, token));
+    }
+}
+
+// TODO: 重複定義していた場合に復活してしまう
 static void undef_macro(struct Token *token) {
     assert(token->kind == TK_IDENT);
     struct Macro *def = find_macro(token);

@@ -124,7 +124,7 @@ static void print_token(struct Token *token) {
         if (!start && token->is_begin) {
             fprintf(out, "\n");
         }
-        if (!token->is_begin) {
+        if (!token->is_begin && token->has_space) {
             fprintf(out, " ");
         }
         fprintf(out, "%.*s", token->len, token->loc);

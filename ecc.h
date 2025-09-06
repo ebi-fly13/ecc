@@ -67,6 +67,7 @@ struct Token {
     int len;                 // トークンの長さ
     int line_number;         // 行番号
     bool is_begin;           // 行の開始トークンかどうか
+    bool has_space;          // 直前に空白があるか
     struct Type *ty;         // 型
     struct File *file;       // Source file
     struct Hideset *hideset; // for macro expansion

@@ -1,6 +1,7 @@
 #include "ecc.h"
 
 static bool is_begin;
+static bool has_space;
 
 static struct File *current_file;
 static struct File **input_files;
@@ -184,12 +185,14 @@ int read_escaped_char(char **new_pos, char *p) {
 struct Token *new_token(TokenKind kind, struct Token *cur, char *str, int len) {
     struct Token *tok = calloc(1, sizeof(struct Token));
     tok->is_begin = is_begin;
+    tok->has_space = has_space;
     tok->kind = kind;
     tok->loc = str;
     tok->len = len;
     tok->file = current_file;
     cur->next = tok;
     is_begin = false;
+    has_space = false;
     return tok;
 }
 
@@ -290,6 +293,7 @@ void add_line_number(struct Token *token) {
 struct Token *tokenize(struct File *file) {
     current_file = file;
     is_begin = true;
+    has_space = false;
     char *p = file->contents;
     struct Token head;
     head.next = NULL;
@@ -297,12 +301,14 @@ struct Token *tokenize(struct File *file) {
     while (*p) {
         if (*p == '\n') {
             is_begin = true;
+            has_space = false;
             p++;
             continue;
         }
 
         if (isspace(*p)) {
             p++;
+            has_space = true;
             continue;
         }
 
@@ -311,6 +317,7 @@ struct Token *tokenize(struct File *file) {
             while (*p != '\n') {
                 p++;
             }
+            has_space = true;
             continue;
         }
 
@@ -320,6 +327,7 @@ struct Token *tokenize(struct File *file) {
                 error_at(p, "コメントが閉じられていません");
             }
             p = q + 2;
+            has_space = true;
             continue;
         }
 
