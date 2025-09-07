@@ -220,6 +220,18 @@ int a; // comment
 #define M7 ()
   assert(3, ret3 M7, "ret3 M7");
 
+#define M8 1
+#define M8 2
+  assert(2, M8, "M8");
+
+#undef M8
+#ifdef M8
+  m = 8;
+#else
+  m = 9;
+#endif
+  assert(9, m, "m");
+
   printf("OK\n");
   return 0;
 }

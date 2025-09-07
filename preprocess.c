@@ -15,6 +15,7 @@ struct Macro {
     char *name;
     struct Token *body;
     bool is_objlike;
+    bool is_erased;
 } *macros;
 
 static bool is_hash(struct Token *token) {
@@ -180,7 +181,7 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         return false;
     }
     struct Macro *m = find_macro(token);
-    if (m == NULL) {
+    if (m == NULL || m->is_erased) {
         return false;
     } else if (m->is_objlike) {
         struct Token *body = add_hideset(
@@ -202,9 +203,6 @@ static void add_macro(char *name, bool is_objlike, struct Token *body) {
     macro->name = name;
     macro->is_objlike = is_objlike;
     macro->body = body;
-    if (macros != NULL) {
-        macros->prev = macro;
-    }
     macro->next = macros;
     macros = macro;
 }
@@ -221,22 +219,24 @@ static void define_macro(struct Token **rest, struct Token *token) {
     }
 }
 
-// TODO: 重複定義していた場合に復活してしまう
 static void undef_macro(struct Token *token) {
     assert(token->kind == TK_IDENT);
-    struct Macro *def = find_macro(token);
-    if (def == NULL) {
-        return;
+    struct Macro *macro = calloc(1, sizeof(struct Macro));
+    macro->name = strndup(token->loc, token->len);
+    macro->is_erased = true;
+    if (macros == NULL) {
+        macros = macro;
     }
-    if (def->prev != NULL) {
-        def->prev->next = def->next;
+    macro->next = macros;
+    macros = macro;
+}
+
+bool is_defined(struct Token *token) {
+    struct Macro *macro = find_macro(token);
+    if (macro == NULL) {
+        return false;
     }
-    if (def->next != NULL) {
-        def->next->prev = def->prev;
-    }
-    if (macros == def) {
-        macros = NULL;
-    }
+    return !macro->is_erased;
 }
 
 struct Token *preprocess(struct Token *token) {
@@ -288,7 +288,7 @@ struct Token *preprocess(struct Token *token) {
 
         if (equal(token, "ifdef")) {
             token = token->next;
-            push_cond_incl(start, find_macro(token) != NULL);
+            push_cond_incl(start, is_defined(token));
             if (!cond->in) {
                 token = token->next = skip_cond_incl(token->next);
             } else {
@@ -299,7 +299,7 @@ struct Token *preprocess(struct Token *token) {
 
         if (equal(token, "ifndef")) {
             token = token->next;
-            push_cond_incl(start, find_macro(token) == NULL);
+            push_cond_incl(start, !is_defined(token));
             if (!cond->in) {
                 token = token->next = skip_cond_incl(token->next);
             } else {
