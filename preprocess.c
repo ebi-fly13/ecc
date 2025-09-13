@@ -1,5 +1,22 @@
 #include "ecc.h"
 
+static void print_token2(struct Token *token) {
+    FILE *out = stdout;
+    fprintf(out, "print_token2\n");
+    for (bool start = true; token != NULL && token->kind != TK_EOF;
+         token = token->next) {
+        if (!start && token->is_begin) {
+            fprintf(out, "\n");
+        }
+        if (!token->is_begin && token->has_space) {
+            fprintf(out, " ");
+        }
+        fprintf(out, "%.*s", token->len, token->loc);
+        start = false;
+    }
+    fprintf(out, "\n");
+}
+
 typedef enum Cond { If, Elif, Else } Cond;
 
 struct CondIncl {
@@ -9,11 +26,23 @@ struct CondIncl {
     bool in;
 } *cond;
 
+struct MacroParam {
+    struct MacroParam *next;
+    char *name;
+};
+
+struct MacroArgument {
+    struct MacroArgument *next;
+    char *name;
+    struct Token *body;
+};
+
 struct Macro {
     struct Macro *prev;
     struct Macro *next;
     char *name;
     struct Token *body;
+    struct MacroParam *params;
     bool is_objlike;
     bool is_erased;
 } *macros;
@@ -174,6 +203,91 @@ static struct Macro *find_macro(struct Token *token) {
     return NULL;
 }
 
+static struct MacroArgument *
+find_macro_argument(struct MacroArgument *arguments, struct Token *token) {
+    if (token->kind != TK_IDENT) {
+        return NULL;
+    }
+    for (struct MacroArgument *cur = arguments; cur != NULL; cur = cur->next) {
+        if (strlen(cur->name) == token->len &&
+            !strncmp(cur->name, token->loc, token->len)) {
+            return cur;
+        }
+    }
+    return NULL;
+}
+
+static struct MacroArgument *read_one_macro_argument(struct Token **rest,
+                                                     struct Token *token) {
+    struct MacroArgument *arg = calloc(1, sizeof(struct MacroArgument));
+    struct Token head = {};
+    struct Token *cur = &head;
+    while (!equal(token, ",") && !equal(token, ")")) {
+        cur = cur->next = copy_token(token);
+        token = token->next;
+    }
+    *rest = token;
+    cur->next = new_eof_token();
+    arg->body = head.next;
+    return arg;
+}
+
+static struct MacroArgument *raed_macro_argument(struct Token **rest,
+                                                 struct Token *token,
+                                                 struct MacroParam *params) {
+    struct MacroArgument head = {};
+    struct MacroArgument *cur = &head;
+    for (struct MacroParam *p = params; p != NULL; p = p->next) {
+        if (cur != &head) {
+            token = skip(token, ",");
+        }
+        cur = cur->next = read_one_macro_argument(&token, token);
+        cur->name = p->name;
+    }
+    *rest = skip(token, ")");
+    return head.next;
+}
+
+static struct MacroParam *read_macro_params(struct Token **rest,
+                                            struct Token *token) {
+    struct MacroParam head = {};
+    struct MacroParam *cur = &head;
+    while (!equal(token, ")")) {
+        if (cur != &head) {
+            token = skip(token, ",");
+        }
+        struct MacroParam *param = calloc(1, sizeof(struct MacroParam));
+        assert(token->kind == TK_IDENT);
+        param->name = strndup(token->loc, token->len);
+        cur = cur->next = param;
+        token = token->next;
+    }
+    *rest = skip(token, ")");
+    return head.next;
+}
+
+int a = 0;
+
+static struct Token *expand_funclike_macro(struct Token *token,
+                                           struct MacroArgument *arguments) {
+    struct Token head = {};
+    struct Token *cur = &head;
+    for (; token->kind != TK_EOF; token = token->next) {
+        struct MacroArgument *arg = find_macro_argument(arguments, token);
+        if (arg != NULL) {
+            a = 1;
+            struct Token *body = preprocess(arg->body);
+            for (; body->kind != TK_EOF; body = body->next) {
+                cur = cur->next = copy_token(body);
+            }
+        } else {
+            cur = cur->next = copy_token(token);
+        }
+    }
+    cur->next = new_eof_token();
+    return head.next;
+}
+
 static bool expand_macro(struct Token **rest, struct Token *token) {
     if (token->kind != TK_IDENT)
         return false;
@@ -189,19 +303,25 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         *rest = concat(body, token->next);
         return true;
     } else {
-        if (!equal(token->next, "(")) {
+        token = token->next;
+        if (!equal(token, "(")) {
             return false;
         }
-        token = skip(token->next->next, ")");
-        *rest = concat(m->body, token);
+        struct MacroArgument *args =
+            raed_macro_argument(&token, token->next, m->params);
+        *rest = concat(expand_funclike_macro(m->body, args), token);
         return true;
     }
 }
 
-static void add_macro(char *name, bool is_objlike, struct Token *body) {
+static void add_macro(char *name,
+                      bool is_objlike,
+                      struct MacroParam *params,
+                      struct Token *body) {
     struct Macro *macro = calloc(1, sizeof(struct Macro));
     macro->name = name;
     macro->is_objlike = is_objlike;
+    macro->params = params;
     macro->body = body;
     macro->next = macros;
     macros = macro;
@@ -212,10 +332,10 @@ static void define_macro(struct Token **rest, struct Token *token) {
     char *name = strndup(token->loc, token->len);
     token = token->next;
     if (!token->has_space && equal(token, "(")) {
-        token = skip(token->next, ")");
-        add_macro(name, false, copy_line(rest, token));
+        struct MacroParam *params = read_macro_params(&token, token->next);
+        add_macro(name, false, params, copy_line(rest, token));
     } else {
-        add_macro(name, true, copy_line(rest, token));
+        add_macro(name, true, NULL, copy_line(rest, token));
     }
 }
 
@@ -243,6 +363,7 @@ struct Token *preprocess(struct Token *token) {
     struct Token head = {};
     struct Token *cur = &head;
     while (token->kind != TK_EOF) {
+        assert(token != NULL);
         struct Token *start = token;
 
         if (expand_macro(&token, token)) {

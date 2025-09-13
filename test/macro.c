@@ -232,6 +232,18 @@ int a; // comment
 #endif
   assert(9, m, "m");
 
+#define M8(x,y) x+y
+  assert(7, M8(3, 4), "M8(3, 4)");
+
+#define M8(x,y) x*y
+  assert(24, M8(3+4, 4+5), "M8(3+4, 4+5)");
+
+#define M8(x,y) (x)*(y)
+  assert(63, M8(3+4, 4+5), "M8(3+4, 4+5)");
+
+#define M8(x,y) x y
+  assert(9, M8(, 4+5), "M8(, 4+5)");
+
   printf("OK\n");
   return 0;
 }
