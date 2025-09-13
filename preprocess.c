@@ -222,7 +222,12 @@ static struct MacroArgument *read_one_macro_argument(struct Token **rest,
     struct MacroArgument *arg = calloc(1, sizeof(struct MacroArgument));
     struct Token head = {};
     struct Token *cur = &head;
-    while (!equal(token, ",") && !equal(token, ")")) {
+    int depth = 0;
+    while (depth > 0 || (!equal(token, ")") && !equal(token, ","))) {
+        if (equal(token, "("))
+            depth++;
+        if (equal(token, ")"))
+            depth--;
         cur = cur->next = copy_token(token);
         token = token->next;
     }
