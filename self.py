@@ -76,6 +76,7 @@ char *strrchr(char *, char);
 int unlink(char *);
 int mkstemp(char *);
 int close(int);
+char *strncpy(char *, char *, int);
 """)
 
 for path in sys.argv[1:]:
