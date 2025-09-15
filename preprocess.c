@@ -297,7 +297,9 @@ static struct MacroParam *read_macro_params(struct Token **rest,
             token = skip(token, ",");
         }
         struct MacroParam *param = calloc(1, sizeof(struct MacroParam));
-        assert(token->kind == TK_IDENT);
+        if (token->kind != TK_IDENT) {
+            error_token(token, "expect ident but not");
+        }
         param->name = strndup(token->loc, token->len);
         cur = cur->next = param;
         token = token->next;
@@ -335,6 +337,17 @@ to_string_token_from_macro_argument(struct Token *hash,
         new_file(hash->file->path, hash->file->file_number, quote_string(s)));
 }
 
+static struct Token *concat_token(struct Token *lhs, struct Token *rhs) {
+    char *s = format("%.*s%.*s", lhs->len, lhs->loc, rhs->len, rhs->loc);
+    struct Token *token =
+        tokenize(new_file(lhs->file->path, lhs->file->file_number, s));
+    assert(token != NULL && token->next != NULL);
+    if (token->next->kind != TK_EOF) {
+        error_token(lhs, "pasting form '%s' is an invalid token");
+    }
+    return copy_token(token);
+}
+
 static struct Token *expand_funclike_macro(struct Token *token,
                                            struct MacroArgument *arguments) {
     struct Token head = {};
@@ -351,14 +364,64 @@ static struct Token *expand_funclike_macro(struct Token *token,
             continue;
         }
 
+        if (equal(token, "##")) {
+            if (cur == &head) {
+                error_token(token,
+                            "'##' cannot appear at start of macro expansion");
+            }
+            if (token->next->kind == TK_EOF) {
+                error_token(token,
+                            "'##' cannot appear at end of macro expansion");
+            }
+            struct Token *lhs = cur;
+            token = skip(token, "##");
+            struct MacroArgument *arg = find_macro_argument(arguments, token);
+            if (arg != NULL) {
+                *cur = *concat_token(lhs, arg->body);
+                if (arg->body->kind == TK_EOF) {
+                    continue;
+                }
+                for (struct Token *itr = arg->body->next; itr->kind != TK_EOF;
+                     itr = itr->next) {
+                    cur = cur->next = copy_token(itr);
+                }
+            } else {
+                *cur = *concat_token(lhs, token);
+            }
+            continue;
+        }
+
         struct MacroArgument *arg = find_macro_argument(arguments, token);
-        if (arg != NULL) {
+        if (arg == NULL) {
+            cur = cur->next = copy_token(token);
+            continue;
+        }
+
+        if (equal(token->next, "##")) {
+            struct Token *rhs = token->next->next;
+            if (arg->body->kind == TK_EOF) {
+                struct MacroArgument *arg2 =
+                    find_macro_argument(arguments, rhs);
+                if (arg2 != NULL) {
+                    for (struct Token *itr = arg2->body; itr->kind != TK_EOF;
+                         itr = itr->next) {
+                        cur = cur->next = copy_token(itr);
+                    }
+                } else {
+                    cur = cur->next = copy_token(rhs);
+                }
+                token = rhs;
+                continue;
+            }
+            for (struct Token *itr = arg->body; itr->kind != TK_EOF;
+                 itr = itr->next) {
+                cur = cur->next = copy_token(itr);
+            }
+        } else {
             struct Token *body = preprocess(arg->body);
             for (; body->kind != TK_EOF; body = body->next) {
                 cur = cur->next = copy_token(body);
             }
-        } else {
-            cur = cur->next = copy_token(token);
         }
     }
     cur->next = new_eof_token();

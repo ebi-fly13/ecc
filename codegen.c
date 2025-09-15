@@ -131,6 +131,7 @@ enum {
 };
 
 int get_type_id(struct Type *ty) {
+    assert(ty != NULL);
     switch (ty->ty) {
     case TY_CHAR:
         return ty->is_unsigned ? UI8 : I8;
@@ -322,6 +323,7 @@ void gen(struct Node *node) {
 
         gen(node->lhs);
 
+        assert(nargs <= 6);
         for (int i = nargs - 1; i >= 0; i--) {
             pop(argreg64[i]);
         }

@@ -119,16 +119,14 @@ static void run_cc1(int argc, char **argv, char *input, char *output) {
 
 static void print_token(struct Token *token) {
     FILE *out = option_o == NULL ? stdout : open_file(option_o);
-    for (bool start = true; token != NULL && token->kind != TK_EOF;
-         token = token->next) {
-        if (!start && token->is_begin) {
+    for (; token != NULL && token->kind != TK_EOF; token = token->next) {
+        if (token->line_number > 1 && token->is_begin) {
             fprintf(out, "\n");
         }
         if (!token->is_begin && token->has_space) {
             fprintf(out, " ");
         }
         fprintf(out, "%.*s", token->len, token->loc);
-        start = false;
     }
     fprintf(out, "\n");
 }
