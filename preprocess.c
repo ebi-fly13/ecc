@@ -155,6 +155,18 @@ static bool hideset_contains(struct Hideset *hideset, char *name) {
     return false;
 }
 
+static struct Hideset *hideset_intersection(struct Hideset *first,
+                                            struct Hideset *second) {
+    struct Hideset head = {};
+    struct Hideset *cur = &head;
+    for (struct Hideset *itr = first; itr != NULL; itr = itr->next) {
+        if (hideset_contains(second, itr->name)) {
+            cur = cur->next = new_hideset(itr->name);
+        }
+    }
+    return head.next;
+}
+
 static struct Token *add_hideset(struct Token *token, struct Hideset *hideset) {
     struct Token head = {};
     struct Token *cur = &head;
@@ -249,7 +261,8 @@ static struct MacroArgument *raed_macro_argument(struct Token **rest,
         cur = cur->next = read_one_macro_argument(&token, token);
         cur->name = p->name;
     }
-    *rest = skip(token, ")");
+    assert(equal(token, ")"));
+    *rest = token;
     return head.next;
 }
 
@@ -308,13 +321,20 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         *rest = concat(body, token->next);
         return true;
     } else {
+        struct Token *macro_token = token;
         token = token->next;
         if (!equal(token, "(")) {
             return false;
         }
         struct MacroArgument *args =
             raed_macro_argument(&token, token->next, m->params);
-        *rest = concat(expand_funclike_macro(m->body, args), token);
+        struct Token *rparen = token;
+        token = skip(token, ")");
+        struct Hideset *hideset =
+            hideset_intersection(token->hideset, rparen->hideset);
+        hideset = hideset_union(hideset, new_hideset(m->name));
+        *rest = concat(
+            add_hideset(expand_funclike_macro(m->body, args), hideset), token);
         return true;
     }
 }
