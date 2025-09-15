@@ -18,6 +18,14 @@
 char *format(char *fmt, ...);
 
 // file.c
+struct File {
+    char *path;
+    int file_number;
+    char *contents;
+};
+
+struct File *new_file(char *path, int file_number, char *contents);
+
 char *read_file(char *);
 
 // tokenize.c
@@ -46,12 +54,6 @@ typedef enum {
     TK_ALIGNOF,  // _Alignof
     TK_ALIGNAS,  // _Alignas
 } TokenKind;
-
-struct File {
-    char *path;
-    int file_number;
-    char *contents;
-};
 
 struct Hideset {
     struct Hideset *next;

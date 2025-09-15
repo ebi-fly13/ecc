@@ -393,6 +393,12 @@ struct Token *tokenize(struct File *file) {
             continue;
         }
 
+        if (ispunct(*p)) {
+            cur = new_token(TK_RESERVED, cur, p, 1);
+            p += 1;
+            continue;
+        }
+
         error_at(p, "トークナイズできません");
     }
 
@@ -450,14 +456,6 @@ void convert_keywords(struct Token *token) {
             cur->kind = TK_ALIGNAS;
         }
     }
-}
-
-struct File *new_file(char *path, int file_number, char *contents) {
-    struct File *file = calloc(1, sizeof(struct File));
-    file->path = path;
-    file->file_number = file_number;
-    file->contents = contents;
-    return file;
 }
 
 struct Token *tokenize_file(char *path) {

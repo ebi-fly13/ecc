@@ -1,5 +1,13 @@
 #include "ecc.h"
 
+struct File *new_file(char *path, int file_number, char *contents) {
+    struct File *file = calloc(1, sizeof(struct File));
+    file->path = path;
+    file->file_number = file_number;
+    file->contents = contents;
+    return file;
+}
+
 char *read_file(char *path) {
     FILE *fp;
     if (!strcmp(path, "-")) {

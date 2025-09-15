@@ -55,6 +55,28 @@ static bool is_hash_and_keyword(struct Token *token, char *keyword) {
     return is_hash(token) && equal(token->next, keyword);
 }
 
+static char *quote_string(char *str) {
+    int buffer_size = 3;
+    for (int i = 0; str[i] != '\0'; i++) {
+        if (str[i] == '\\' || str[i] == '"') {
+            buffer_size++;
+        }
+        buffer_size++;
+    }
+    char *buffer = calloc(buffer_size, sizeof(char));
+    char *p = buffer;
+    *p++ = '"';
+    for (int i = 0; i < str[i] != '\0'; i++) {
+        if (str[i] == '\\' || str[i] == '"') {
+            *p++ = '\\';
+        }
+        *p++ = str[i];
+    }
+    *p++ = '"';
+    *p = '\0';
+    return buffer;
+}
+
 static struct Hideset *new_hideset(char *name) {
     struct Hideset *hideset = calloc(1, sizeof(struct Hideset));
     hideset->name = name;
@@ -284,16 +306,53 @@ static struct MacroParam *read_macro_params(struct Token **rest,
     return head.next;
 }
 
-int a = 0;
+static char *concat_token_components(struct Token *token) {
+    int len = 1;
+    for (struct Token *itr = token; itr->kind != TK_EOF; itr = itr->next) {
+        if (itr != token && itr->has_space) {
+            len++;
+        }
+        len += itr->len;
+    }
+    char *buffer = calloc(len, sizeof(char));
+    char *p = buffer;
+    for (struct Token *itr = token; itr->kind != TK_EOF; itr = itr->next) {
+        if (itr != token && itr->has_space) {
+            *p++ = ' ';
+        }
+        strncpy(p, itr->loc, itr->len);
+        p += itr->len;
+    }
+    *p = '\0';
+    return buffer;
+}
+
+static struct Token *
+to_string_token_from_macro_argument(struct Token *hash,
+                                    struct MacroArgument *argument) {
+    char *s = concat_token_components(argument->body);
+    return tokenize(
+        new_file(hash->file->path, hash->file->file_number, quote_string(s)));
+}
 
 static struct Token *expand_funclike_macro(struct Token *token,
                                            struct MacroArgument *arguments) {
     struct Token head = {};
     struct Token *cur = &head;
     for (; token->kind != TK_EOF; token = token->next) {
+        if (equal(token, "#")) {
+            struct Token *hash = token;
+            token = skip(token, "#");
+            struct MacroArgument *arg = find_macro_argument(arguments, token);
+            if (arg == NULL) {
+                error_token(token, "'#' is not followed by a macro parameter");
+            }
+            cur = cur->next = to_string_token_from_macro_argument(hash, arg);
+            continue;
+        }
+
         struct MacroArgument *arg = find_macro_argument(arguments, token);
         if (arg != NULL) {
-            a = 1;
             struct Token *body = preprocess(arg->body);
             for (; body->kind != TK_EOF; body = body->next) {
                 cur = cur->next = copy_token(body);
