@@ -1405,6 +1405,7 @@ struct Node *compound_stmt(struct Token **rest, struct Token *token) {
     leave_scope();
     *rest = skip(token, "}");
     node->body = head.next;
+    node->ty = cur->ty;
     return node;
 }
 
@@ -2334,6 +2335,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         token = skip(token->next, "{");
         node = new_node(ND_STMT_EXPR);
         node->body = compound_stmt(&token, token)->body;
+        node->ty = node->body->ty;
         *rest = skip(token, ")");
     } else if (equal(token, "(")) {
         token = skip(token, "(");
