@@ -20,7 +20,7 @@ test/macro2.exe: ecc test/macro.c
 		./test/macro2.exe
 
 test/%.exe: ecc test/%.c
-		$(CC) -o- -E -P -C test/$*.c | ./ecc -o test/$*.s - -S
+		./ecc -o test/$*.s test/$*.c -S
 		$(CC) -static -o $@ test/$*.s -xc test/common
 
 test: $(TESTS)
@@ -49,7 +49,7 @@ stage2/test/macro2.exe: stage2/ecc test/macro.c
 
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage2/ecc -o stage2/test/$*.s - -S
+	./stage2/ecc -o stage2/test/$*.s test/$*.c -S
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
@@ -78,7 +78,7 @@ stage3/test/macro2.exe: stage3/ecc test/macro.c
 
 stage3/test/%.exe: stage3/ecc test/%.c
 	mkdir -p stage3/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage3/ecc -o stage3/test/$*.s - -S
+	./stage3/ecc -o stage3/test/$*.s test/$*.c -S
 	$(CC) -o $@ stage3/test/$*.s -xc test/common
 
 test-stage3: $(TESTS:test/%=stage3/test/%)
