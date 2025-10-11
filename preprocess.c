@@ -462,6 +462,8 @@ static struct Token *expand_funclike_macro(struct Token *token,
             }
         } else {
             struct Token *body = preprocess(arg->body);
+            body->is_begin = token->is_begin;
+            body->has_space = token->has_space;
             for (; body->kind != TK_EOF; body = body->next) {
                 cur = cur->next = copy_token(body);
             }
@@ -484,6 +486,8 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         struct Token *body = add_hideset(
             m->body, hideset_union(token->hideset, new_hideset(m->name)));
         *rest = concat(body, token->next);
+        (*rest)->is_begin = token->is_begin;
+        (*rest)->has_space = token->has_space;
         return true;
     } else {
         struct Token *macro_token = token;
@@ -500,6 +504,8 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         hideset = hideset_union(hideset, new_hideset(m->name));
         *rest = concat(
             add_hideset(expand_funclike_macro(m->body, args), hideset), token);
+        (*rest)->is_begin = macro_token->is_begin;
+        (*rest)->has_space = macro_token->has_space;
         return true;
     }
 }

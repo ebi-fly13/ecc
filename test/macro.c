@@ -1,4 +1,5 @@
 int printf(char *fmt, ...);
+int strcmp();
 void assert();
 
 int ret3() {
@@ -331,6 +332,23 @@ int a; // comment
   m = 5;
 #endif
   assert(4, m, "m");
+
+
+#define STR(x) #x
+#define M12(x) STR(x)
+#define M13(x) M12(foo.x)
+  assert(0, strcmp(M13(bar), "foo.bar"), "strcmp(M13(bar), \"foo.bar\")");
+
+#define M13(x) M12(foo. x)
+  assert(0, strcmp(M13(bar), "foo. bar"), "strcmp(M13(bar), \"foo. bar\")");
+
+#define M12 foo
+#define M13(x) STR(x)
+#define M14(x) M13(x.M12)
+  assert(0, strcmp(M14(bar), "bar.foo"), "strcmp(M14(bar), \"bar.foo\")");
+
+#define M14(x) M13(x. M12)
+  assert(0, strcmp(M14(bar), "bar. foo"), "strcmp(M14(bar), \"bar. foo\")");
 
   printf("OK\n");
   return 0;
