@@ -20,6 +20,15 @@ int main() {
     ASSERT(47, 0b101111);
     ASSERT(47, 0B101111);
 
+    assert(1, size\
+of(char),
+           "sizeof(char)");
+
+    assert(1, size\
+\
+of(char),\
+           "sizeof(char)");
+
     printf("OK\n");
     return 0;
 }

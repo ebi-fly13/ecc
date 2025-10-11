@@ -290,11 +290,34 @@ void add_line_number(struct Token *token) {
     } while (*p++);
 }
 
+static void remove_backslash_new_line(char *p) {
+    int i = 0, j = 0;
+    int n = 0;
+    while (p[i] != '\0') {
+        if (p[i] == '\\' && p[i + 1] == '\n') {
+            i += 2;
+            n++;
+        } else if (p[i] == '\n') {
+            p[j++] = p[i++];
+            for (; n > 0; n--) {
+                p[j++] = '\n';
+            }
+        } else {
+            p[j++] = p[i++];
+        }
+    }
+    for (; n > 0; n--) {
+        p[j++] = '\n';
+    }
+    p[j] = '\0';
+}
+
 struct Token *tokenize(struct File *file) {
     current_file = file;
     is_begin = true;
     has_space = false;
     char *p = file->contents;
+    remove_backslash_new_line(p);
     struct Token head;
     head.next = NULL;
     struct Token *cur = &head;
