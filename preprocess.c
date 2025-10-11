@@ -651,6 +651,10 @@ struct Token *preprocess(struct Token *token) {
             continue;
         }
 
+        if (equal(token, "error")) {
+            error_token(token, "error");
+        }
+
         if (equal(token, "if")) {
             long val = eval_const_expr(&token, token->next);
             push_cond_incl(start, val);
