@@ -290,6 +290,41 @@ int a; // comment
 #define paste4(x, y, z) x##y##z
   assert(123, paste4(1,2,3), "paste4(1,2,3)");
 
+#define M12
+
+#if defined M12
+  m = 1;
+#else
+  m = 2;
+#endif
+  assert(1, m, "m");
+#if defined M13
+  m = 1;
+#else
+  m = 2;
+#endif
+  assert(2, m, "m");
+
+#if defined(M12)
+  m = 1;
+#else
+  m = 2;
+#endif
+  assert(1, m, "m");
+#if defined(M13)
+  m = 1;
+#else
+  m = 2;
+#endif
+  assert(2, m, "m");
+
+#if defined(M12) - 1
+  m = 1;
+#else
+  m = 3;
+#endif
+  assert(3, m, "m");
+
   printf("OK\n");
   return 0;
 }

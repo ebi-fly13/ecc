@@ -47,6 +47,19 @@ struct Macro {
     bool is_erased;
 } *macros;
 
+static struct Macro *find_macro(struct Token *token) {
+    if (token->kind != TK_IDENT) {
+        return NULL;
+    }
+    for (struct Macro *cur = macros; cur != NULL; cur = cur->next) {
+        if (strlen(cur->name) == token->len &&
+            !strncmp(cur->name, token->loc, token->len)) {
+            return cur;
+        }
+    }
+    return NULL;
+}
+
 static bool is_hash(struct Token *token) {
     return equal(token, "#") && token->is_begin;
 }
@@ -89,6 +102,13 @@ static struct Token *new_eof_token() {
     return token;
 }
 
+static struct Token *new_num_token(int num) {
+    struct Token *token = calloc(1, sizeof(struct Token));
+    token->kind = TK_NUM;
+    token->val = num;
+    return token;
+}
+
 static struct Token *copy_token(struct Token *src) {
     struct Token *dst = calloc(1, sizeof(struct Token));
     *dst = *src;
@@ -107,8 +127,37 @@ static struct Token *copy_line(struct Token **rest, struct Token *src) {
     return head.next;
 }
 
-static long eval_const_expr(struct Token **rest, struct Token *token) {
+static struct Token *read_const_expr(struct Token **rest, struct Token *token) {
     struct Token *line = copy_line(rest, token);
+    struct Token head = {};
+    struct Token *cur = &head;
+    while (line->kind != TK_EOF) {
+        if (equal(line, "defined")) {
+            line = skip(line, "defined");
+            if (equal(line, "(")) {
+                line = skip(line, "(");
+                struct Macro *macro = find_macro(line);
+                cur = cur->next =
+                    new_num_token(macro != NULL && !macro->is_erased);
+                line = line->next;
+                line = skip(line, ")");
+            } else {
+                struct Macro *macro = find_macro(line);
+                cur = cur->next =
+                    new_num_token(macro != NULL && !macro->is_erased);
+                line = line->next;
+            }
+        } else {
+            cur = cur->next = copy_token(line);
+            line = line->next;
+        }
+    }
+    cur->next = new_eof_token();
+    return head.next;
+}
+
+static long eval_const_expr(struct Token **rest, struct Token *token) {
+    struct Token *line = read_const_expr(rest, token);
     line = preprocess(line);
     return const_expr(&line, line);
 }
@@ -222,19 +271,6 @@ static void push_cond_incl(struct Token *token, int val) {
 static void pop_cond_incl() {
     assert(cond != NULL);
     cond = cond->outer;
-}
-
-static struct Macro *find_macro(struct Token *token) {
-    if (token->kind != TK_IDENT) {
-        return NULL;
-    }
-    for (struct Macro *cur = macros; cur != NULL; cur = cur->next) {
-        if (strlen(cur->name) == token->len &&
-            !strncmp(cur->name, token->loc, token->len)) {
-            return cur;
-        }
-    }
-    return NULL;
 }
 
 static struct MacroArgument *
