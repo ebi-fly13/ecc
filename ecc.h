@@ -167,6 +167,7 @@ void convert_keywords(struct Token *);
 
 // preprocess.c
 struct Token *preprocess(struct Token *);
+struct Token *run_preprocess(struct Token *);
 
 // parse.c
 typedef enum {

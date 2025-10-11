@@ -537,6 +537,55 @@ static void define_macro(struct Token **rest, struct Token *token) {
     }
 }
 
+static void add_predefined_macro(char *name, char *buf) {
+    struct Token *token = tokenize(new_file("<built-in>", 1, strdup(buf)));
+    add_macro(name, true, NULL, token);
+}
+
+static void init_macros() {
+    add_predefined_macro("_LP64", "1");
+    add_predefined_macro("__C99_MACRO_WITH_VA_ARGS", "1");
+    add_predefined_macro("__ELF__", "1");
+    add_predefined_macro("__LP64__", "1");
+    add_predefined_macro("__SIZEOF_DOUBLE__", "8");
+    add_predefined_macro("__SIZEOF_FLOAT__", "4");
+    add_predefined_macro("__SIZEOF_INT__", "4");
+    add_predefined_macro("__SIZEOF_LONG_DOUBLE__", "8");
+    add_predefined_macro("__SIZEOF_LONG_LONG__", "8");
+    add_predefined_macro("__SIZEOF_LONG__", "8");
+    add_predefined_macro("__SIZEOF_POINTER__", "8");
+    add_predefined_macro("__SIZEOF_PTRDIFF_T__", "8");
+    add_predefined_macro("__SIZEOF_SHORT__", "2");
+    add_predefined_macro("__SIZEOF_SIZE_T__", "8");
+    add_predefined_macro("__SIZE_TYPE__", "unsigned long");
+    add_predefined_macro("__STDC_HOSTED__", "1");
+    add_predefined_macro("__STDC_NO_ATOMICS__", "1");
+    add_predefined_macro("__STDC_NO_COMPLEX__", "1");
+    add_predefined_macro("__STDC_NO_THREADS__", "1");
+    add_predefined_macro("__STDC_NO_VLA__", "1");
+    add_predefined_macro("__STDC_VERSION__", "201112");
+    add_predefined_macro("__STDC__", "1");
+    add_predefined_macro("__USER_LABEL_PREFIX__", "");
+    add_predefined_macro("__alignof__", "_Alignof");
+    add_predefined_macro("__amd64", "1");
+    add_predefined_macro("__amd64__", "1");
+    add_predefined_macro("__ecc__", "1");
+    add_predefined_macro("__const__", "const");
+    add_predefined_macro("__gnu_linux__", "1");
+    add_predefined_macro("__inline__", "inline");
+    add_predefined_macro("__linux", "1");
+    add_predefined_macro("__linux__", "1");
+    add_predefined_macro("__signed__", "signed");
+    add_predefined_macro("__typeof__", "typeof");
+    add_predefined_macro("__unix", "1");
+    add_predefined_macro("__unix__", "1");
+    add_predefined_macro("__volatile__", "volatile");
+    add_predefined_macro("__x86_64", "1");
+    add_predefined_macro("__x86_64__", "1");
+    add_predefined_macro("linux", "1");
+    add_predefined_macro("unix", "1");
+}
+
 static void undef_macro(struct Token *token) {
     assert(token->kind == TK_IDENT);
     struct Macro *macro = calloc(1, sizeof(struct Macro));
@@ -746,4 +795,9 @@ struct Token *preprocess(struct Token *token) {
     }
     cur->next = token;
     return head.next;
+}
+
+struct Token *run_preprocess(struct Token *token) {
+    init_macros();
+    return preprocess(token);
 }

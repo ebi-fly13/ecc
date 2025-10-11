@@ -153,7 +153,7 @@ static void print_token(struct Token *token) {
 
 static void cc1() {
     struct Token *token = tokenize_file(input_path);
-    token = preprocess(token);
+    token = run_preprocess(token);
     convert_keywords(token);
     if (option_E) {
         print_token(token);

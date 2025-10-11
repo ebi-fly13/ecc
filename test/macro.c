@@ -358,6 +358,7 @@ int a; // comment
 #include M15 >
   assert(5, foo, "foo");
 #undef foo
+  assert(1, _LP64);
 
   printf("OK\n");
   return 0;
