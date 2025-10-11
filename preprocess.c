@@ -557,14 +557,18 @@ bool is_defined(struct Token *token) {
     return !macro->is_erased;
 }
 
-static char *read_include_filename(struct Token **rest, struct Token *token) {
+static char *read_include_filename(struct Token **rest,
+                                   struct Token *token,
+                                   bool *is_dquote) {
     // #inculude "HOGE"
     if (token->kind == TK_STR) {
+        *is_dquote = true;
         *rest = skip_line(token->next, true);
         return strndup(token->loc + 1, token->len - 2);
     }
     // #include <HOGE>
     if (equal(token, "<")) {
+        *is_dquote = false;
         struct Token *start = token = skip(token, "<");
         for (; !equal(token, ">"); token = token->next) {
             if (token->is_begin || token->kind == TK_EOF) {
@@ -577,10 +581,33 @@ static char *read_include_filename(struct Token **rest, struct Token *token) {
     // #include HOGE
     if (token->kind == TK_IDENT) {
         struct Token *line = preprocess(copy_line(rest, token));
-        return read_include_filename(&line, line);
+        return read_include_filename(&line, line, is_dquote);
     }
 
     error_token(token, "expected file name");
+}
+
+char *search_include_path(char *filename) {
+    if (filename[0] == '/') {
+        return filename;
+    }
+    for (int i = 0; i < count; i++) {
+        char *path = format("%s/%s", include_paths[i], filename);
+        if (file_exists(path)) {
+            return path;
+        }
+    }
+    return NULL;
+}
+
+struct Token *include_file(struct Token *token,
+                           char *filename,
+                           struct Token *filename_token) {
+    struct Token *include_token = tokenize_file(filename);
+    if (include_token == NULL) {
+        error_token(filename_token, "%s\n", strerror(errno));
+    }
+    return concat(include_token, token);
 }
 
 struct Token *preprocess(struct Token *token) {
@@ -608,16 +635,19 @@ struct Token *preprocess(struct Token *token) {
 
         if (equal(token, "include")) {
             token = token->next;
-            char *filename = read_include_filename(&token, token);
-            if (filename[0] != '/') {
-                filename = format("%s/%s", dirname(strdup(token->file->path)),
-                                  filename);
+            bool is_dquote;
+            char *filename = read_include_filename(&token, token, &is_dquote);
+            if (filename[0] != '/' && is_dquote) {
+                char *path = format("%s/%s", dirname(strdup(token->file->path)),
+                                    filename);
+                if (file_exists(path)) {
+                    token = include_file(token, path, start->next->next);
+                    continue;
+                }
             }
-            struct Token *include_token = tokenize_file(filename);
-            if (include_token == NULL) {
-                error_token(start, "%s\n", strerror(errno));
-            }
-            token = concat(include_token, token);
+            char *path = search_include_path(filename);
+            token = include_file(token, path == NULL ? filename : path,
+                                 start->next->next);
             continue;
         }
 

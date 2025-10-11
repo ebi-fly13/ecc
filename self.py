@@ -21,6 +21,10 @@ typedef struct {
   void *overflow_arg_area;
   void *reg_save_area;
 } __va_elem;
+      
+struct stat {
+  char _[512];
+};
 
 typedef __va_elem va_list[1];
 
@@ -77,6 +81,7 @@ int unlink(char *);
 int mkstemp(char *);
 int close(int);
 char *strncpy(char *, char *, int);
+int stat(char *, struct stat *);
 """)
 
 for path in sys.argv[1:]:

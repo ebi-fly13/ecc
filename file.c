@@ -8,6 +8,11 @@ struct File *new_file(char *path, int file_number, char *contents) {
     return file;
 }
 
+bool file_exists(char *path) {
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
 char *read_file(char *path) {
     FILE *fp;
     if (!strcmp(path, "-")) {

@@ -7,6 +7,15 @@ static char *option_o;
 
 static char *input_path;
 
+char **include_paths;
+int count = 0;
+
+void add_include_path(char *path) {
+    include_paths = realloc(include_paths, sizeof(char *) * (count + 1));
+    include_paths[count] = strdup(path);
+    count++;
+}
+
 static char *replace_extn(char *path, char *extn) {
     char *filename = basename(strdup(path));
     char *dot = strrchr(filename, '.');
@@ -28,7 +37,7 @@ static char *create_tmpfile() {
 }
 
 static void help_command(int status) {
-    fprintf(stderr, "ecc [ -o path] <file>\n");
+    fprintf(stderr, "ecc [ -o path] [ -I<dir>] <file>\n");
     exit(status);
 }
 
@@ -64,6 +73,11 @@ static void parse_args(int argc, char **argv) {
 
         if (!strncmp(argv[i], "-o", 2)) {
             option_o = argv[i] + 2;
+            continue;
+        }
+
+        if (!strncmp(argv[i], "-I", 2)) {
+            add_include_path(argv[i] + 2);
             continue;
         }
 

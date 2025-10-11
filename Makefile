@@ -11,11 +11,11 @@ ecc: $(OBJS)
 $(OBJS): ecc.h
 
 test/macro.exe: ecc test/macro.c
-		./ecc test/macro.c -S -o test/macro.s
+		./ecc test/macro.c -S -o test/macro.s -Itest
 		$(CC) -o $@ test/macro.s -xc test/common
 
 test/macro2.exe: ecc test/macro.c
-		./ecc test/macro.c -E | ./ecc -o test/macro2.s - -S
+		./ecc test/macro.c -E -Itest | ./ecc -o test/macro2.s - -S
 		$(CC) -o $@ test/macro2.s -xc test/common
 		./test/macro2.exe
 
@@ -38,12 +38,12 @@ stage2/%.s: ecc self.py %.c
 
 stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
-	./stage2/ecc test/macro.c -o stage2/test/macro.s -S
+	./stage2/ecc test/macro.c -o stage2/test/macro.s -S -Itest
 	$(CC) -o $@ stage2/test/macro.s -xc test/common
 
 stage2/test/macro2.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
-	./stage2/ecc test/macro.c -E | ./stage2/ecc -o stage2/test/macro2.s - -S
+	./stage2/ecc test/macro.c -E -Itest | ./stage2/ecc -o stage2/test/macro2.s - -S
 	$(CC) -o $@ stage2/test/macro2.s -xc test/common
 	./stage2/test/macro2.exe
 
@@ -67,12 +67,12 @@ stage3/%.s: stage2/ecc self.py %.c
 
 stage3/test/macro.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
-	./stage3/ecc test/macro.c -S -o stage3/test/macro.s
+	./stage3/ecc test/macro.c -S -o stage3/test/macro.s -Itest
 	$(CC) -o $@ stage3/test/macro.s -xc test/common
 
 stage3/test/macro2.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
-	./stage3/ecc test/macro.c -E | ./stage3/ecc -o stage3/test/macro2.s - -S
+	./stage3/ecc test/macro.c -E -Itest | ./stage3/ecc -o stage3/test/macro2.s - -S
 	$(CC) -o $@ stage3/test/macro2.s -xc test/common
 	./stage3/test/macro2.exe
 

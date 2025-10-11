@@ -10,9 +10,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+// main.c
+extern char **include_paths;
+extern int count;
 
 // string.c
 char *format(char *fmt, ...);
@@ -25,6 +30,8 @@ struct File {
 };
 
 struct File *new_file(char *path, int file_number, char *contents);
+
+bool file_exists(char *path);
 
 char *read_file(char *);
 
