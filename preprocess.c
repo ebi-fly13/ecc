@@ -170,13 +170,13 @@ static long eval_const_expr(struct Token **rest, struct Token *token) {
 }
 
 static struct Token *skip_line(struct Token *token, bool warning_option) {
-    if (token->is_begin) {
+    if (token->is_begin || token->kind == TK_EOF) {
         return token;
     }
     if (warning_option) {
         warning_token(token, "extra token");
     }
-    while (!token->is_begin) {
+    while (!token->is_begin && token->kind != TK_EOF) {
         token = token->next;
     }
     return token;
@@ -351,9 +351,10 @@ static struct MacroParam *read_macro_params(struct Token **rest,
     return head.next;
 }
 
-static char *concat_token_components(struct Token *token) {
+static char *concat_token_components(struct Token *token, struct Token *end) {
     int len = 1;
-    for (struct Token *itr = token; itr->kind != TK_EOF; itr = itr->next) {
+    for (struct Token *itr = token; itr->kind != TK_EOF && itr != end;
+         itr = itr->next) {
         if (itr != token && itr->has_space) {
             len++;
         }
@@ -361,7 +362,8 @@ static char *concat_token_components(struct Token *token) {
     }
     char *buffer = calloc(len, sizeof(char));
     char *p = buffer;
-    for (struct Token *itr = token; itr->kind != TK_EOF; itr = itr->next) {
+    for (struct Token *itr = token; itr->kind != TK_EOF && itr != end;
+         itr = itr->next) {
         if (itr != token && itr->has_space) {
             *p++ = ' ';
         }
@@ -375,7 +377,7 @@ static char *concat_token_components(struct Token *token) {
 static struct Token *
 to_string_token_from_macro_argument(struct Token *hash,
                                     struct MacroArgument *argument) {
-    char *s = concat_token_components(argument->body);
+    char *s = concat_token_components(argument->body, NULL);
     return tokenize(
         new_file(hash->file->path, hash->file->file_number, quote_string(s)));
 }
@@ -555,6 +557,32 @@ bool is_defined(struct Token *token) {
     return !macro->is_erased;
 }
 
+static char *read_include_filename(struct Token **rest, struct Token *token) {
+    // #inculude "HOGE"
+    if (token->kind == TK_STR) {
+        *rest = skip_line(token->next, true);
+        return strndup(token->loc + 1, token->len - 2);
+    }
+    // #include <HOGE>
+    if (equal(token, "<")) {
+        struct Token *start = token = skip(token, "<");
+        for (; !equal(token, ">"); token = token->next) {
+            if (token->is_begin || token->kind == TK_EOF) {
+                error_token(token, "expected \'>\'");
+            }
+        }
+        *rest = skip_line(token->next, true);
+        return concat_token_components(start, token);
+    }
+    // #include HOGE
+    if (token->kind == TK_IDENT) {
+        struct Token *line = preprocess(copy_line(rest, token));
+        return read_include_filename(&line, line);
+    }
+
+    error_token(token, "expected file name");
+}
+
 struct Token *preprocess(struct Token *token) {
     struct Token head = {};
     struct Token *cur = &head;
@@ -580,16 +608,15 @@ struct Token *preprocess(struct Token *token) {
 
         if (equal(token, "include")) {
             token = token->next;
-            if (token->kind != TK_STR) {
-                error_token(token, "expected a filename");
+            char *filename = read_include_filename(&token, token);
+            if (filename[0] != '/') {
+                filename = format("%s/%s", dirname(strdup(token->file->path)),
+                                  filename);
             }
-            char *path =
-                format("%s/%s", dirname(strdup(token->file->path)), token->str);
-            struct Token *include_token = tokenize_file(path);
+            struct Token *include_token = tokenize_file(filename);
             if (include_token == NULL) {
                 error_token(start, "%s\n", strerror(errno));
             }
-            token = skip_line(token->next, true);
             token = concat(include_token, token);
             continue;
         }

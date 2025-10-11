@@ -350,6 +350,15 @@ int a; // comment
 #define M14(x) M13(x. M12)
   assert(0, strcmp(M14(bar), "bar. foo"), "strcmp(M14(bar), \"bar. foo\")");
 
+#include <include3.h>
+  assert(3, foo, "foo");
+#include "include4.h"
+  assert(4, foo, "foo");
+#define M15 <include5.h
+#include M15 >
+  assert(5, foo, "foo");
+#undef foo
+
   printf("OK\n");
   return 0;
 }
