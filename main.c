@@ -16,6 +16,12 @@ void add_include_path(char *path) {
     count++;
 }
 
+static void add_default_include_paths() {
+    add_include_path("/usr/local/include");
+    add_include_path("/usr/include/x86_64-linux-gnu");
+    add_include_path("/usr/include");
+}
+
 static char *replace_extn(char *path, char *extn) {
     char *filename = basename(strdup(path));
     char *dot = strrchr(filename, '.');
@@ -169,6 +175,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     if (option_cc1) {
+        add_default_include_paths();
         cc1();
         return 0;
     }
