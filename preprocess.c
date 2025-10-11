@@ -159,6 +159,13 @@ static struct Token *read_const_expr(struct Token **rest, struct Token *token) {
 static long eval_const_expr(struct Token **rest, struct Token *token) {
     struct Token *line = read_const_expr(rest, token);
     line = preprocess(line);
+    for (struct Token *t = line; t->kind != TK_EOF; t = t->next) {
+        if (t->kind != TK_IDENT)
+            continue;
+        struct Token *next = t->next;
+        *t = *new_num_token(0);
+        t->next = next;
+    }
     return const_expr(&line, line);
 }
 

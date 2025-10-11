@@ -325,6 +325,13 @@ int a; // comment
 #endif
   assert(3, m, "m");
 
+#if no_symbol == 0
+  m = 4;
+#else
+  m = 5;
+#endif
+  assert(4, m, "m");
+
   printf("OK\n");
   return 0;
 }
