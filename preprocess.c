@@ -337,7 +337,7 @@ static struct MacroArgument *read_one_macro_argument(struct Token **rest,
 static struct MacroArgument *raed_macro_argument(struct Token **rest,
                                                  struct Token *token,
                                                  struct MacroParam *params,
-                                                 bool is_variadic) {./,.
+                                                 bool is_variadic) {
     struct MacroArgument head = {};
     struct MacroArgument *cur = &head;
     struct MacroParam *p = params;
