@@ -76,7 +76,7 @@ bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 // それ以外の場合にはエラーを報告する。
 struct Token *skip(struct Token *token, char *op) {
     if (strlen(op) != token->len || memcmp(token->loc, op, token->len))
-        error_at(token->loc, "expected \"%s\"", op);
+        error_token(token, "expected \"%s\"", op);
     return token->next;
 }
 
@@ -252,23 +252,17 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
     } else {
         if (l && u) {
             ty = ty_ulong;
-        }
-        else if (l) {
+        } else if (l) {
             ty = (val >> 63) ? ty_ulong : ty_long;
-        }
-        else if (u) {
+        } else if (u) {
             ty = (val >> 32) ? ty_ulong : ty_uint;
-        }
-        else if (val >> 63) {
+        } else if (val >> 63) {
             ty = ty_ulong;
-        }
-        else if (val >> 32) {
+        } else if (val >> 32) {
             ty = ty_long;
-        }
-        else if (val >> 31) {
+        } else if (val >> 31) {
             ty = ty_uint;
-        }
-        else {
+        } else {
             ty = ty_int;
         }
     }
@@ -513,7 +507,12 @@ void convert_keywords(struct Token *token) {
                    equal(cur, "_Bool") || equal(cur, "void") ||
                    equal(cur, "signed") || equal(cur, "unsigned") ||
                    equal(cur, "struct") || equal(cur, "union") ||
-                   equal(cur, "enum") || equal(cur, "const")) {
+                   equal(cur, "enum") || equal(cur, "const") ||
+                   equal(cur, "restrict") || equal(cur, "__restrict") ||
+                   equal(cur, "__restrict__") || equal(cur, "volatile") ||
+                   equal(cur, "__Noreturn") || equal(cur, "register") ||
+                   equal(cur, "auto") || equal(cur, "float") ||
+                   equal(cur, "double")) {
             cur->kind = TK_MOLD;
         } else if (equal(cur, "sizeof")) {
             cur->kind = TK_SIZEOF;

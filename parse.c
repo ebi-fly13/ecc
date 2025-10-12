@@ -837,9 +837,13 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             assert(counter == 0);
             struct Type *ty = enum_specifier(rest, token->next);
             return ty;
-        } else if(equal(token, "const")) {
-            // TODO: const の実装
-            token = skip(token, "const");
+        } else if (equal(token, "const") || equal(token, "volatile") ||
+                   equal(token, "auto") || equal(token, "register") ||
+                   equal(token, "restrict") || equal(token, "__restrict") ||
+                   equal(token, "__restrict__") || equal(token, "_Noreturn") ||
+                   equal(token, "float") || equal(token, "double")) {
+            // TODO: impl
+            token = token->next;
         } else if (equal_keyword(token, TK_IDENT)) {
             struct Type *ty = find_typedef(strndup(token->loc, token->len));
             assert(ty != NULL);
@@ -1120,13 +1124,17 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
 }
 
 /*
-declarator = "*"* ( "(" declarator ")" | ident)? type_suffix
+declarator = "*"* ("restrict")? ( "(" declarator ")" | ident)? type_suffix
 */
 struct NameTag *
 declarator(struct Token **rest, struct Token *token, struct Type *ty) {
     while (equal(token, "*")) {
         token = skip(token, "*");
         ty = pointer_to(ty);
+    }
+
+    if (equal(token, "restrict")) {
+        token = skip(token, "restrict");
     }
 
     if (equal(token, "(")) {
@@ -2340,7 +2348,8 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
 
 /*
 primary =  "(" "{" compound_stmt ")" | "(" expr ")" | "sizeof" "(" typename ")"
-| "sizeof" unary | ident | string | num
+| "sizeof" unary | "__builtin_reg_class" "(" type-name ")" | ident | string |
+num
 */
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
@@ -2372,6 +2381,14 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         struct Type *ty = typename(&token, token);
         *rest = skip(token, ")");
         return new_node_num(ty->align);
+    } else if (equal(token, "__builtin_reg_class")) {
+        token = skip(token, "__builtin_reg_class");
+        struct Type *ty = typename(&token, token);
+        *rest = skip(token, ")");
+        if (is_integer(ty) || ty->ty == TY_PTR) {
+            return new_node_num(0);
+        }
+        return new_node_num(2);
     } else if (token->kind == TK_IDENT) {
         char *name = strndup(token->loc, token->len);
         struct VarScope *sc = find_variable(name);

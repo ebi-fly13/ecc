@@ -11,16 +11,16 @@ ecc: $(OBJS)
 $(OBJS): ecc.h
 
 test/macro.exe: ecc test/macro.c
-		./ecc test/macro.c -S -o test/macro.s -Itest
+		./ecc test/macro.c -S -o test/macro.s -Iinclude -Itest
 		$(CC) -o $@ test/macro.s -xc test/common
 
 test/macro2.exe: ecc test/macro.c
-		./ecc test/macro.c -E -Itest | ./ecc -o test/macro2.s - -S
+		./ecc test/macro.c -E -Iinclude -Itest | ./ecc -o test/macro2.s - -S
 		$(CC) -o $@ test/macro2.s -xc test/common
 		./test/macro2.exe
 
 test/%.exe: ecc test/%.c
-		./ecc -o test/$*.s test/$*.c -S
+		./ecc -o test/$*.s test/$*.c -S -Iinclude
 		$(CC) -static -o $@ test/$*.s -xc test/common
 
 test: $(TESTS)
@@ -38,18 +38,18 @@ stage2/%.s: ecc self.py %.c
 
 stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
-	./stage2/ecc test/macro.c -o stage2/test/macro.s -S -Itest
+	./stage2/ecc test/macro.c -o stage2/test/macro.s -S -Iinclude -Itest
 	$(CC) -o $@ stage2/test/macro.s -xc test/common
 
 stage2/test/macro2.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
-	./stage2/ecc test/macro.c -E -Itest | ./stage2/ecc -o stage2/test/macro2.s - -S
+	./stage2/ecc test/macro.c -E -Iinclude -Itest | ./stage2/ecc -o stage2/test/macro2.s - -S
 	$(CC) -o $@ stage2/test/macro2.s -xc test/common
 	./stage2/test/macro2.exe
 
 stage2/test/%.exe: stage2/ecc test/%.c
 	mkdir -p stage2/test
-	./stage2/ecc -o stage2/test/$*.s test/$*.c -S
+	./stage2/ecc -o stage2/test/$*.s test/$*.c -S -Iinclude
 	$(CC) -o $@ stage2/test/$*.s -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
@@ -67,18 +67,18 @@ stage3/%.s: stage2/ecc self.py %.c
 
 stage3/test/macro.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
-	./stage3/ecc test/macro.c -S -o stage3/test/macro.s -Itest
+	./stage3/ecc test/macro.c -S -o stage3/test/macro.s -Iinclude -Itest
 	$(CC) -o $@ stage3/test/macro.s -xc test/common
 
 stage3/test/macro2.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
-	./stage3/ecc test/macro.c -E -Itest | ./stage3/ecc -o stage3/test/macro2.s - -S
+	./stage3/ecc test/macro.c -E -Iinclude -Itest | ./stage3/ecc -o stage3/test/macro2.s - -S
 	$(CC) -o $@ stage3/test/macro2.s -xc test/common
 	./stage3/test/macro2.exe
 
 stage3/test/%.exe: stage3/ecc test/%.c
 	mkdir -p stage3/test
-	./stage3/ecc -o stage3/test/$*.s test/$*.c -S
+	./stage3/ecc -o stage3/test/$*.s test/$*.c -S -Iinclude
 	$(CC) -o $@ stage3/test/$*.s -xc test/common
 
 test-stage3: $(TESTS:test/%=stage3/test/%)

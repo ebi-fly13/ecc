@@ -46,9 +46,13 @@ void load(struct Type *ty) {
         fprintf(output_file, "  %sx rax, byte ptr [rax]\n", instruction);
     else if (ty->size == 2)
         fprintf(output_file, "  %sx rax, word ptr [rax]\n", instruction);
-    else if (ty->size == 4)
-        fprintf(output_file, "  %sxd rax, dword ptr [rax]\n", instruction);
-    else
+    else if (ty->size == 4) {
+        if (ty->is_unsigned) {
+            fprintf(output_file, "  mov rax, [rax]\n");
+        } else {
+            fprintf(output_file, "  movsxd rax, dword ptr [rax]\n");
+        }
+    } else
         fprintf(output_file, "  mov rax, [rax]\n");
     return;
 }

@@ -16,7 +16,8 @@ void add_include_path(char *path) {
     count++;
 }
 
-static void add_default_include_paths() {
+static void add_default_include_paths(char *argv0) {
+    add_include_path(format("%s/include", dirname(strdup(argv0))));
     add_include_path("/usr/local/include");
     add_include_path("/usr/include/x86_64-linux-gnu");
     add_include_path("/usr/include");
@@ -175,7 +176,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     if (option_cc1) {
-        add_default_include_paths();
+        add_default_include_paths(argv[0]);
         cc1();
         return 0;
     }
