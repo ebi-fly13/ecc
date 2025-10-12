@@ -31,10 +31,9 @@ test: $(TESTS)
 stage2/ecc: $(OBJS:%=stage2/%)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-stage2/%.s: ecc self.py %.c
+stage2/%.s: ecc %.c
 	mkdir -p stage2
-	python3 self.py ecc.h $*.c > stage2/$*.c
-	./ecc stage2/$*.c -S -o stage2/$*.s
+	./ecc $*.c -S -o stage2/$*.s
 
 stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test
@@ -60,10 +59,9 @@ test-stage2: $(TESTS:test/%=stage2/test/%)
 stage3/ecc: $(OBJS:%=stage3/%)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-stage3/%.s: stage2/ecc self.py %.c
+stage3/%.s: stage2/ecc %.c
 	mkdir -p stage3
-	python3 self.py ecc.h $*.c > stage3/$*.c
-	./stage2/ecc stage3/$*.c -S -o stage3/$*.s
+	./stage2/ecc $*.c -S -o stage3/$*.s -Iinclude
 
 stage3/test/macro.exe: stage3/ecc test/macro.c
 	mkdir -p stage3/test
