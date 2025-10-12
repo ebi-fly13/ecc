@@ -513,7 +513,7 @@ void convert_keywords(struct Token *token) {
                    equal(cur, "_Bool") || equal(cur, "void") ||
                    equal(cur, "signed") || equal(cur, "unsigned") ||
                    equal(cur, "struct") || equal(cur, "union") ||
-                   equal(cur, "enum")) {
+                   equal(cur, "enum") || equal(cur, "const")) {
             cur->kind = TK_MOLD;
         } else if (equal(cur, "sizeof")) {
             cur->kind = TK_SIZEOF;

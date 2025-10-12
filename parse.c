@@ -837,6 +837,9 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             assert(counter == 0);
             struct Type *ty = enum_specifier(rest, token->next);
             return ty;
+        } else if(equal(token, "const")) {
+            // TODO: const の実装
+            token = skip(token, "const");
         } else if (equal_keyword(token, TK_IDENT)) {
             struct Type *ty = find_typedef(strndup(token->loc, token->len));
             assert(ty != NULL);
