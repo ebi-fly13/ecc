@@ -47,6 +47,7 @@ struct Macro {
     struct MacroParam *params;
     bool is_objlike;
     bool is_erased;
+    bool is_variadic;
     macro_handler *handler;
 } *macros;
 
@@ -307,12 +308,19 @@ find_macro_argument(struct MacroArgument *arguments, struct Token *token) {
 }
 
 static struct MacroArgument *read_one_macro_argument(struct Token **rest,
-                                                     struct Token *token) {
+                                                     struct Token *token,
+                                                     bool read_rest) {
     struct MacroArgument *arg = calloc(1, sizeof(struct MacroArgument));
     struct Token head = {};
     struct Token *cur = &head;
     int depth = 0;
-    while (depth > 0 || (!equal(token, ")") && !equal(token, ","))) {
+    while (1) {
+        if (depth == 0 && equal(token, ")")) {
+            break;
+        }
+        if (depth == 0 && !read_rest && equal(token, ",")) {
+            break;
+        }
         if (equal(token, "("))
             depth++;
         if (equal(token, ")"))
@@ -328,28 +336,49 @@ static struct MacroArgument *read_one_macro_argument(struct Token **rest,
 
 static struct MacroArgument *raed_macro_argument(struct Token **rest,
                                                  struct Token *token,
-                                                 struct MacroParam *params) {
+                                                 struct MacroParam *params,
+                                                 bool is_variadic) {./,.
     struct MacroArgument head = {};
     struct MacroArgument *cur = &head;
-    for (struct MacroParam *p = params; p != NULL; p = p->next) {
+    struct MacroParam *p = params;
+    for (; p != NULL; p = p->next) {
         if (cur != &head) {
             token = skip(token, ",");
         }
-        cur = cur->next = read_one_macro_argument(&token, token);
+        cur = cur->next = read_one_macro_argument(&token, token, false);
         cur->name = p->name;
+    }
+    if (is_variadic) {
+        struct MacroArgument *arg;
+        if (equal(token, ")")) {
+            arg = calloc(1, sizeof(struct MacroArgument));
+            arg->body = new_eof_token();
+        } else {
+            if (p != params) {
+                token = skip(token, ",");
+            }
+            arg = read_one_macro_argument(&token, token, is_variadic);
+        }
+        arg->name = "__VA_ARGS__";
+        cur = cur->next = arg;
     }
     assert(equal(token, ")"));
     *rest = token;
     return head.next;
 }
 
-static struct MacroParam *read_macro_params(struct Token **rest,
-                                            struct Token *token) {
+static struct MacroParam *
+read_macro_params(struct Token **rest, struct Token *token, bool *is_variadic) {
     struct MacroParam head = {};
     struct MacroParam *cur = &head;
     while (!equal(token, ")")) {
         if (cur != &head) {
             token = skip(token, ",");
+        }
+        if (equal(token, "...")) {
+            *is_variadic = true;
+            token = token->next;
+            break;
         }
         struct MacroParam *param = calloc(1, sizeof(struct MacroParam));
         if (token->kind != TK_IDENT) {
@@ -517,7 +546,7 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
             return false;
         }
         struct MacroArgument *args =
-            raed_macro_argument(&token, token->next, m->params);
+            raed_macro_argument(&token, token->next, m->params, m->is_variadic);
         struct Token *rparen = token;
         token = skip(token, ")");
         struct Hideset *hideset =
@@ -554,8 +583,11 @@ static void define_macro(struct Token **rest, struct Token *token) {
     char *name = strndup(token->loc, token->len);
     token = token->next;
     if (!token->has_space && equal(token, "(")) {
-        struct MacroParam *params = read_macro_params(&token, token->next);
-        add_macro(name, false, params, copy_line(rest, token));
+        bool is_variadic;
+        struct MacroParam *params =
+            read_macro_params(&token, token->next, &is_variadic);
+        add_macro(name, false, params, copy_line(rest, token))->is_variadic =
+            is_variadic;
     } else {
         add_macro(name, true, NULL, copy_line(rest, token));
     }
