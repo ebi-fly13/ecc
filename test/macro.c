@@ -2,6 +2,11 @@ int printf(char *fmt, ...);
 int strcmp();
 void assert();
 
+char *main_filename1 = __FILE__;
+int main_line1 = __LINE__;
+#define LINE() __LINE__
+int main_line2 = LINE();
+
 int ret3() {
   return 3;
 }
@@ -359,6 +364,12 @@ int a; // comment
   assert(5, foo, "foo");
 #undef foo
   assert(1, _LP64);
+
+  assert(0, strcmp(main_filename1, "test/macro.c"), "strcmp(main_filename1, \"test/macro.c\")");
+  assert(6, main_line1, "main_line1");
+  assert(8, main_line2, "main_line2");
+  assert(0, strcmp(include1_filename, "test/include1.h"), "strcmp(include1_filename, \"test/include1.h\")");
+  assert(5, include1_line, "include1_line");
 
   printf("OK\n");
   return 0;

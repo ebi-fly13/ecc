@@ -37,6 +37,8 @@ struct MacroArgument {
     struct Token *body;
 };
 
+typedef struct Token *macro_handler(struct Token *);
+
 struct Macro {
     struct Macro *prev;
     struct Macro *next;
@@ -45,6 +47,7 @@ struct Macro {
     struct MacroParam *params;
     bool is_objlike;
     bool is_erased;
+    macro_handler *handler;
 } *macros;
 
 static struct Macro *find_macro(struct Token *token) {
@@ -99,6 +102,15 @@ static struct Hideset *new_hideset(char *name) {
 static struct Token *new_eof_token() {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_EOF;
+    return token;
+}
+
+static struct Token *new_string_token(char *str) {
+    struct Token *token = calloc(1, sizeof(struct Token));
+    token->kind = TK_STR;
+    token->str = str;
+    token->len = strlen(str);
+    token->ty = array_to(ty_char, token->len + 1);
     return token;
 }
 
@@ -484,9 +496,16 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
     struct Macro *m = find_macro(token);
     if (m == NULL || m->is_erased) {
         return false;
+    } else if (m->handler != NULL) {
+        *rest = m->handler(token);
+        (*rest)->next = token->next;
+        return true;
     } else if (m->is_objlike) {
         struct Token *body = add_hideset(
             m->body, hideset_union(token->hideset, new_hideset(m->name)));
+        for (struct Token *itr = body; itr->kind != TK_EOF; itr = itr->next) {
+            itr->origin = token;
+        }
         *rest = concat(body, token->next);
         (*rest)->is_begin = token->is_begin;
         (*rest)->has_space = token->has_space;
@@ -504,18 +523,22 @@ static bool expand_macro(struct Token **rest, struct Token *token) {
         struct Hideset *hideset =
             hideset_intersection(token->hideset, rparen->hideset);
         hideset = hideset_union(hideset, new_hideset(m->name));
-        *rest = concat(
-            add_hideset(expand_funclike_macro(m->body, args), hideset), token);
+        struct Token *body =
+            add_hideset(expand_funclike_macro(m->body, args), hideset);
+        for (struct Token *itr = body; itr->kind != TK_EOF; itr = itr->next) {
+            itr->origin = macro_token;
+        }
+        *rest = concat(body, token);
         (*rest)->is_begin = macro_token->is_begin;
         (*rest)->has_space = macro_token->has_space;
         return true;
     }
 }
 
-static void add_macro(char *name,
-                      bool is_objlike,
-                      struct MacroParam *params,
-                      struct Token *body) {
+static struct Macro *add_macro(char *name,
+                               bool is_objlike,
+                               struct MacroParam *params,
+                               struct Token *body) {
     struct Macro *macro = calloc(1, sizeof(struct Macro));
     macro->name = name;
     macro->is_objlike = is_objlike;
@@ -523,6 +546,7 @@ static void add_macro(char *name,
     macro->body = body;
     macro->next = macros;
     macros = macro;
+    return macro;
 }
 
 static void define_macro(struct Token **rest, struct Token *token) {
@@ -537,9 +561,27 @@ static void define_macro(struct Token **rest, struct Token *token) {
     }
 }
 
+static void add_predefined_dynamic_macro(char *name, macro_handler *handler) {
+    add_macro(name, true, NULL, NULL)->handler = handler;
+}
+
 static void add_predefined_macro(char *name, char *buf) {
     struct Token *token = tokenize(new_file("<built-in>", 1, strdup(buf)));
     add_macro(name, true, NULL, token);
+}
+
+static struct Token *file_macro(struct Token *token) {
+    while (token->origin != NULL) {
+        token = token->origin;
+    }
+    return new_string_token(token->file->path);
+}
+
+static struct Token *line_macro(struct Token *token) {
+    while (token->origin != NULL) {
+        token = token->origin;
+    }
+    return new_num_token(token->line_number);
 }
 
 static void init_macros() {
@@ -584,6 +626,8 @@ static void init_macros() {
     add_predefined_macro("__x86_64__", "1");
     add_predefined_macro("linux", "1");
     add_predefined_macro("unix", "1");
+    add_predefined_dynamic_macro("__FILE__", file_macro);
+    add_predefined_dynamic_macro("__LINE__", line_macro);
 }
 
 static void undef_macro(struct Token *token) {
@@ -649,9 +693,9 @@ char *search_include_path(char *filename) {
     return NULL;
 }
 
-struct Token *include_file(struct Token *token,
-                           char *filename,
-                           struct Token *filename_token) {
+static struct Token *include_file(struct Token *token,
+                                  char *filename,
+                                  struct Token *filename_token) {
     struct Token *include_token = tokenize_file(filename);
     if (include_token == NULL) {
         error_token(filename_token, "%s\n", strerror(errno));

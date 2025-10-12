@@ -80,6 +80,7 @@ struct Token {
     struct Type *ty;         // 型
     struct File *file;       // Source file
     struct Hideset *hideset; // for macro expansion
+    struct Token *origin;    // for __FILE__ and __LINE__
 };
 
 struct VarScope {
