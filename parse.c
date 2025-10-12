@@ -328,11 +328,11 @@ struct Object *new_anon_gvar(struct Type *ty) {
     return new_global_var(tag, NULL);
 }
 
-struct Object *new_string_literal(struct Token *token) {
-    struct Object *obj = new_anon_gvar(token->ty);
+struct Object *new_string_literal(char *str, struct Type *ty) {
+    struct Object *obj = new_anon_gvar(ty);
     obj->len = strlen(obj->name);
     obj->is_global_variable = true;
-    obj->init_data = token->str;
+    obj->init_data = str;
     return obj;
 }
 
@@ -681,6 +681,16 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
             tag_of_va_area.name = "__va_area__";
             tag_of_va_area.ty = array_to(ty_char, 136);
             fn->va_area = new_local_var(&tag_of_va_area);
+        }
+        // add __func__
+        {
+            push_scope("__func__")->var = new_string_literal(
+                fn->name, array_to(ty_char, strlen(fn->name) + 1));
+        }
+        // add [GNU] __FUNCTION__
+        {
+            push_scope("__FUNCTION__")->var = new_string_literal(
+                fn->name, array_to(ty_char, strlen(fn->name) + 1));
         }
         token = skip(token, "{");
         fn->body = compound_stmt(&token, token);
@@ -2372,7 +2382,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         }
         *rest = token->next;
     } else if (token->kind == TK_STR) {
-        node = new_node_var(new_string_literal(token));
+        node = new_node_var(new_string_literal(token->str, token->ty));
         *rest = token->next;
     } else if (token->kind == TK_NUM) {
         node = new_node_num(get_number(token));

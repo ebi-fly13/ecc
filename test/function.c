@@ -105,6 +105,10 @@ int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
 
 int param_decay2(int x()) { return x(); }
 
+char *get_function_name() {
+    return __func__;
+}
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -157,6 +161,10 @@ int main() {
     ASSERT(6, fnptr(add_all)(3, 1, 2, 3));
 
     ASSERT(3, param_decay2(ret3));
+    ASSERT(0, strcmp("main", __func__));
+    ASSERT(0, strcmp("main", __FUNCTION__));
+    printf("%s\n", get_function_name());
+    ASSERT(0, strcmp("get_function_name", get_function_name()));
 
     printf("OK\n");
     return 0;
