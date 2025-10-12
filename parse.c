@@ -742,7 +742,9 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
         LONG = 1 << 10,
         SIGNED = 1 << 12,
         UNSIGNED = 1 << 14,
-        OTHER = 1 << 16,
+        FLOAT = 1 << 16,
+        DOUBLE = 1 << 18,
+        OTHER = 1 << 20,
     };
     int counter = 0;
     while (is_typename(token)) {
@@ -825,6 +827,18 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
                 error("unsignedが2重になっています");
             }
             counter += UNSIGNED;
+        } else if (equal(token, "float")) {
+            token = skip(token, "float");
+            if (counter & FLOAT) {
+                error("floatが2重になっています");
+            }
+            counter += FLOAT;
+        } else if (equal(token, "double")) {
+            token = skip(token, "double");
+            if (counter & DOUBLE) {
+                error("doubleが2重になっています");
+            }
+            counter += DOUBLE;
         } else if (equal(token, "struct")) {
             assert(counter == 0);
             struct Type *ty = struct_decl(rest, token->next);
@@ -903,6 +917,12 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     case UNSIGNED + LONG + LONG + INT:
         ty = ty_ulong;
         break;
+    case FLOAT:
+        ty = ty_float;
+    case DOUBLE:
+    case LONG + DOUBLE:
+        ty = ty_double;
+        break;
     default:
         if (attr != NULL && attr->is_typedef) {
             ty = ty_int;
@@ -915,13 +935,26 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     return ty;
 }
 
-// abstract-declarator = "*"* ("(" abstract-declarator ")")? type_suffix
+// pointers = ("*" ("const" | "volatile" | "restrict")?)*
+static struct Type *
+pointers(struct Token **rest, struct Token *token, struct Type *ty) {
+    while (equal(token, "*")) {
+        token = skip(token, "*");
+        ty = pointer_to(ty);
+        while (equal(token, "const") || equal(token, "volatile") ||
+               equal(token, "restrict") || equal(token, "__restrict") ||
+               equal(token, "__restrict__")) {
+            token = token->next;
+        }
+    }
+    *rest = token;
+    return ty;
+}
+
+// abstract-declarator = pointers ("(" abstract-declarator ")")? type_suffix
 struct Type *
 abstract_declarator(struct Token **rest, struct Token *token, struct Type *ty) {
-    while (equal(token, "*")) {
-        ty = pointer_to(ty);
-        token = skip(token, "*");
-    }
+    ty = pointers(&token, token, ty);
     if (equal(token, "(")) {
         struct Token *start = skip(token, "(");
         struct Type dummy;
@@ -1124,19 +1157,11 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
 }
 
 /*
-declarator = "*"* ("restrict")? ( "(" declarator ")" | ident)? type_suffix
+declarator = pointers ( "(" declarator ")" | ident)? type_suffix
 */
 struct NameTag *
 declarator(struct Token **rest, struct Token *token, struct Type *ty) {
-    while (equal(token, "*")) {
-        token = skip(token, "*");
-        ty = pointer_to(ty);
-    }
-
-    if (equal(token, "restrict")) {
-        token = skip(token, "restrict");
-    }
-
+    ty = pointers(&token, token, ty);
     if (equal(token, "(")) {
         token = skip(token, "(");
         struct Token *start = token;
@@ -2327,8 +2352,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
         if (param_tag != NULL) {
             if (param_tag->ty->ty == TY_STRUCT ||
                 param_tag->ty->ty == TY_UNION) {
-                error("struct and union is not supported for function params "
-                      "yet.");
+                error("struct and union is not supported for function params yet.");
             }
             arg = new_node_cast(arg, param_tag->ty);
             param_tag = param_tag->next;

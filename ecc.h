@@ -280,6 +280,8 @@ typedef enum {
     TY_SHORT,  // short
     TY_CHAR,   // char
     TY_BOOL,   // bool
+    TY_FLOAT,  // float
+    TY_DOUBLE, // double
     TY_VOID,   // void
     TY_PTR,    // pointer
     TY_ARRAY,  // 配列
@@ -314,6 +316,8 @@ extern struct Type *ty_int;
 extern struct Type *ty_short;
 extern struct Type *ty_char;
 extern struct Type *ty_bool;
+extern struct Type *ty_float;
+extern struct Type *ty_double;
 extern struct Type *ty_void;
 extern struct Type *ty_ulong;
 extern struct Type *ty_uint;

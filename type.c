@@ -6,6 +6,8 @@ struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2, 2};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1, 1};
 struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0, 1};
 struct Type *ty_bool = &(struct Type){TY_BOOL, NULL, 0, 1, 1};
+struct Type *ty_float = &(struct Type){TY_FLOAT, NULL, 0, 4, 4};
+struct Type *ty_double = &(struct Type){TY_DOUBLE, NULL, 0, 8, 8};
 
 struct Type *ty_ulong = &(struct Type){TY_LONG, NULL, 0, 8, 8, true};
 struct Type *ty_uint = &(struct Type){TY_INT, NULL, 0, 4, 4, true};
