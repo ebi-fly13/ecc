@@ -29,6 +29,9 @@ of(char),
 of(char),\
            "sizeof(char)");
 
+    ASSERT(4, sizeof(L'\0'));
+    ASSERT(97, L'a');
+
     printf("OK\n");
     return 0;
 }
