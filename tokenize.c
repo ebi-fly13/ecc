@@ -70,6 +70,8 @@ void warning_token(struct Token *token, char *fmt, ...) {
     va_end(ap);
 }
 
+bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 struct Token *skip(struct Token *token, char *op) {
@@ -210,11 +212,69 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
     }
     unsigned long val = strtoul(p, &p, base);
 
+    bool l = false;
+    bool u = false;
+
+    if (startswith(p, "LLU") || startswith(p, "LLu") || startswith(p, "llU") ||
+        startswith(p, "llu") || startswith(p, "ULL") || startswith(p, "Ull") ||
+        startswith(p, "uLL") || startswith(p, "ull")) {
+        p += 3;
+        l = u = true;
+    } else if (!strncasecmp(p, "lu", 2) || !strncasecmp(p, "ul", 2)) {
+        p += 2;
+        l = u = true;
+    } else if (startswith(p, "LL") || startswith(p, "ll")) {
+        p += 2;
+        l = true;
+    } else if (*p == 'L' || *p == 'l') {
+        p++;
+        l = true;
+    } else if (*p == 'U' || *p == 'u') {
+        p++;
+        u = true;
+    }
+
     if (is_alnum(*p)) {
         error_at(p, "invalid digit");
     }
 
+    struct Type *ty;
+    if (base == 10) {
+        if (l && u) {
+            ty = ty_ulong;
+        } else if (l) {
+            ty = ty_long;
+        } else if (u) {
+            ty = (val >> 32) ? ty_ulong : ty_uint;
+        } else {
+            ty = (val >> 31) ? ty_long : ty_int;
+        }
+    } else {
+        if (l && u) {
+            ty = ty_ulong;
+        }
+        else if (l) {
+            ty = (val >> 63) ? ty_ulong : ty_long;
+        }
+        else if (u) {
+            ty = (val >> 32) ? ty_ulong : ty_uint;
+        }
+        else if (val >> 63) {
+            ty = ty_ulong;
+        }
+        else if (val >> 32) {
+            ty = ty_long;
+        }
+        else if (val >> 31) {
+            ty = ty_uint;
+        }
+        else {
+            ty = ty_int;
+        }
+    }
+
     struct Token *tok = new_token(TK_NUM, cur, str, p - str);
+    tok->ty = ty;
     tok->val = val;
     return tok;
 }
@@ -273,8 +333,6 @@ struct Token *read_string_literal(struct Token *cur, char *str) {
     tok->ty = array_to(ty_char, len + 1);
     return tok;
 }
-
-bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 void add_line_number(struct Token *token) {
     char *p = current_file->contents;

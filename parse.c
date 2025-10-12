@@ -2386,6 +2386,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         *rest = token->next;
     } else if (token->kind == TK_NUM) {
         node = new_node_num(get_number(token));
+        node->ty = token->ty;
         *rest = token->next;
     } else {
         error("parseエラー");

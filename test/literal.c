@@ -20,6 +20,9 @@ int main() {
     ASSERT(47, 0b101111);
     ASSERT(47, 0B101111);
 
+    ASSERT(8, sizeof(4UL));
+    ASSERT(8, sizeof(4L));
+
     assert(1, size\
 of(char),
            "sizeof(char)");
