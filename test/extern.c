@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 extern int ext1;
 extern int *ext2;
 extern int a;

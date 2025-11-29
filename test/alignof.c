@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 int _Alignas(512) g1;
 int _Alignas(512) g2;
 char g3;

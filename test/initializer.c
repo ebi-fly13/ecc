@@ -1,7 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
 int strcmp(char *p, char *q);
 int memcmp(char *p, char *q, long n);
 

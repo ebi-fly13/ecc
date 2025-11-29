@@ -1,7 +1,5 @@
 #include "test.h"
 
-int assert();
-
 int main() {
     ASSERT(0, 0);
     ASSERT(42, 42);

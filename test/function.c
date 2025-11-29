@@ -1,7 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
 int ret3();
 int addx(int *, int);
 
@@ -78,15 +76,6 @@ _Bool true_fn() { return 513; }
 _Bool false_fn() { return 512; }
 char char_fn() { return (2 << 8) + 3; }
 short short_fn() { return (2 << 16) + 5; }
-
-typedef struct {
-    int gp_offset;
-    int fp_offset;
-    void *overflow_arg_area;
-    void *reg_save_area;
-} __va_elem;
-
-typedef __va_elem va_list[1];
 
 int strcmp(char *, char *);
 int vsprintf(char *buf, char *fmt, va_list ap);

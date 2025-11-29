@@ -508,11 +508,11 @@ void convert_keywords(struct Token *token) {
                    equal(cur, "signed") || equal(cur, "unsigned") ||
                    equal(cur, "struct") || equal(cur, "union") ||
                    equal(cur, "enum") || equal(cur, "const") ||
-                   equal(cur, "restrict") || equal(cur, "__restrict") ||
-                   equal(cur, "__restrict__") || equal(cur, "volatile") ||
-                   equal(cur, "__Noreturn") || equal(cur, "register") ||
-                   equal(cur, "auto") || equal(cur, "float") ||
-                   equal(cur, "double")) {
+                   equal(cur, "inline") || equal(cur, "restrict") ||
+                   equal(cur, "__restrict") || equal(cur, "__restrict__") ||
+                   equal(cur, "volatile") || equal(cur, "__Noreturn") ||
+                   equal(cur, "register") || equal(cur, "auto") ||
+                   equal(cur, "float") || equal(cur, "double")) {
             cur->kind = TK_MOLD;
         } else if (equal(cur, "sizeof")) {
             cur->kind = TK_SIZEOF;

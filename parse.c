@@ -853,9 +853,10 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             return ty;
         } else if (equal(token, "const") || equal(token, "volatile") ||
                    equal(token, "auto") || equal(token, "register") ||
-                   equal(token, "restrict") || equal(token, "__restrict") ||
-                   equal(token, "__restrict__") || equal(token, "_Noreturn") ||
-                   equal(token, "float") || equal(token, "double")) {
+                   equal(token, "inline") || equal(token, "restrict") ||
+                   equal(token, "__restrict") || equal(token, "__restrict__") ||
+                   equal(token, "_Noreturn") || equal(token, "float") ||
+                   equal(token, "double")) {
             // TODO: impl
             token = token->next;
         } else if (equal_keyword(token, TK_IDENT)) {

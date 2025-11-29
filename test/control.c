@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 /*
  * This is a block comment.
  */

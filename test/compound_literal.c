@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 typedef struct Tree {
   int val;
   struct Tree *lhs;

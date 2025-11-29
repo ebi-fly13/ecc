@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 int main() {
   ASSERT(10, ({ enum { ten=1+2+3+4 }; ten; }));
   ASSERT(1, ({ int i=0; switch(3) { case 5-2+0*3: i++; } i; }));

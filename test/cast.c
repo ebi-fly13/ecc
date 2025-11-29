@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 int main() {
     ASSERT(131585, (int)8590066177);
     ASSERT(513, (short)8590066177);

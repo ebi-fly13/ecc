@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 int g1, g2[4];
 
 static int g3 = 3;

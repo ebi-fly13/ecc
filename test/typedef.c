@@ -1,8 +1,5 @@
 #include "test.h"
 
-int assert();
-int printf();
-
 typedef int MyInt, MyInt2[4];
 typedef int;
 
