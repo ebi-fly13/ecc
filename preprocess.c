@@ -110,8 +110,10 @@ static struct Token *new_string_token(char *str) {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_STR;
     token->str = str;
-    token->len = strlen(str);
-    token->ty = array_to(ty_char, token->len + 1);
+    token->ty = array_to(ty_char, strlen(str) + 1);
+    token->len = strlen(str) + 2;
+    token->loc = malloc(token->len + 1);
+    snprintf(token->loc, token->len + 1, "\"%s\"", str);
     return token;
 }
 
@@ -119,6 +121,9 @@ static struct Token *new_num_token(int num) {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_NUM;
     token->val = num;
+    token->loc = malloc(15);
+    snprintf(token->loc, 15, "%d", num);
+    token->len = strlen(token->loc);
     return token;
 }
 
