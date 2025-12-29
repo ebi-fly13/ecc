@@ -3,6 +3,17 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+void error_node(struct Node *node, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    if (node->token != NULL) {
+        error_token(node->token, fmt, ap);
+    } else {
+        error(fmt, ap);
+    }
+    exit(0);
+}
+
 struct Initializer {
     struct Initializer *next;
     struct Type *ty;
@@ -41,8 +52,9 @@ char *break_label = NULL;
 
 static bool is_global_scope() { return scope->next == NULL; }
 
-struct Node *new_node(NodeKind kind) {
+struct Node *new_node(NodeKind kind, struct Token *token) {
     struct Node *node = calloc(1, sizeof(struct Node));
+    node->token = token;
     node->kind = kind;
     return node;
 }
@@ -63,8 +75,9 @@ struct Node *new_node_unary(NodeKind kind, struct Node *cur) {
     return node;
 }
 
-struct Node *new_node_num(int val) {
+struct Node *new_node_num(int val, struct Token *token) {
     struct Node *node = calloc(1, sizeof(struct Node));
+    node->token = token;
     node->kind = ND_NUM;
     node->val = val;
     return node;
@@ -98,7 +111,7 @@ struct Node *new_node_add(struct Node *lhs, struct Node *rhs) {
 
     rhs = new_node_binary(
         ND_MUL, rhs,
-        new_node_cast(new_node_num(lhs->ty->ptr_to->size), ty_long));
+        new_node_cast(new_node_num(lhs->ty->ptr_to->size, NULL), ty_long));
 
     return new_node_binary(ND_ADD, lhs, rhs);
 }
@@ -118,7 +131,7 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     if (is_pointer(lhs->ty) && is_integer(rhs->ty)) {
         rhs = new_node_binary(
             ND_MUL, rhs,
-            new_node_cast(new_node_num(lhs->ty->ptr_to->size), ty_long));
+            new_node_cast(new_node_num(lhs->ty->ptr_to->size, NULL), ty_long));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
@@ -126,7 +139,7 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
         struct Node *node = new_node_binary(ND_SUB, lhs, rhs);
         node->ty = ty_int;
         return new_node_binary(ND_DIV, node,
-                               new_node_num(lhs->ty->ptr_to->size));
+                               new_node_num(lhs->ty->ptr_to->size, NULL));
     }
 }
 
@@ -403,7 +416,7 @@ static long eval_rval(struct Node *node, char **label) {
     case ND_MEMBER:
         return eval_rval(node->lhs, label) + node->member->offset;
     default:
-        error("invalid initializer");
+        error_node(node, "invalid initializer");
     }
 }
 
@@ -472,24 +485,24 @@ static long internal_eval(struct Node *node, char **label) {
         return eval_rval(node->lhs, label);
     case ND_MEMBER:
         if (!label) {
-            error("not a compile-time constant");
+            error_node(node, "not a compile-time constant");
         }
         if (node->ty->ty != TY_ARRAY) {
-            error("invalid initializer");
+            error_node(node, "invalid initializer");
         }
         return eval_rval(node->lhs, label) + node->member->offset;
     case ND_VAR:
         assert(node->obj->is_global_variable);
         if (!label) {
-            error("not a compile-time constant");
+            error_node(node, "not a compile-time constant");
         }
         if (node->obj->ty->ty != TY_ARRAY && node->obj->ty->ty != TY_FUNC) {
-            error("invalid initializer");
+            error_node(node, "invalid initializer");
         }
         *label = node->obj->name;
         return 0;
     }
-    error("コンパイル時定数ではありません");
+    error_node(node, "コンパイル時定数ではありません");
 }
 
 static long eval(struct Node *node) { return internal_eval(node, NULL); }
@@ -504,7 +517,7 @@ static void write_buffer(char *buf, uint64_t val, int sz) {
     } else if (sz == 8) {
         *(uint64_t *)buf = val;
     } else {
-        error("バッファに書き込めないサイズです");
+        error("サイズ %d はバッファに書き込めないサイズです", sz);
     }
 }
 
@@ -621,7 +634,7 @@ void resolve_goto_labels() {
             }
         }
         if (goto_node->unique_label == NULL) {
-            error("定義されていないラベルを使用しています");
+            error_node(goto_node, "定義されていないラベルを使用しています");
         }
     }
     gotos = NULL;
@@ -655,9 +668,10 @@ function = declarator "(" func_params "{" compound_stmt
 */
 struct Token *
 function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
+    struct Token *start = token;
     struct NameTag *tag = declarator(&token, token, ty);
     if (tag->name == NULL) {
-        error("function name omit");
+        error_token(start, "function name omit");
     }
     struct Object *fn = find_object(functions, tag->name);
     if (fn == NULL) {
@@ -714,9 +728,10 @@ global_variable(struct Token *token, struct Type *ty, struct VarAttr *attr) {
             token = skip(token, ",");
         else
             is_first = false;
+        struct Token *start = token;
         struct NameTag *gvar_nametag = declarator(&token, token, ty);
         if (gvar_nametag->name == NULL) {
-            error("variable name omit");
+            error_token(start, "variable name omit");
         }
         struct Object *gvar = new_global_var(gvar_nametag, attr);
         if (equal(token, "=")) {
@@ -748,15 +763,18 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
     };
     int counter = 0;
     while (is_typename(token)) {
+        struct Token *start = token;
         if (equal(token, "typedef") || equal(token, "static") ||
             equal(token, "extern")) {
             if (attr == NULL) {
-                error("storage class specifier is not allowed in this context");
+                error_token(
+                    start,
+                    "storage class specifier is not allowed in this context");
             }
 
             if (equal(token, "typedef")) {
                 attr->is_typedef = true;
-                token = skip(token, "typedef");
+                token = skip(start, "typedef");
             } else if (equal(token, "static")) {
                 attr->is_static = true;
                 token = skip(token, "static");
@@ -765,11 +783,11 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
                 token = skip(token, "extern");
             }
             if (attr->is_typedef && (attr->is_static || attr->is_extern)) {
-                error("typedefはstaticやexternと同時に使えません");
+                error_token(start, "typedefはstaticやexternと同時に使えません");
             }
         } else if (equal(token, "_Alignas")) {
             if (attr == NULL) {
-                error("_Alignas is not allowed in this context");
+                error_token(start, "_Alignas is not allowed in this context");
             }
             token = skip(token, "_Alignas");
             token = skip(token, "(");
@@ -782,61 +800,61 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
         } else if (equal(token, "long")) {
             token = skip(token, "long");
             if ((counter & (LONG + LONG))) {
-                error("longが3重になっています");
+                error_token(start, "longが3重になっています");
             }
             counter += LONG;
         } else if (equal(token, "int")) {
             token = skip(token, "int");
             if (counter & INT) {
-                error("intが2重になっています");
+                error_token(start, "intが2重になっています");
             }
             counter += INT;
         } else if (equal(token, "short")) {
             token = skip(token, "short");
             if (counter & SHORT) {
-                error("shortが2重になっています");
+                error_token(start, "shortが2重になっています");
             }
             counter += SHORT;
         } else if (equal(token, "char")) {
             token = skip(token, "char");
             if (counter & CHAR) {
-                error("charが2重になっています");
+                error_token(start, "charが2重になっています");
             }
             counter += CHAR;
         } else if (equal(token, "_Bool")) {
             token = skip_keyword(token, TK_MOLD);
             if (counter & BOOL) {
-                error("boolが2重になっています");
+                error_token(start, "boolが2重になっています");
             }
             counter += BOOL;
         } else if (equal(token, "void")) {
             token = skip(token, "void");
             if (counter & VOID) {
-                error("voidが2重になっています");
+                error_token(start, "voidが2重になっています");
             }
             counter += VOID;
         } else if (equal(token, "signed")) {
             token = skip(token, "signed");
             if (counter & SIGNED) {
-                error("signedが2重になっています");
+                error_token(start, "signedが2重になっています");
             }
             counter += SIGNED;
         } else if (equal(token, "unsigned")) {
             token = skip(token, "unsigned");
             if (counter & UNSIGNED) {
-                error("unsignedが2重になっています");
+                error_token(start, "unsignedが2重になっています");
             }
             counter += UNSIGNED;
         } else if (equal(token, "float")) {
             token = skip(token, "float");
             if (counter & FLOAT) {
-                error("floatが2重になっています");
+                error_token(start, "floatが2重になっています");
             }
             counter += FLOAT;
         } else if (equal(token, "double")) {
             token = skip(token, "double");
             if (counter & DOUBLE) {
-                error("doubleが2重になっています");
+                error_token(start, "doubleが2重になっています");
             }
             counter += DOUBLE;
         } else if (equal(token, "struct")) {
@@ -865,7 +883,7 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
             *rest = token->next;
             return ty;
         } else {
-            error("既定の型でありません");
+            error_token(start, "既定の型でありません");
         }
     }
     struct Type *ty = NULL;
@@ -1026,6 +1044,7 @@ struct union_decl = "union" "{" struct_union_members
 */
 struct Type *union_decl(struct Token **rest, struct Token *token) {
     char *name = NULL;
+    struct Token *start = token;
     if (token->kind == TK_IDENT) {
         name = strndup(token->loc, token->len);
         token = skip_keyword(token, TK_IDENT);
@@ -1033,7 +1052,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     if (name != NULL && !equal(token, "{")) {
         struct Type *ty = find_tag(name);
         if (ty == NULL) {
-            error("共用体%sは存在しません", name);
+            error_token(start, "共用体%sは存在しません", name);
         }
         *rest = token;
         return ty;
@@ -1055,7 +1074,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     ty->name = name;
     if (name != NULL) {
         if (find_tag_from_scope(ty->name)) {
-            error("共用体%sは既に定義されています", ty->name);
+            error(start, "共用体%sは既に定義されています", ty->name);
         }
         push_tag_scope(ty);
     }
@@ -1104,6 +1123,7 @@ enum_specifier = ident? "{" enum_list "}" | ident ("{" enum_list "}")?
 */
 struct Type *enum_specifier(struct Token **rest, struct Token *token) {
     char *name = NULL;
+    struct Token *start = token;
     if (token->kind == TK_IDENT) {
         name = strndup(token->loc, token->len);
         token = skip_keyword(token, TK_IDENT);
@@ -1112,10 +1132,10 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
     if (name != NULL && !equal(token, "{")) {
         struct Type *ty = find_tag(name);
         if (ty == NULL) {
-            error("enum %sは存在しません", name);
+            error_token(start, "enum %sは存在しません", name);
         }
         if (ty->ty != TY_ENUM) {
-            error("%s はenumではありません", name);
+            error_token(start, "%s はenumではありません", name);
         }
         *rest = token;
         return ty;
@@ -1150,7 +1170,7 @@ struct Type *enum_specifier(struct Token **rest, struct Token *token) {
 
     if (name != NULL) {
         if (find_tag_from_scope(name)) {
-            error("列挙型%sは既に定義されています", name);
+            error_token(start, "列挙型%sは既に定義されています", name);
         }
         push_tag_scope(ty);
     }
@@ -1277,16 +1297,16 @@ stmt "while" "(" expr ")"
 struct Node *stmt(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
     if (equal_keyword(token, TK_RETURN)) {
+        node = new_node(ND_RETURN, token);
         token = skip_keyword(token, TK_RETURN);
-        node = new_node(ND_RETURN);
         if (!equal(token, ";")) {
             node->lhs = expr(&token, token);
         }
         token = skip(token, ";");
     } else if (equal_keyword(token, TK_IF)) {
+        node = new_node(ND_IF, token);
         token = skip_keyword(token, TK_IF);
         token = skip(token, "(");
-        node = new_node(ND_IF);
         node->cond = expr(&token, token);
         token = skip(token, ")");
         node->then = stmt(&token, token);
@@ -1295,8 +1315,8 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
             node->els = stmt(&token, token);
         }
     } else if (equal_keyword(token, TK_WHILE)) {
+        node = new_node(ND_WHILE, token);
         token = skip_keyword(token, TK_WHILE);
-        node = new_node(ND_WHILE);
         token = skip(token, "(");
         node->cond = expr(&token, token);
         token = skip(token, ")");
@@ -1311,8 +1331,8 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         break_label = curren_break_label;
     } else if (equal_keyword(token, TK_FOR)) {
         enter_scope();
+        node = new_node(ND_FOR, token);
         token = skip_keyword(token, TK_FOR);
-        node = new_node(ND_FOR);
         token = skip(token, "(");
         if (is_typename(token)) {
             struct Type *type = declspec(&token, token, NULL);
@@ -1336,15 +1356,15 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         break_label = current_break_label;
         leave_scope();
     } else if (equal_keyword(token, TK_GOTO)) {
+        node = new_node(ND_GOTO, token);
         token = skip_keyword(token, TK_GOTO);
-        node = new_node(ND_GOTO);
         node->label = strndup(token->loc, token->len);
         node->goto_next = gotos;
         gotos = node;
         token = skip_keyword(token, TK_IDENT);
         token = skip(token, ";");
     } else if (equal_keyword(token, TK_IDENT) && equal(token->next, ":")) {
-        node = new_node(ND_LABEL);
+        node = new_node(ND_LABEL, token);
         node->label = strndup(token->loc, token->len);
         node->unique_label = new_unique_name();
         node->goto_next = labels;
@@ -1353,19 +1373,18 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip(token, ":");
         node->body = stmt(&token, token);
     } else if (equal_keyword(token, TK_BREAK)) {
-        node = new_node(ND_BREAK);
+        node = new_node(ND_BREAK, token);
         node->break_label = break_label;
         token = skip_keyword(token, TK_BREAK);
         token = skip(token, ";");
     } else if (equal_keyword(token, TK_CONTINUE)) {
-        node = new_node(ND_CONTINUE);
+        node = new_node(ND_CONTINUE, token);
         node->continue_label = continue_label;
         token = skip_keyword(token, TK_CONTINUE);
         token = skip(token, ";");
     } else if (equal_keyword(token, TK_SWITCH)) {
         struct Node *current_switch_node = switch_node;
-
-        switch_node = new_node(ND_SWITCH);
+        switch_node = new_node(ND_SWITCH, token);
         token = skip_keyword(token, TK_SWITCH);
         token = skip(token, "(");
         switch_node->cond = expr(&token, token);
@@ -1382,9 +1401,9 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         break_label = current_break_label;
     } else if (equal_keyword(token, TK_CASE)) {
         if (switch_node == NULL) {
-            error("switch文ではないのにcaseがあります");
+            error_token(token, "switch文ではないのにcaseがあります");
         }
-        node = new_node(ND_CASE);
+        node = new_node(ND_CASE, token);
         token = skip_keyword(token, TK_CASE);
 
         node->val = const_expr(&token, token);
@@ -1396,9 +1415,9 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         switch_node->next_case = node;
     } else if (equal_keyword(token, TK_DEFAULT)) {
         if (switch_node == NULL) {
-            error("switch文ではないのにdefaultがあります");
+            error_token(token, "switch文ではないのにdefaultがあります");
         }
-        node = new_node(ND_CASE);
+        node = new_node(ND_CASE, token);
         token = skip_keyword(token, TK_DEFAULT);
         token = skip(token, ":");
         node->label = new_unique_name();
@@ -1406,8 +1425,8 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
 
         switch_node->default_case = node;
     } else if (equal_keyword(token, TK_DO)) {
+        node = new_node(ND_DO, token);
         token = skip(token, "do");
-        node = new_node(ND_DO);
 
         char *current_break_label = break_label;
         char *current_continue_label = continue_label;
@@ -1437,7 +1456,7 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
 compound_stmt = compound_element* "}"
 */
 struct Node *compound_stmt(struct Token **rest, struct Token *token) {
-    struct Node *node = new_node(ND_BLOCK);
+    struct Node *node = new_node(ND_BLOCK, token);
     struct Node head = {};
     struct Node *cur = &head;
 
@@ -1491,6 +1510,7 @@ struct Node *declaration(struct Token **rest,
     struct Node head = {};
     struct Node *cur = &head;
     bool is_first = true;
+    struct Token *start = token;
     while (!equal(token, ";")) {
         if (!is_first)
             token = skip(token, ",");
@@ -1521,14 +1541,14 @@ struct Node *declaration(struct Token **rest,
         }
 
         if (var->ty->size < 0) {
-            error("変数が不完全な型です");
+            error_token(start, "変数が不完全な型です");
         }
         if (var->ty->ty == TY_VOID) {
-            error("void 型の変数が宣言されています");
+            error_token(start, "void 型の変数が宣言されています");
         }
     }
     *rest = skip(token, ";");
-    struct Node *node = new_node(ND_BLOCK);
+    struct Node *node = new_node(ND_BLOCK, NULL);
     node->body = head.next;
     return node;
 }
@@ -1606,7 +1626,7 @@ struct Token *string_initializer(struct Token *token,
     }
     int len = MIN(init->ty->array_size, token->ty->array_size);
     for (int i = 0; i < len; i++) {
-        init->children[i]->expr = new_node_num(token->str[i]);
+        init->children[i]->expr = new_node_num(token->str[i], NULL);
     }
     return skip_keyword(token, TK_STR);
 }
@@ -1732,12 +1752,13 @@ void internal_initializer(struct Token **rest,
                           struct Initializer *init) {
     if (init->ty->ty == TY_STRUCT) {
         if (!equal(token, "{")) {
+            struct Token *start = token;
             struct Node *node = assign(&token, token);
             add_type(node);
             if (node->ty->ty == TY_STRUCT) {
                 init->expr = node;
             } else {
-                error("構造体ではありません");
+                error_token(start, "構造体ではありません");
             }
         } else {
             token = skip(token, "{");
@@ -1837,7 +1858,7 @@ struct Node *init_desg_expr(struct InitDesg *desg) {
     }
 
     struct Node *lhs = init_desg_expr(desg->next);
-    struct Node *rhs = new_node_num(desg->index);
+    struct Node *rhs = new_node_num(desg->index, NULL);
     return new_node_unary(ND_DEREF, new_node_add(lhs, rhs));
 }
 
@@ -1856,7 +1877,7 @@ struct Node *create_lvar_init(struct Initializer *init,
     }
 
     if (ty->ty == TY_STRUCT && !init->expr) {
-        struct Node *node = new_node(ND_DUMMY);
+        struct Node *node = new_node(ND_DUMMY, NULL);
 
         for (struct Member *member = ty->member; member != NULL;
              member = member->next) {
@@ -1874,7 +1895,7 @@ struct Node *create_lvar_init(struct Initializer *init,
     }
 
     if (init->expr == NULL) {
-        return new_node(ND_DUMMY);
+        return new_node(ND_DUMMY, NULL);
     }
 
     struct Node *lhs = init_desg_expr(desg);
@@ -1885,7 +1906,7 @@ struct Node *
 lvar_initializer(struct Token **rest, struct Token *token, struct Object *var) {
     struct Initializer *init = initializer(rest, token, var->ty, &var->ty);
     struct InitDesg desg = {NULL, 0, var, NULL};
-    struct Node *lhs = new_node(ND_MEMZERO);
+    struct Node *lhs = new_node(ND_MEMZERO, NULL);
     lhs->obj = var;
     struct Node *rhs = create_lvar_init(init, var->ty, &desg);
     return new_node_binary(ND_COMMA, lhs, rhs);
@@ -1915,9 +1936,10 @@ void typedef_decl(struct Token **rest,
             token = skip(token, ",");
         }
         first = false;
+        struct Token *start = token;
         struct NameTag *tag = declarator(&token, token, base_ty);
         if (find_typedef_from_scope(tag->name) != NULL) {
-            error("%sは既にtypedefされています", tag->name);
+            error_token(start, "%sは既にtypedefされています", tag->name);
         }
         push_typedef_scope(tag);
     }
@@ -2024,7 +2046,7 @@ conditional = logor ("?" expr : conditional)?
 struct Node *conditional(struct Token **rest, struct Token *token) {
     struct Node *node = logor(&token, token);
     if (equal(token, "?")) {
-        struct Node *cond = new_node(ND_COND);
+        struct Node *cond = new_node(ND_COND, token);
         cond->cond = node;
         token = skip(token, "?");
         cond->then = expr(&token, token);
@@ -2221,18 +2243,18 @@ struct Node *unary(struct Token **rest, struct Token *token) {
     if (equal(token, "+")) {
         return cast(rest, token->next);
     } else if (equal(token, "-")) {
-        return new_node_binary(ND_SUB, new_node_num(0),
+        return new_node_binary(ND_SUB, new_node_num(0, NULL),
                                cast(rest, token->next));
     } else if (equal(token, "*")) {
         return new_node_unary(ND_DEREF, cast(rest, token->next));
     } else if (equal(token, "&")) {
         return new_node_unary(ND_ADDR, cast(rest, token->next));
     } else if (equal(token, "++")) {
-        return to_assign(
-            new_node_binary(ND_ADD, unary(rest, token->next), new_node_num(1)));
+        return to_assign(new_node_binary(ND_ADD, unary(rest, token->next),
+                                         new_node_num(1, NULL)));
     } else if (equal(token, "--")) {
-        return to_assign(
-            new_node_binary(ND_SUB, unary(rest, token->next), new_node_num(1)));
+        return to_assign(new_node_binary(ND_SUB, unary(rest, token->next),
+                                         new_node_num(1, NULL)));
     } else if (equal(token, "!")) {
         return new_node_unary(ND_NOT, cast(rest, token->next));
     } else if (equal(token, "~")) {
@@ -2246,8 +2268,8 @@ struct Node *
 new_node_inc_dec(struct Node *node, struct Token *token, int addend) {
     add_type(node);
     struct Node *node2 =
-        new_node_sub(to_assign(new_node_add(node, new_node_num(addend))),
-                     new_node_num(addend));
+        new_node_sub(to_assign(new_node_add(node, new_node_num(addend, NULL))),
+                     new_node_num(addend, NULL));
     node2->ty = node->ty;
     return node2;
 }
@@ -2332,7 +2354,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
     add_type(func);
     if (func->ty->ty != TY_FUNC &&
         (func->ty->ty != TY_PTR || func->ty->ptr_to->ty != TY_FUNC)) {
-        error("%s is not a function", func->obj->name);
+        error_token(token, "%s is not a function", func->obj->name);
     }
     struct Type *ty = (func->ty->ty == TY_FUNC) ? func->ty : func->ty->ptr_to;
     struct Node *node = new_node_unary(ND_FUNCALL, func);
@@ -2353,7 +2375,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
         if (param_tag != NULL) {
             if (param_tag->ty->ty == TY_STRUCT ||
                 param_tag->ty->ty == TY_UNION) {
-                error("struct and union is not supported for function params yet.");
+                error_node(arg, "struct and union is not supported for function params yet.");
             }
             arg = new_node_cast(arg, param_tag->ty);
             param_tag = param_tag->next;
@@ -2362,7 +2384,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
     }
 
     if (param_tag != NULL) {
-        error("few arguments");
+        error_node(func, "few arguments");
     }
 
     node->args = head.next;
@@ -2379,8 +2401,8 @@ num
 struct Node *primary(struct Token **rest, struct Token *token) {
     struct Node *node = NULL;
     if (equal(token, "(") && equal(token->next, "{")) {
+        node = new_node(ND_STMT_EXPR, token);
         token = skip(token->next, "{");
-        node = new_node(ND_STMT_EXPR);
         node->body = compound_stmt(&token, token)->body;
         node->ty = node->body->ty;
         *rest = skip(token, ")");
@@ -2390,51 +2412,55 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         *rest = skip(token, ")");
     } else if (equal(token, "sizeof") && equal(token->next, "(") &&
                is_typename(token->next->next)) {
+        struct Token *loc = token;
         token = skip_keyword(token, TK_SIZEOF);
         token = skip(token, "(");
-        node = new_node_num(typename(&token, token)->size);
+        node = new_node_num(typename(&token, token)->size, loc);
         token = skip(token, ")");
         *rest = token;
     } else if (equal(token, "sizeof")) {
+        struct Token *loc = token;
         node = unary(&token, token->next);
         add_type(node);
-        node = new_node_num(node->ty->size);
+        node = new_node_num(node->ty->size, loc);
         *rest = token;
     } else if (equal(token, "_Alignof")) {
+        struct Token *loc = token;
         token = skip(token, "_Alignof");
         token = skip(token, "(");
         struct Type *ty = typename(&token, token);
         *rest = skip(token, ")");
-        return new_node_num(ty->align);
+        return new_node_num(ty->align, loc);
     } else if (equal(token, "__builtin_reg_class")) {
+        struct Token *loc = token;
         token = skip(token, "__builtin_reg_class");
         struct Type *ty = typename(&token, token);
         *rest = skip(token, ")");
         if (is_integer(ty) || ty->ty == TY_PTR) {
-            return new_node_num(0);
+            return new_node_num(0, loc);
         }
-        return new_node_num(2);
+        return new_node_num(2, loc);
     } else if (token->kind == TK_IDENT) {
         char *name = strndup(token->loc, token->len);
         struct VarScope *sc = find_variable(name);
         if (sc == NULL || (sc->var == NULL && sc->enum_ty == NULL)) {
-            error("変数%sは定義されていません", name);
+            error_token(token, "変数%sは定義されていません", name);
         }
         if (sc->var != NULL) {
             node = new_node_var(sc->var);
         } else {
-            node = new_node_num(sc->enum_val);
+            node = new_node_num(sc->enum_val, token);
         }
         *rest = token->next;
     } else if (token->kind == TK_STR) {
         node = new_node_var(new_string_literal(token->str, token->ty));
         *rest = token->next;
     } else if (token->kind == TK_NUM) {
-        node = new_node_num(get_number(token));
+        node = new_node_num(get_number(token), token);
         node->ty = token->ty;
         *rest = token->next;
     } else {
-        error("parseエラー");
+        error_token(token, "parseエラー");
     }
     return node;
 }

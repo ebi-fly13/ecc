@@ -152,6 +152,7 @@ extern struct Object *functions;
 void error(char *, ...);
 void error_at(char *, char *, ...);
 void error_token(struct Token *, char *, ...);
+void error_node(struct Node *, char *, ...);
 void warning_token(struct Token *, char *, ...);
 
 long get_number(struct Token *);
@@ -252,11 +253,13 @@ struct Node {
     struct Node *default_case; // default
 
     struct Node *goto_next; // goto
+
+    struct Token *token; // ノードが生成されたトークン
 };
 
 struct Node *new_node_cast(struct Node *, struct Type *);
 
-struct Object *program();
+struct Object *program(struct Token *);
 
 long const_expr(struct Token **, struct Token *);
 
