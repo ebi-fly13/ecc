@@ -1074,7 +1074,7 @@ struct Type *union_decl(struct Token **rest, struct Token *token) {
     ty->name = name;
     if (name != NULL) {
         if (find_tag_from_scope(ty->name)) {
-            error(start, "共用体%sは既に定義されています", ty->name);
+            error_token(start, "共用体%sは既に定義されています", ty->name);
         }
         push_tag_scope(ty);
     }
@@ -2375,7 +2375,8 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
         if (param_tag != NULL) {
             if (param_tag->ty->ty == TY_STRUCT ||
                 param_tag->ty->ty == TY_UNION) {
-                error_node(arg, "struct and union is not supported for function params yet.");
+                error_node(arg, "struct and union is not supported for "
+                                "function params yet.");
             }
             arg = new_node_cast(arg, param_tag->ty);
             param_tag = param_tag->next;

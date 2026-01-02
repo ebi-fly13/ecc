@@ -72,10 +72,38 @@ static bool is_hash_and_keyword(struct Token *token, char *keyword) {
     return is_hash(token) && equal(token->next, keyword);
 }
 
+static bool is_escaped_char(char c) {
+    return c == '\a' || c == '\b' || c == '\t' || c == '\n' || c == '\v' ||
+           c == '\f' || c == '\r' || c == '\e';
+}
+
+static char get_escaped_char(char c) {
+    switch (c) {
+    case '\a':
+        return 'a';
+    case '\b':
+        return 'b';
+    case '\t':
+        return 't';
+    case '\n':
+        return 'n';
+    case '\v':
+        return 'v';
+    case '\f':
+        return 'f';
+    case '\r':
+        return 'r';
+    case '\e':
+        return 'e';
+    default:
+        error("%c is not escaped char\n", c);
+    }
+}
+
 static char *quote_string(char *str) {
     int buffer_size = 3;
     for (int i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '\\' || str[i] == '"') {
+        if (str[i] == '\\' || str[i] == '"' || is_escaped_char(str[i])) {
             buffer_size++;
         }
         buffer_size++;
@@ -83,7 +111,13 @@ static char *quote_string(char *str) {
     char *buffer = calloc(buffer_size, sizeof(char));
     char *p = buffer;
     *p++ = '"';
-    for (int i = 0; i < str[i] != '\0'; i++) {
+    for (int i = 0; str[i] != '\0'; i++) {
+        if (is_escaped_char(str[i])) {
+            *p++ = '\\';
+            *p++ = get_escaped_char(str[i]);
+            continue;
+        }
+
         if (str[i] == '\\' || str[i] == '"') {
             *p++ = '\\';
         }
@@ -111,9 +145,8 @@ static struct Token *new_string_token(char *str) {
     token->kind = TK_STR;
     token->str = str;
     token->ty = array_to(ty_char, strlen(str) + 1);
-    token->len = strlen(str) + 2;
-    token->loc = malloc(token->len + 1);
-    snprintf(token->loc, token->len + 1, "\"%s\"", str);
+    token->loc = quote_string(str);
+    token->len = strlen(token->loc);
     return token;
 }
 
@@ -399,7 +432,7 @@ read_macro_params(struct Token **rest, struct Token *token, bool *is_variadic) {
 
 static char *concat_token_components(struct Token *token, struct Token *end) {
     int len = 1;
-    for (struct Token *itr = token; itr->kind != TK_EOF && itr != end;
+    for (struct Token *itr = token; itr != end && itr->kind != TK_EOF;
          itr = itr->next) {
         if (itr != token && itr->has_space) {
             len++;
@@ -740,6 +773,40 @@ static struct Token *include_file(struct Token *token,
     return concat(include_token, token);
 }
 
+static void join_adjacent_strings(struct Token *token) {
+    while (token->kind != TK_EOF) {
+        if (token->kind != TK_STR) {
+            token = token->next;
+            continue;
+        }
+        struct Token *end = token->next;
+        while (end->kind == TK_STR) {
+            end = end->next;
+        }
+        if (token->next == end) {
+            token = token->next;
+            continue;
+        }
+        int len = 1;
+        for (struct Token *t = token; t != end; t = t->next) {
+            len += t->ty->array_size - 1;
+        }
+        char *buf = calloc(len, token->ty->ptr_to->size);
+        int i = 0;
+        for (struct Token *t = token; t != end; t = t->next) {
+            memcpy(buf + i, t->str, t->ty->size);
+            i += t->ty->size - t->ty->ptr_to->size;
+        }
+        *token = *copy_token(token);
+        token->ty = array_to(token->ty->ptr_to, len);
+        token->str = buf;
+        token->loc = quote_string(buf);
+        token->len = strlen(token->loc);
+        token->next = end;
+        token = end;
+    }
+}
+
 struct Token *preprocess(struct Token *token) {
     struct Token head = {};
     struct Token *cur = &head;
@@ -880,5 +947,7 @@ struct Token *preprocess(struct Token *token) {
 
 struct Token *run_preprocess(struct Token *token) {
     init_macros();
-    return preprocess(token);
+    struct Token *done_preprocess_token = preprocess(token);
+    join_adjacent_strings(done_preprocess_token);
+    return done_preprocess_token;
 }
