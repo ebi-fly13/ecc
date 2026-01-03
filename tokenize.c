@@ -240,10 +240,6 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
         u = true;
     }
 
-    if (is_alnum(*p)) {
-        error_at(p, "invalid digit");
-    }
-
     struct Type *ty;
     if (base == 10) {
         if (l && u) {
