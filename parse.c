@@ -946,6 +946,7 @@ declspec(struct Token **rest, struct Token *token, struct VarAttr *attr) {
         break;
     case FLOAT:
         ty = ty_float;
+        break;
     case DOUBLE:
     case LONG + DOUBLE:
         ty = ty_double;

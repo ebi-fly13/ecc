@@ -60,6 +60,9 @@ int main() {
     ASSERT(8, sizeof(unsigned long long));
     ASSERT(8, sizeof(unsigned long long int));
 
+    ASSERT(4, sizeof(float));
+    ASSERT(8, sizeof(double));
+
     ASSERT(1, sizeof((char)1));
     ASSERT(2, sizeof((short)1));
     ASSERT(4, sizeof((int)1));
