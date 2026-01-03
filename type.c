@@ -6,8 +6,8 @@ struct Type *ty_short = &(struct Type){TY_SHORT, NULL, 0, 2, 2};
 struct Type *ty_char = &(struct Type){TY_CHAR, NULL, 0, 1, 1};
 struct Type *ty_void = &(struct Type){TY_VOID, NULL, 0, 0, 1};
 struct Type *ty_bool = &(struct Type){TY_BOOL, NULL, 0, 1, 1};
-struct Type *ty_float = &(struct Type){TY_FLOAT, NULL, 0, 4, 4};
-struct Type *ty_double = &(struct Type){TY_DOUBLE, NULL, 0, 8, 8};
+struct Type *ty_float = &(struct Type){TY_FLOAT, NULL, 0, 4, 4, true};
+struct Type *ty_double = &(struct Type){TY_DOUBLE, NULL, 0, 8, 8, true};
 
 struct Type *ty_ulong = &(struct Type){TY_LONG, NULL, 0, 8, 8, true};
 struct Type *ty_uint = &(struct Type){TY_INT, NULL, 0, 4, 4, true};
@@ -19,6 +19,10 @@ int align_to(int n, int align) { return (n + align - 1) / align * align; }
 bool is_integer(struct Type *ty) {
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
            ty->ty == TY_CHAR || ty->ty == TY_BOOL || ty->ty == TY_ENUM;
+}
+
+bool is_flonum(struct Type *ty) {
+    return ty->ty == TY_FLOAT || ty->ty == TY_DOUBLE;
 }
 
 bool is_void(struct Type *ty) { return ty->ty == TY_VOID; }

@@ -93,6 +93,12 @@ long get_number(struct Token *token) {
     return token->val;
 }
 
+double get_fnumber(struct Token *token) {
+    if (token->kind != TK_NUM)
+        error_token(token, "浮動小数点数ではありません");
+    return token->fval;
+}
+
 bool equal(struct Token *tok, char *name) {
     if (strlen(name) != tok->len || memcmp(name, tok->loc, tok->len))
         return false;
@@ -273,6 +279,36 @@ struct Token *read_int_literal(struct Token *cur, char *str) {
     return tok;
 }
 
+struct Token *read_number_literal(struct Token *cur, char *str) {
+    {
+        struct Token *tok = read_int_literal(cur, str);
+        // 文字列長より長ければ数値判定でリターン
+        if (tok->len >= strlen(str)) {
+            return tok;
+        }
+        if (!strchr(".eEfF", str[tok->len])) {
+            return tok;
+        }
+    }
+    char *end;
+    double val = strtod(str, &end);
+    struct Type *ty;
+    if (*end == 'f' || *end == 'F') {
+        ty = ty_float;
+        end++;
+    } else if (*end == 'l' || *end == 'L') {
+        ty = ty_double;
+        end++;
+    } else {
+        ty = ty_double;
+    }
+
+    struct Token *tok = new_token(TK_NUM, cur, str, end - str);
+    tok->fval = val;
+    tok->ty = ty;
+    return tok;
+}
+
 struct Token *read_char_literal(struct Token *cur, char *str, char *quote) {
     assert(*quote == '\'');
     char *p = quote + 1;
@@ -291,6 +327,7 @@ struct Token *read_char_literal(struct Token *cur, char *str, char *quote) {
     }
     p++;
     struct Token *tok = new_token(TK_NUM, cur, str, p - str);
+    tok->ty = ty_char;
     tok->val = c;
     return tok;
 }
@@ -387,6 +424,12 @@ struct Token *tokenize(struct File *file) {
             continue;
         }
 
+        if (isdigit(*p) || (*p == '.' && isdigit(*(p + 1)))) {
+            cur = read_number_literal(cur, p);
+            p += cur->len;
+            continue;
+        }
+
         if (strncmp(p, "//", 2) == 0) {
             p += 2;
             while (*p != '\n') {
@@ -454,12 +497,7 @@ struct Token *tokenize(struct File *file) {
 
         if (startswith(p, "L\'")) {
             cur = read_char_literal(cur, p, p + 1);
-            p += cur->len;
-            continue;
-        }
-
-        if (isdigit(*p)) {
-            cur = read_int_literal(cur, p);
+            cur->ty = ty_int;
             p += cur->len;
             continue;
         }

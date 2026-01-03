@@ -32,6 +32,16 @@ of(char),\
     ASSERT(4, sizeof(L'\0'));
     ASSERT(97, L'a');
 
+    0.0;
+    1.0;
+
+    ASSERT(4, sizeof(8.0f));
+    ASSERT(4, sizeof(0.3F));
+    ASSERT(8, sizeof(0.));
+    ASSERT(8, sizeof(.0));
+    ASSERT(8, sizeof(5.l));
+    ASSERT(8, sizeof(2.0L));
+
     printf("OK\n");
     return 0;
 }

@@ -83,6 +83,14 @@ struct Node *new_node_num(int val, struct Token *token) {
     return node;
 }
 
+struct Node *new_node_flonum(double fval, struct Token *token) {
+    struct Node *node = calloc(1, sizeof(struct Node));
+    node->token = token;
+    node->kind = ND_NUM;
+    node->fval = fval;
+    return node;
+}
+
 struct Node *new_node_var(struct Object *var) {
     struct Node *node = calloc(1, sizeof(struct Node));
     node->obj = var;
@@ -2457,7 +2465,11 @@ struct Node *primary(struct Token **rest, struct Token *token) {
         node = new_node_var(new_string_literal(token->str, token->ty));
         *rest = token->next;
     } else if (token->kind == TK_NUM) {
-        node = new_node_num(get_number(token), token);
+        if (is_flonum(token->ty)) {
+            node = new_node_flonum(get_fnumber(token), token);
+        } else {
+            node = new_node_num(get_number(token), token);
+        }
         node->ty = token->ty;
         *rest = token->next;
     } else {

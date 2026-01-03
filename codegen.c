@@ -371,7 +371,25 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_NUM) {
-        fprintf(output_file, "  mov rax, %ld\n", node->val);
+        union {
+            float f32;
+            double f64;
+            uint32_t u32;
+            uint64_t u64;
+        } tmp;
+        switch (node->ty->ty) {
+        case TY_FLOAT:
+            tmp.f32 = node->fval;
+            fprintf(output_file, "  mov eax, %u\n", tmp.u32);
+            fprintf(output_file, "  movq xmm0, rax\n");
+        case TY_DOUBLE:
+            tmp.f64 = node->fval;
+            fprintf(output_file, "  mov rax, %lu\n", tmp.u64);
+            fprintf(output_file, "  movq xmm0, rax\n");
+        default:
+            fprintf(output_file, "  mov rax, %ld\n", node->val);
+            return;
+        }
         return;
     }
 

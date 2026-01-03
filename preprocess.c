@@ -153,6 +153,7 @@ static struct Token *new_string_token(char *str) {
 static struct Token *new_num_token(int num) {
     struct Token *token = calloc(1, sizeof(struct Token));
     token->kind = TK_NUM;
+    token->ty = ty_int;
     token->val = num;
     token->loc = malloc(15);
     snprintf(token->loc, 15, "%d", num);

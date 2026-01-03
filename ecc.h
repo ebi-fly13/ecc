@@ -71,6 +71,7 @@ struct Token {
     TokenKind kind;          // トークンの型
     struct Token *next;      // 次の入力トークン
     long val;                // kindがTK_NUMの場合、その数値
+    double fval;             // kindがTK_NUMで浮動小数点の場合のみ使用
     char *loc;               // Tokenの開始位置
     char *str;               // トークンの文字列
     int len;                 // トークンの長さ
@@ -156,6 +157,7 @@ void error_node(struct Node *, char *, ...);
 void warning_token(struct Token *, char *, ...);
 
 long get_number(struct Token *);
+double get_fnumber(struct Token *);
 struct Token *skip(struct Token *, char *);
 struct Token *skip_keyword(struct Token *, TokenKind);
 struct Token *skip_end(struct Token *);
@@ -235,6 +237,7 @@ struct Node {
     struct Member *member; // 構造体のメンバー変数
 
     long val;        // kindがND_NUMの場合のみ使用
+    double fval;     // kindがND_NUMで浮動小数点数の場合のみ使用
     struct Type *ty; // 変数の型
 
     char *label;
@@ -337,6 +340,7 @@ struct Type *copy_type(struct Type *);
 bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 bool is_void(struct Type *);
+bool is_flonum(struct Type *);
 bool is_same_type(struct Type *, struct Type *);
 void add_type(struct Node *);
 int align_to(int n, int align);
