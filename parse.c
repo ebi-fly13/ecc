@@ -2367,6 +2367,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
     }
     struct Type *ty = (func->ty->ty == TY_FUNC) ? func->ty : func->ty->ptr_to;
     struct Node *node = new_node_unary(ND_FUNCALL, func);
+    node->token = token;
     struct Node head = {};
     struct Node *cur = &head;
     struct NameTag *param_tag = ty->params;
@@ -2399,6 +2400,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
 
     node->args = head.next;
     node->ty = ty->return_ty;
+    assert(node->ty != NULL);
     *rest = token->next;
     return node;
 }
@@ -2413,7 +2415,7 @@ struct Node *primary(struct Token **rest, struct Token *token) {
     if (equal(token, "(") && equal(token->next, "{")) {
         node = new_node(ND_STMT_EXPR, token);
         token = skip(token->next, "{");
-        node->body = compound_stmt(&token, token)->body;
+        node->body = compound_stmt(&token, token);
         node->ty = node->body->ty;
         *rest = skip(token, ")");
     } else if (equal(token, "(")) {

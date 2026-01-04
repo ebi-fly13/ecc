@@ -200,6 +200,7 @@ void add_type(struct Node *node) {
         return;
     case ND_VAR:
     case ND_FUNCALL:
+        assert(node->ty != NULL);
         return;
     case ND_MEMBER:
         node->ty = node->member->ty;

@@ -40,6 +40,16 @@ void load(struct Type *ty) {
         return;
     }
 
+    if (ty->ty == TY_FLOAT) {
+        fprintf(output_file, "  xorps xmm0, xmm0\n");
+        fprintf(output_file, "  movss xmm0, dword ptr [rax]\n");
+        return;
+    } else if (ty->ty == TY_DOUBLE) {
+        fprintf(output_file, "  xorpd xmm0, xmm0\n");
+        fprintf(output_file, "  movsd xmm0, qword ptr [rax]\n");
+        return;
+    }
+
     char *instruction = ty->is_unsigned ? "movz" : "movs";
 
     if (ty->size == 1)
@@ -65,6 +75,16 @@ void store(struct Type *ty) {
             fprintf(output_file, "  mov r8b, [rax + %d]\n", i);
             fprintf(output_file, "  mov [rdi + %d], r8b\n", i);
         }
+        return;
+    }
+
+    if (ty->ty == TY_FLOAT) {
+        fprintf(output_file, "  movss dword ptr [rdi], xmm0\n");
+        return;
+    }
+
+    if (ty->ty == TY_DOUBLE) {
+        fprintf(output_file, "  movsd qword ptr [rdi], xmm0\n");
         return;
     }
 
@@ -132,6 +152,8 @@ enum {
     UI16,
     UI32,
     UI64,
+    F32,
+    F64,
 };
 
 int get_type_id(struct Type *ty) {
@@ -145,6 +167,10 @@ int get_type_id(struct Type *ty) {
         return ty->is_unsigned ? UI32 : I32;
     case TY_LONG:
         return ty->is_unsigned ? UI64 : I64;
+    case TY_FLOAT:
+        return F32;
+    case TY_DOUBLE:
+        return F64;
     default:
         return UI64;
     }
@@ -153,20 +179,66 @@ int get_type_id(struct Type *ty) {
 static char i32i8[] = "movsx eax, al";
 static char i32i16[] = "movsx eax, ax";
 static char i32i64[] = "movsxd rax, eax";
-
 static char i32u8[] = "movzx eax, al";
 static char i32u16[] = "movzx eax, ax";
+static char i32f32[] = "cvtsi2ss xmm0, eax";
+static char i32f64[] = "cvtsi2sd xmm0, eax";
+
 static char u32i64[] = "mov eax, eax";
+static char u32f32[] = "mov eax, eax; cvtsi2ss xmm0, rax";
+static char u32f64[] = "mov eax, eax; cvtsi2sd xmm0, rax";
+
+static char i64f32[] = "cvtsi2ss xmm0, rax";
+static char i64f64[] = "cvtsi2sd xmm0, rax";
+
+static char u64f32[] = "cvtsi2ss xmm0, rax";
+
+static char u64f64[] =
+    "test rax, rax; js 1f; "
+    "pxor xmm0, xmm0; cvtsi2sd xmm0, rax; jmp 2f; "
+    "1: mov rdi, rax; and eax, 1; pxor xmm0, xmm0; shr rdi, 1; "
+    "or rdi, rax; cvtsi2sd xmm0, rdi; addsd xmm0, xmm0; 2:";
+
+static char f32i8[] = "cvttss2si eax, xmm0; movsx eax, al";
+static char f32u8[] = "cvttss2si eax, xmm0; movzx eax, al";
+static char f32i16[] = "cvttss2si eax, xmm0; movsx eax, ax";
+static char f32u16[] = "cvttss2si eax, xmm0; movzx eax, ax";
+static char f32i32[] = "cvttss2si eax, xmm0";
+static char f32u32[] = "cvttss2si rax, xmm0";
+static char f32i64[] = "cvttss2si rax, xmm0";
+static char f32u64[] = "cvttss2si rax, xmm0";
+static char f32f64[] = "cvtss2sd xmm0, xmm0";
+
+static char f64i8[] = "cvttsd2si eax, xmm0; movsx eax, al";
+static char f64u8[] = "cvttsd2si eax, xmm0; movzx eax, al";
+static char f64i16[] = "cvttsd2si eax, xmm0; movsx eax, ax";
+static char f64u16[] = "cvttsd2si eax, xmm0; movzx eax, ax";
+static char f64i32[] = "cvttsd2si eax, xmm0";
+static char f64u32[] = "cvttsd2si rax, xmm0";
+static char f64f32[] = "cvtsd2ss xmm0, xmm0";
+static char f64i64[] = "cvttsd2si rax, xmm0";
+static char f64u64[] = "cvttsd2si rax, xmm0";
 
 static char *cast_table[][10] = {
-    {NULL, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},    // i8
-    {i32i8, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},   // i16
-    {i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64}, // i32
-    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},     // i64
-    {i32i8, NULL, NULL, i32i64, NULL, NULL, NULL, i32i64},      // u8
-    {i32i8, i32i16, NULL, i32i64, i32u8, NULL, NULL, i32i64},   // u16
-    {i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64}, // u32
-    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},     // u64
+    {NULL, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64, i32f32,
+     i32f64}, // i8
+    {i32i8, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64, i32f32,
+     i32f64}, // i16
+    {i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64, i32f32,
+     i32f64}, // i32
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL, i64f32,
+     i64f64}, // i64
+    {i32i8, NULL, NULL, i32i64, NULL, NULL, NULL, i32i64, i32f32, i32f64}, // u8
+    {i32i8, i32i16, NULL, i32i64, i32u8, NULL, NULL, i32i64, i32f32,
+     i32f64}, // u16
+    {i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64, u32f32,
+     u32f64}, // u32
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL, u64f32,
+     u64f64}, // u64
+    {f32i8, f32i16, f32i32, f32i64, f32u8, f32u16, f32u32, f32u64, NULL,
+     f32f64}, // f32
+    {f64i8, f64i16, f64i32, f64i64, f64u8, f64u16, f64u32, f64u64, f64f32,
+     NULL}, // f64
 };
 
 static void cast(struct Type *from, struct Type *to) {
@@ -318,6 +390,7 @@ void gen(struct Node *node) {
     }
 
     if (node->kind == ND_FUNCALL) {
+        assert(node->ty != NULL);
         int nargs = 0;
         for (struct Node *arg = node->args; arg; arg = arg->next) {
             gen(arg);
@@ -380,17 +453,21 @@ void gen(struct Node *node) {
         switch (node->ty->ty) {
         case TY_FLOAT:
             tmp.f32 = node->fval;
-            fprintf(output_file, "  mov eax, %u\n", tmp.u32);
+            fprintf(output_file, "  mov eax, %u # float %f\n", tmp.u32,
+                    node->fval);
             fprintf(output_file, "  movq xmm0, rax\n");
+            return;
         case TY_DOUBLE:
             tmp.f64 = node->fval;
-            fprintf(output_file, "  mov rax, %lu\n", tmp.u64);
+            fprintf(output_file, "  mov rax, %lu # double %f\n", tmp.u64,
+                    node->fval);
             fprintf(output_file, "  movq xmm0, rax\n");
+            return;
         default:
-            fprintf(output_file, "  mov rax, %ld\n", node->val);
+            fprintf(output_file, "  mov rax, %ld # integer %ld\n", node->val,
+                    node->val);
             return;
         }
-        return;
     }
 
     if (node->kind == ND_VAR) {
@@ -438,6 +515,9 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_CAST) {
         gen(node->lhs);
+        if (node->lhs->ty == NULL || node->ty == NULL) {
+            error_node(node, "ND_CAST ty NULL");
+        }
         cast(node->lhs->ty, node->ty);
         return;
     }
