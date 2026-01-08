@@ -33,7 +33,7 @@ stage2/ecc: $(OBJS:%=stage2/%)
 
 stage2/%.s: ecc %.c
 	mkdir -p stage2
-	./ecc $*.c -S -o stage2/$*.s
+	./ecc $*.c -S -o stage2/$*.s -Iinclude
 
 stage2/test/macro.exe: stage2/ecc test/macro.c
 	mkdir -p stage2/test

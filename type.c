@@ -172,6 +172,13 @@ void add_type(struct Node *node) {
         node->ty = node->lhs->ty;
         return;
     case ND_ASSIGN:
+        if (node->lhs->ty->ty == TY_ARRAY) {
+            error_token(node->lhs->token, "not an lvalue");
+        }
+        if (node->lhs->ty->ty != TY_STRUCT &&
+            node->rhs->ty->ty != node->lhs->ty->ty) {
+            node->rhs = new_node_cast(node->rhs, node->lhs->ty);
+        }
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
