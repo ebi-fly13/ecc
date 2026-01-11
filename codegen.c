@@ -132,6 +132,38 @@ void store(struct Type *ty) {
     return;
 }
 
+void store_gp(int r, int offset, int sz) {
+    switch (sz) {
+    case 1:
+        fprintf(output_file, "  mov [rbp - %d], %s\n", offset, argreg8[r]);
+        break;
+    case 2:
+        fprintf(output_file, "  mov [rbp - %d], %s\n", offset, argreg16[r]);
+        break;
+    case 4:
+        fprintf(output_file, "  mov [rbp - %d], %s\n", offset, argreg32[r]);
+        break;
+    case 8:
+        fprintf(output_file, "  mov [rbp - %d], %s\n", offset, argreg64[r]);
+        break;
+    default:
+        error("unreachable");
+    }
+}
+
+void store_fp(int r, int offset, int sz) {
+    switch (sz) {
+    case 4:
+        fprintf(output_file, "  movss [rbp - %d], xmm%d\n", offset, r);
+        break;
+    case 8:
+        fprintf(output_file, "  movsd [rbp - %d], xmm%d\n", offset, r);
+        break;
+    default:
+        error("unreachable");
+    }
+}
+
 void gen_lval(struct Node *node) {
     switch (node->kind) {
     case ND_DEREF:
@@ -873,17 +905,13 @@ void codegen(FILE *out) {
                     offset - 128);
         }
 
-        int i = 0;
+        int gp = 0, fp = 0;
         for (struct Node *arg = obj->args; arg; arg = arg->next) {
-            gen_lval(arg);
-            if (arg->ty->size == 1)
-                fprintf(output_file, "  mov [rax], %s\n", argreg8[i++]);
-            else if (arg->ty->size == 2)
-                fprintf(output_file, "  mov [rax], %s\n", argreg16[i++]);
-            else if (arg->ty->size == 4)
-                fprintf(output_file, "  mov [rax], %s\n", argreg32[i++]);
-            else
-                fprintf(output_file, "  mov [rax], %s\n", argreg64[i++]);
+            if (is_flonum(arg->obj->ty)) {
+                store_fp(fp++, arg->obj->offset, arg->obj->ty->size);
+            } else {
+                store_gp(gp++, arg->obj->offset, arg->obj->ty->size);
+            }
         }
 
         gen(obj->body);

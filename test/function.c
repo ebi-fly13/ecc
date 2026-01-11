@@ -98,6 +98,14 @@ char *get_function_name() {
     return __func__;
 }
 
+float add_float(float a, float b) {
+    return a + b;
+}
+
+double add_double(double a, double b) {
+    return a + b;
+}
+
 int main() {
     ASSERT(3, ret3());
     ASSERT(8, add2(3, 5));
@@ -154,6 +162,9 @@ int main() {
     ASSERT(0, strcmp("main", __FUNCTION__));
     printf("%s\n", get_function_name());
     ASSERT(0, strcmp("get_function_name", get_function_name()));
+
+    ASSERT(6, add_float(2.3, 3.8));
+    ASSERT(6, add_double(2.3, 3.8));
 
     printf("OK\n");
     return 0;
