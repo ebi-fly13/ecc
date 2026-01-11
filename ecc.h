@@ -341,6 +341,7 @@ bool is_integer(struct Type *);
 bool is_pointer(struct Type *);
 bool is_void(struct Type *);
 bool is_flonum(struct Type *);
+bool is_numeric(struct Type *);
 bool is_same_type(struct Type *, struct Type *);
 void add_type(struct Node *);
 int align_to(int n, int align);

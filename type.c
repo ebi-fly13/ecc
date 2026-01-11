@@ -14,15 +14,21 @@ struct Type *ty_uint = &(struct Type){TY_INT, NULL, 0, 4, 4, true};
 struct Type *ty_ushort = &(struct Type){TY_SHORT, NULL, 0, 2, 2, true};
 struct Type *ty_uchar = &(struct Type){TY_CHAR, NULL, 0, 1, 1, true};
 
-int align_to(int n, int align) { return (n + align - 1) / align * align; }
+int align_to(int n, int align) { return (n + align - 1) / align * align; } 
 
 bool is_integer(struct Type *ty) {
+    assert(ty != NULL);
     return ty->ty == TY_LONG || ty->ty == TY_INT || ty->ty == TY_SHORT ||
            ty->ty == TY_CHAR || ty->ty == TY_BOOL || ty->ty == TY_ENUM;
 }
 
 bool is_flonum(struct Type *ty) {
+    assert(ty != NULL);
     return ty->ty == TY_FLOAT || ty->ty == TY_DOUBLE;
+}
+
+bool is_numeric(struct Type *ty) {
+    return is_integer(ty) || is_flonum(ty);
 }
 
 bool is_void(struct Type *ty) { return ty->ty == TY_VOID; }

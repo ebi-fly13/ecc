@@ -18,6 +18,14 @@ int ext3 = 7;
 int ext_fn1(int x) { return x; }
 int ext_fn2(int x) { return x; }
 
+float add_float(float a, float b) {
+    return a + b;
+}
+
+double add_double(double a, double b) {
+    return a + b;
+}
+
 int add_all(int n, ...) {
     va_list ap;
     va_start(ap, n);

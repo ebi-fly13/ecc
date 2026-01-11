@@ -10,6 +10,8 @@ static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 static FILE *output_file;
 
+void gen(struct Node *);
+
 void prologue(int stack_size) {
     // 変数の領域を確保する
     fprintf(output_file, "  push rbp\n");
@@ -32,6 +34,30 @@ void push() {
 void pop(char *reg) {
     fprintf(output_file, "  pop %s\n", reg);
     depth--;
+}
+
+void pushf() {
+    fprintf(output_file, "  sub rsp, 8\n");
+    fprintf(output_file, "  movsd [rsp], xmm0\n");
+    depth++;
+}
+
+void popf(int reg) {
+    fprintf(output_file, "  movsd xmm%d, [rsp]\n", reg);
+    fprintf(output_file, "  add rsp, 8\n");
+    depth--;
+}
+
+void push_args(struct Node *args) {
+    if (args != NULL) {
+        push_args(args->next);
+        gen(args);
+        if (is_flonum(args->ty)) {
+            pushf();
+        } else {
+            push();
+        }
+    }
 }
 
 void load(struct Type *ty) {
@@ -72,8 +98,8 @@ void store(struct Type *ty) {
 
     if (ty->ty == TY_STRUCT || ty->ty == TY_UNION) {
         for (int i = 0; i < ty->size; i++) {
-            fprintf(output_file, "  mov r8b, [rax + %d]\n", i);
-            fprintf(output_file, "  mov [rdi + %d], r8b\n", i);
+            fprintf(output_file, "  mov r8b, byte ptr [rax + %d]\n", i);
+            fprintf(output_file, "  mov byte ptr [rdi + %d], r8b\n", i);
         }
         return;
     }
@@ -105,8 +131,6 @@ void store(struct Type *ty) {
         fprintf(output_file, "  mov [rdi], rax\n");
     return;
 }
-
-void gen(struct Node *);
 
 void gen_lval(struct Node *node) {
     switch (node->kind) {
@@ -391,18 +415,17 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_FUNCALL) {
         assert(node->ty != NULL);
-        int nargs = 0;
-        for (struct Node *arg = node->args; arg; arg = arg->next) {
-            gen(arg);
-            push();
-            nargs++;
-        }
+        push_args(node->args);
 
         gen(node->lhs);
 
-        assert(nargs <= 6);
-        for (int i = nargs - 1; i >= 0; i--) {
-            pop(argreg64[i]);
+        int gp = 0, fp = 0;
+        for (struct Node *arg = node->args; arg; arg = arg->next) {
+            if (is_flonum(arg->ty)) {
+                popf(fp++);
+            } else {
+                pop(argreg64[gp++]);
+            }
         }
 
         // 16-byte align rsp
@@ -424,14 +447,14 @@ void gen(struct Node *node) {
             } else {
                 fprintf(output_file, "  movzx eax, al\n");
             }
-            break;
+            return;
         case TY_SHORT:
             if (node->ty->is_unsigned) {
                 fprintf(output_file, "  movzx eax, ax\n");
             } else {
                 fprintf(output_file, "  movsx eax, ax\n");
             }
-            break;
+            return;
         }
 
         return;
@@ -459,7 +482,7 @@ void gen(struct Node *node) {
             return;
         case TY_DOUBLE:
             tmp.f64 = node->fval;
-            fprintf(output_file, "  mov rax, %lu # double %f\n", tmp.u64,
+            fprintf(output_file, "  mov rax, %lu # double %lf\n", tmp.u64,
                     node->fval);
             fprintf(output_file, "  movq xmm0, rax\n");
             return;
@@ -578,6 +601,65 @@ void gen(struct Node *node) {
         return;
     }
 
+    add_type(node);
+
+    if (is_flonum(node->lhs->ty)) {
+        gen(node->lhs);
+        pushf();
+        gen(node->rhs);
+        pushf();
+        popf(1);
+        popf(0);
+
+        char *sz = (node->lhs->ty->ty == TY_FLOAT) ? "ss" : "sd";
+
+        switch (node->kind) {
+        case ND_ADD:
+            fprintf(output_file, "  add%s xmm0, xmm1\n", sz);
+            break;
+        case ND_SUB:
+            fprintf(output_file, "  sub%s xmm0, xmm1\n", sz);
+            break;
+        case ND_MUL:
+            fprintf(output_file, "  mul%s xmm0, xmm1\n", sz);
+            break;
+        case ND_DIV:
+            fprintf(output_file, "  div%s xmm0, xmm1\n", sz);
+            break;
+        case ND_EQ:
+            fprintf(output_file, "  ucomi%s xmm0, xmm1\n", sz);
+            fprintf(output_file, "  sete al\n");
+            fprintf(output_file, "  setnp dl\n");
+            fprintf(output_file, "  and al, dl\n");
+            fprintf(output_file, "  and al, 1\n");
+            fprintf(output_file, "  movzb rax, al\n");
+            break;
+        case ND_NE:
+            fprintf(output_file, "  ucomi%s xmm0, xmm1\n", sz);
+            fprintf(output_file, "  sete al\n");
+            fprintf(output_file, "  setp dl\n");
+            fprintf(output_file, "  or al, dl\n");
+            fprintf(output_file, "  and al, 1\n");
+            fprintf(output_file, "  movzb rax, al\n");
+            break;
+        case ND_LT:
+            fprintf(output_file, "  ucomi%s xmm1, xmm0\n", sz);
+            fprintf(output_file, "  seta al\n");
+            fprintf(output_file, "  and al, 1\n");
+            fprintf(output_file, "  movzb rax, al\n");
+            break;
+        case ND_LE:
+            fprintf(output_file, "  ucomi%s xmm1, xmm0\n", sz);
+            fprintf(output_file, "  setae al\n");
+            fprintf(output_file, "  and al, 1\n");
+            fprintf(output_file, "  movzb rax, al\n");
+            break;
+        default:
+            error_node(node, "invalid expression");
+        }
+        return;
+    }
+
     gen(node->lhs);
     push();
     gen(node->rhs);
@@ -585,8 +667,6 @@ void gen(struct Node *node) {
 
     pop("rdi");
     pop("rax");
-
-    add_type(node);
 
     char *ax, *di, *dx;
 

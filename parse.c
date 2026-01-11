@@ -103,7 +103,7 @@ struct Node *new_node_add(struct Node *lhs, struct Node *rhs) {
     add_type(lhs);
     add_type(rhs);
 
-    if (is_integer(lhs->ty) && is_integer(rhs->ty)) {
+    if (is_numeric(lhs->ty) && is_numeric(rhs->ty)) {
         return new_node_binary(ND_ADD, lhs, rhs);
     }
 
@@ -128,7 +128,7 @@ struct Node *new_node_sub(struct Node *lhs, struct Node *rhs) {
     add_type(lhs);
     add_type(rhs);
 
-    if (is_integer(lhs->ty) && is_integer(rhs->ty)) {
+    if (is_numeric(lhs->ty) && is_numeric(rhs->ty)) {
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
