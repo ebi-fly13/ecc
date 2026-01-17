@@ -2429,6 +2429,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
         if (cur != &head)
             token = skip(token, ",");
         struct Node *arg = assign(&token, token);
+        add_type(arg);
 
         if (param_tag == NULL && !ty->is_variadic) {
             error("%s: too many arguments", func->obj->name);
@@ -2442,6 +2443,8 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
             }
             arg = new_node_cast(arg, param_tag->ty);
             param_tag = param_tag->next;
+        } else if (arg->ty->ty == TY_FLOAT) {
+            arg = new_node_cast(arg, ty_double);
         }
         cur = cur->next = arg;
     }

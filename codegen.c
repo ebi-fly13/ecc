@@ -859,16 +859,20 @@ void codegen(FILE *out) {
         prologue(obj->stack_size);
 
         if (obj->va_area) {
-            int gp = 0;
+            int gp = 0, fp = 0;
             for (struct Node *arg = obj->args; arg; arg = arg->next) {
-                gp++;
+                if (is_flonum(arg->ty)) {
+                    fp++;
+                } else {
+                    gp++;
+                }
             }
             int offset = obj->va_area->offset;
             // va_elem
             fprintf(output_file, "  mov dword ptr [rbp - %d], %d\n", offset,
                     gp * 8); // general purpose offset
-            fprintf(output_file, "  mov dword ptr [rbp - %d], 0\n",
-                    offset - 4); // floating purpose offset
+            fprintf(output_file, "  mov dword ptr [rbp - %d], %d\n", offset - 4,
+                    fp * 8 + 48); // floating purpose offset
             fprintf(output_file, "  mov qword ptr [rbp - %d], rbp\n",
                     offset - 16);
             fprintf(output_file, "  sub qword ptr [rbp - %d], %d\n",
