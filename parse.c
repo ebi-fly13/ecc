@@ -42,6 +42,7 @@ struct VarAttr {
 struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
+struct Object *current_fn = NULL;
 
 struct Scope *scope = &(struct Scope){};
 struct Node *gotos = NULL;
@@ -530,6 +531,7 @@ static double eval_double(struct Node *node) {
         }
         return eval(node);
     }
+    assert(is_flonum(node->ty));
 
     switch (node->kind) {
     case ND_ADD:
@@ -739,6 +741,7 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     } else {
         assert(is_same_type(fn->ty, tag->ty));
     }
+    current_fn = fn;
     locals = NULL;
     fn->is_global_variable = true;
     fn->is_function = true;
@@ -1362,8 +1365,12 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_RETURN);
         if (!equal(token, ";")) {
             node->lhs = expr(&token, token);
+            add_type(node->lhs);
         }
         token = skip(token, ";");
+        if (node->lhs != NULL) {
+            node->lhs = new_node_cast(node->lhs, current_fn->ty->return_ty);
+        }
     } else if (equal_keyword(token, TK_IF)) {
         node = new_node(ND_IF, token);
         token = skip_keyword(token, TK_IF);
