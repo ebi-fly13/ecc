@@ -42,6 +42,7 @@ struct VarAttr {
 struct Object *locals = NULL;
 struct Object *globals = NULL;
 struct Object *functions = NULL;
+struct Object *current_fn = NULL;
 
 struct Scope *scope = &(struct Scope){};
 struct Node *gotos = NULL;
@@ -412,6 +413,7 @@ bool is_typename(struct Token *token) {
 }
 
 static long eval(struct Node *);
+static double eval_double(struct Node *);
 static long internal_eval(struct Node *, char **);
 
 static long eval_rval(struct Node *node, char **label) {
@@ -430,6 +432,11 @@ static long eval_rval(struct Node *node, char **label) {
 
 static long internal_eval(struct Node *node, char **label) {
     add_type(node);
+
+    if (is_flonum(node->ty)) {
+        return eval_double(node);
+    }
+
     switch (node->kind) {
     case ND_ADD:
         return internal_eval(node->lhs, label) + eval(node->rhs);
@@ -515,6 +522,43 @@ static long internal_eval(struct Node *node, char **label) {
 
 static long eval(struct Node *node) { return internal_eval(node, NULL); }
 
+static double eval_double(struct Node *node) {
+    add_type(node);
+
+    if (is_integer(node->ty)) {
+        if (node->ty->is_unsigned) {
+            return (unsigned long)eval(node);
+        }
+        return eval(node);
+    }
+    assert(is_flonum(node->ty));
+
+    switch (node->kind) {
+    case ND_ADD:
+        return eval_double(node->lhs) + eval_double(node->rhs);
+    case ND_SUB:
+        return eval_double(node->lhs) - eval_double(node->rhs);
+    case ND_MUL:
+        return eval_double(node->lhs) * eval_double(node->rhs);
+    case ND_DIV:
+        return eval_double(node->lhs) / eval_double(node->rhs);
+    case ND_COND:
+        return eval_double(node->cond) ? eval_double(node->then)
+                                       : eval_double(node->els);
+    case ND_COMMA:
+        return eval_double(node->rhs);
+    case ND_CAST:
+        if (is_flonum(node->lhs->ty)) {
+            return eval_double(node->lhs);
+        } else {
+            return eval(node->lhs);
+        }
+    case ND_NUM:
+        return node->fval;
+    }
+    error_node(node, "コンパイル時定数ではありません");
+}
+
 static void write_buffer(char *buf, uint64_t val, int sz) {
     if (sz == 1) {
         *buf = val;
@@ -558,6 +602,16 @@ static struct Relocation *write_gvar_data(struct Relocation *cur,
     }
 
     if (init->expr == NULL) {
+        return cur;
+    }
+
+    if (ty->ty == TY_FLOAT) {
+        *(float *)(buf + offset) = eval_double(init->expr);
+        return cur;
+    }
+
+    if (ty->ty == TY_DOUBLE) {
+        *(double *)(buf + offset) = eval_double(init->expr);
         return cur;
     }
 
@@ -687,6 +741,7 @@ function(struct Token *token, struct Type *ty, struct VarAttr *attr) {
     } else {
         assert(is_same_type(fn->ty, tag->ty));
     }
+    current_fn = fn;
     locals = NULL;
     fn->is_global_variable = true;
     fn->is_function = true;
@@ -1310,8 +1365,12 @@ struct Node *stmt(struct Token **rest, struct Token *token) {
         token = skip_keyword(token, TK_RETURN);
         if (!equal(token, ";")) {
             node->lhs = expr(&token, token);
+            add_type(node->lhs);
         }
         token = skip(token, ";");
+        if (node->lhs != NULL) {
+            node->lhs = new_node_cast(node->lhs, current_fn->ty->return_ty);
+        }
     } else if (equal_keyword(token, TK_IF)) {
         node = new_node(ND_IF, token);
         token = skip_keyword(token, TK_IF);
@@ -2377,6 +2436,7 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
         if (cur != &head)
             token = skip(token, ",");
         struct Node *arg = assign(&token, token);
+        add_type(arg);
 
         if (param_tag == NULL && !ty->is_variadic) {
             error("%s: too many arguments", func->obj->name);
@@ -2390,6 +2450,8 @@ funccall(struct Token **rest, struct Token *token, struct Node *func) {
             }
             arg = new_node_cast(arg, param_tag->ty);
             param_tag = param_tag->next;
+        } else if (arg->ty->ty == TY_FLOAT) {
+            arg = new_node_cast(arg, ty_double);
         }
         cur = cur->next = arg;
     }

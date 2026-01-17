@@ -26,6 +26,24 @@ void epilogue() {
     fprintf(output_file, "  ret\n");
 }
 
+void cmp_zero(struct Type *ty) {
+    assert(ty != NULL);
+    if (is_flonum(ty)) {
+        if (ty->ty == TY_FLOAT) {
+            fprintf(output_file, "  xorps xmm1, xmm1\n");
+            fprintf(output_file, "  ucomiss xmm0, xmm1\n");
+        } else {
+            assert(ty->ty == TY_DOUBLE);
+            fprintf(output_file, "  xorpd xmm1, xmm1\n");
+            fprintf(output_file, "  ucomisd xmm0, xmm1\n");
+        }
+    } else if (is_integer(ty) && ty->size <= 4) {
+        fprintf(output_file, "  cmp eax, 0\n");
+    } else {
+        fprintf(output_file, "  cmp rax, 0\n");
+    }
+}
+
 void push() {
     fprintf(output_file, "  push rax\n");
     depth++;
@@ -303,11 +321,7 @@ static void cast(struct Type *from, struct Type *to) {
     }
 
     if (to->ty == TY_BOOL) {
-        if (is_integer(from) && from->size <= 4) {
-            fprintf(output_file, "  cmp eax, 0\n");
-        } else {
-            fprintf(output_file, "  cmp rax, 0\n");
-        }
+        cmp_zero(from);
         fprintf(output_file, "  setne al\n");
         fprintf(output_file, "  movzx eax, al\n");
         return;
@@ -350,7 +364,7 @@ void gen(struct Node *node) {
     if (node->kind == ND_IF) {
         int number = label++;
         gen(node->cond);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->cond->ty);
         fprintf(output_file, "  je  .Lelse%d\n", number);
         gen(node->then);
         fprintf(output_file, "  jmp .Lend%d\n", number);
@@ -364,7 +378,7 @@ void gen(struct Node *node) {
     if (node->kind == ND_WHILE) {
         fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->cond);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->cond->ty);
         fprintf(output_file, "  je  %s\n", node->break_label);
         gen(node->then);
         fprintf(output_file, "  jmp %s\n", node->continue_label);
@@ -376,9 +390,11 @@ void gen(struct Node *node) {
         int number = label++;
         gen(node->init);
         fprintf(output_file, ".Lbegin%d:\n", number);
-        gen(node->cond);
-        fprintf(output_file, "  cmp rax, 0\n");
-        fprintf(output_file, "  je  %s\n", node->break_label);
+        if (node->cond != NULL) {
+            gen(node->cond);
+            cmp_zero(node->cond->ty);
+            fprintf(output_file, "  je  %s\n", node->break_label);
+        }
         gen(node->then);
         fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->inc);
@@ -471,24 +487,6 @@ void gen(struct Node *node) {
         fprintf(output_file, "  add rsp, 8\n");
         fprintf(output_file, "  mov rsp, [rsp]\n");
 
-        switch (node->ty->ty) {
-        case TY_BOOL:
-        case TY_CHAR:
-            if (node->ty->is_unsigned) {
-                fprintf(output_file, "  movsx eax, al\n");
-            } else {
-                fprintf(output_file, "  movzx eax, al\n");
-            }
-            return;
-        case TY_SHORT:
-            if (node->ty->is_unsigned) {
-                fprintf(output_file, "  movzx eax, ax\n");
-            } else {
-                fprintf(output_file, "  movsx eax, ax\n");
-            }
-            return;
-        }
-
         return;
     }
 
@@ -556,7 +554,7 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_NOT) {
         gen(node->lhs);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->lhs->ty);
         fprintf(output_file, "  sete al\n");
         fprintf(output_file, "  movzx rax, al\n");
         return;
@@ -580,10 +578,10 @@ void gen(struct Node *node) {
     if (node->kind == ND_LOGOR) {
         int number = label++;
         gen(node->lhs);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->lhs->ty);
         fprintf(output_file, "  jne .L.true.%d\n", number);
         gen(node->rhs);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->rhs->ty);
         fprintf(output_file, "  jne .L.true.%d\n", number);
         fprintf(output_file, "  mov rax, 0\n");
         fprintf(output_file, "  jmp .L.end.%d\n", number);
@@ -595,10 +593,10 @@ void gen(struct Node *node) {
     if (node->kind == ND_LOGAND) {
         int number = label++;
         gen(node->lhs);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->lhs->ty);
         fprintf(output_file, "  je .L.false.%d\n", number);
         gen(node->rhs);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->rhs->ty);
         fprintf(output_file, "  je .L.false.%d\n", number);
         fprintf(output_file, "  mov rax, 1\n");
         fprintf(output_file, "  jmp .L.end.%d\n", number);
@@ -611,7 +609,7 @@ void gen(struct Node *node) {
     if (node->kind == ND_COND) {
         int number = label++;
         gen(node->cond);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->cond->ty);
         fprintf(output_file, "  je .L.false.%d\n", number);
         gen(node->then);
         fprintf(output_file, "  jmp .L.end.%d\n", number);
@@ -627,7 +625,7 @@ void gen(struct Node *node) {
         gen(node->then);
         fprintf(output_file, "%s:\n", node->continue_label);
         gen(node->cond);
-        fprintf(output_file, "  cmp rax, 0\n");
+        cmp_zero(node->cond->ty);
         fprintf(output_file, "  jne .L.begin.%d\n", number);
         fprintf(output_file, "%s:\n", node->break_label);
         return;
@@ -859,16 +857,20 @@ void codegen(FILE *out) {
         prologue(obj->stack_size);
 
         if (obj->va_area) {
-            int gp = 0;
+            int gp = 0, fp = 0;
             for (struct Node *arg = obj->args; arg; arg = arg->next) {
-                gp++;
+                if (is_flonum(arg->ty)) {
+                    fp++;
+                } else {
+                    gp++;
+                }
             }
             int offset = obj->va_area->offset;
             // va_elem
             fprintf(output_file, "  mov dword ptr [rbp - %d], %d\n", offset,
                     gp * 8); // general purpose offset
-            fprintf(output_file, "  mov dword ptr [rbp - %d], 0\n",
-                    offset - 4); // floating purpose offset
+            fprintf(output_file, "  mov dword ptr [rbp - %d], %d\n", offset - 4,
+                    fp * 8 + 48); // floating purpose offset
             fprintf(output_file, "  mov qword ptr [rbp - %d], rbp\n",
                     offset - 16);
             fprintf(output_file, "  sub qword ptr [rbp - %d], %d\n",

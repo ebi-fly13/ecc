@@ -72,8 +72,8 @@ int counter() {
   return i++ + j++;
 }
 
-_Bool true_fn() { return 513; }
-_Bool false_fn() { return 512; }
+_Bool true_fn() { return 1; }
+_Bool false_fn() { return 0; }
 char char_fn() { return (2 << 8) + 3; }
 short short_fn() { return (2 << 16) + 5; }
 
