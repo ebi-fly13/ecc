@@ -3,6 +3,8 @@
 int label = 100;
 int depth = 0;
 
+char *current_function_name = NULL;
+
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
@@ -19,8 +21,13 @@ void prologue(int stack_size) {
     fprintf(output_file, "  sub rsp, %d\n", stack_size);
 }
 
+void jump_return() {
+    fprintf(output_file, "  jmp .L.return.%s\n", current_function_name);
+}
+
 void epilogue() {
     // 最後の式の結果がRAXに残っているのでそれが返り値になる
+    fprintf(output_file, ".L.return.%s:\n", current_function_name);
     fprintf(output_file, "  mov rsp, rbp\n");
     fprintf(output_file, "  pop rbp\n");
     fprintf(output_file, "  ret\n");
@@ -352,7 +359,7 @@ void gen(struct Node *node) {
 
     if (node->kind == ND_RETURN) {
         gen(node->lhs);
-        epilogue();
+        jump_return();
         return;
     }
 
@@ -845,6 +852,7 @@ void codegen(FILE *out) {
         if (obj->body == NULL)
             continue;
         assert(obj->is_function);
+        current_function_name = obj->name;
         assign_lvar_offsets(obj);
         fprintf(output_file, "  .text\n");
         if (obj->is_static) {
@@ -917,6 +925,10 @@ void codegen(FILE *out) {
         }
 
         gen(obj->body);
+
+        if (strcmp(obj->name, "main") == 0) {
+            fprintf(output_file, "  mov rax, 0\n");
+        }
 
         epilogue();
     }
