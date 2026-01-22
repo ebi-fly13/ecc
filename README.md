@@ -4,8 +4,6 @@ https://www.sigbus.info/compilerbook を参考にCコンパイラ作成してい
 
 ## セルフホスト
 
-preprocessor を除いてセルフコンパイルができます。
-
 セルフコンパイルしてコンパイラを作成
 ```
 make stage2/ecc
